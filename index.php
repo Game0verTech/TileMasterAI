@@ -848,35 +848,149 @@ $aiSetupNotes = [
 
     .ai-status {
       display: grid;
-      gap: 6px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
+      gap: 10px;
+      padding: 14px 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.12));
       border: 1px solid #cbd5e1;
       font-weight: 600;
       color: #0f172a;
+      text-align: center;
+      justify-items: center;
     }
 
-    .ai-dots {
-      display: inline-flex;
-      gap: 4px;
-      align-items: center;
+    .ai-anim {
+      position: relative;
+      width: min(360px, 100%);
+      height: 150px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      transition: opacity 220ms ease, transform 220ms ease;
     }
 
-    .ai-dots span {
-      width: 8px;
-      height: 8px;
-      background: #0ea5e9;
+    .ai-anim.hidden {
+      opacity: 0;
+      transform: scale(0.96);
+      pointer-events: none;
+      height: 0;
+    }
+
+    .ai-anim.hidden .ai-track,
+    .ai-anim.hidden .ai-node,
+    .ai-anim.hidden .ai-tile,
+    .ai-anim.hidden .ai-wave {
+      animation-play-state: paused;
+    }
+
+    .ai-orbit {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      filter: drop-shadow(0 10px 16px rgba(14, 165, 233, 0.16));
+    }
+
+    .ai-tile {
+      position: absolute;
+      min-width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+      padding: 0 12px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+      animation: float 2.8s ease-in-out infinite;
+      white-space: nowrap;
+    }
+
+    .ai-tile:nth-child(1) { animation-delay: 0s; }
+    .ai-tile:nth-child(2) { animation-delay: 0.2s; }
+    .ai-tile:nth-child(3) { animation-delay: 0.35s; }
+    .ai-tile:nth-child(4) { animation-delay: 0.5s; }
+
+    .ai-tile.word {
+      width: 92px;
+      background: linear-gradient(135deg, #0ea5e9, #22c55e);
+      transform: rotate(-4deg);
+    }
+
+    .ai-track {
+      position: absolute;
+      inset: 0;
+      animation: rotate var(--orbit-speed, 7s) linear infinite;
+      transform-origin: center;
+    }
+
+    .ai-track:nth-child(2) { animation-direction: reverse; }
+
+    .ai-node {
+      position: absolute;
+      animation: drift var(--drift-speed, 5.6s) ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    .ai-trail {
+      position: absolute;
+      inset: 18px;
+      background: conic-gradient(from 45deg, rgba(14, 165, 233, 0.15), transparent 40%, rgba(99, 102, 241, 0.12));
+      filter: blur(12px);
       border-radius: 50%;
-      animation: pulse 1.2s infinite ease-in-out;
+      animation: pulseRing 3.6s ease-in-out infinite;
     }
 
-    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+    .ai-wave {
+      position: absolute;
+      bottom: 6px;
+      display: flex;
+      gap: 8px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: 1px;
+      animation: wave 2.6s ease-in-out infinite;
+    }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 0.2; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-2px); }
+    .ai-wave span {
+      background: rgba(255, 255, 255, 0.76);
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: 0 10px 16px rgba(15, 23, 42, 0.08);
+    }
+
+    .ai-step { font-size: 16px; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      25% { transform: translateY(-16px) scale(1.03) rotate(-2deg); }
+      50% { transform: translateY(8px) scale(0.98) rotate(2deg); }
+      75% { transform: translateY(-10px) scale(1.02) rotate(-3deg); }
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(6px, -12px) rotate(-3deg) scale(1.02); }
+      50% { transform: translate(-8px, 10px) rotate(4deg) scale(0.98); }
+      75% { transform: translate(12px, 4px) rotate(-2deg) scale(1.04); }
+    }
+
+    @keyframes pulseRing {
+      0%, 100% { opacity: 0.45; transform: scale(0.92); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes wave {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
     }
 
     @keyframes shimmer {
@@ -1634,6 +1748,7 @@ $aiSetupNotes = [
       const aiStatusEl = document.getElementById('aiStatus');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
+      const aiAnimEl = document.querySelector('.ai-anim');
       const rulesBtn = document.getElementById('openRules');
       const menuToggle = document.getElementById('menuToggle');
       const menuPanel = document.getElementById('menuPanel');
@@ -2437,6 +2552,52 @@ $aiSetupNotes = [
         aiRevealTimeout = null;
       };
 
+      const showAiAnimation = () => {
+        if (aiAnimEl) {
+          aiAnimEl.classList.remove('hidden');
+        }
+      };
+
+      const hideAiAnimation = () => {
+        if (aiAnimEl) {
+          aiAnimEl.classList.add('hidden');
+        }
+      };
+
+      const randomizeAiAnimation = () => {
+        if (!aiAnimEl) return;
+
+        const tracks = Array.from(aiAnimEl.querySelectorAll('.ai-track'));
+        const nodes = Array.from(aiAnimEl.querySelectorAll('.ai-node'));
+        const faces = ['AI', 'TILES', 'WORDS', 'PLAY', 'SCORE', 'RACK', 'MOVE', '+', '?!', 'BINGO'];
+
+        tracks.forEach((track) => {
+          const speed = 6 + Math.random() * 4.5;
+          track.style.setProperty('--orbit-speed', `${speed.toFixed(2)}s`);
+          track.style.animationDirection = Math.random() > 0.5 ? 'normal' : 'reverse';
+        });
+
+        nodes.forEach((node) => {
+          const radius = 46 + Math.random() * 90;
+          const angle = Math.random() * Math.PI * 2;
+          const wobble = -12 + Math.random() * 24;
+          const drift = 4.6 + Math.random() * 3.4;
+          const tile = node.querySelector('.ai-tile');
+          const face = faces.splice(Math.floor(Math.random() * faces.length), 1)[0] || 'AI';
+          if (tile) {
+            tile.textContent = face;
+            tile.classList.toggle('word', face.length > 3);
+          }
+          node.style.transform = `translate(${Math.cos(angle) * radius}px, ${Math.sin(angle) * radius}px) rotate(${wobble}deg)`;
+          node.style.setProperty('--drift-speed', `${drift.toFixed(2)}s`);
+        });
+
+        const wave = aiAnimEl.querySelector('.ai-wave');
+        if (wave) {
+          wave.style.animationDelay = `${Math.random() * 1.8}s`;
+        }
+      };
+
       const openAiModal = () => {
         if (!aiModal) return;
         aiModal.classList.add('active');
@@ -2462,7 +2623,7 @@ $aiSetupNotes = [
         if (!aiListEl) return;
         aiListEl.innerHTML = '';
 
-        list.forEach((move, index) => {
+        list.slice(0, 5).forEach((move, index) => {
           const li = document.createElement('li');
           li.className = 'ai-card';
           li.dataset.word = move.word;
@@ -2496,6 +2657,8 @@ $aiSetupNotes = [
           aiListEl.innerHTML = '';
         }
 
+        showAiAnimation();
+        randomizeAiAnimation();
         aiStepEl.textContent = steps[0];
         if (aiSubtextEl) {
           aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
@@ -2505,9 +2668,13 @@ $aiSetupNotes = [
         aiRevealTimeout = setTimeout(async () => {
           await fetchAiSuggestions();
           const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
-          renderAiSuggestions(playable);
+          const topFive = playable.slice(0, 5);
+          renderAiSuggestions(topFive);
+          if (topFive.length > 0) {
+            hideAiAnimation();
+          }
           if (aiSubtextEl) {
-            aiSubtextEl.textContent = playable.length
+            aiSubtextEl.textContent = topFive.length
               ? 'Suggestions ready! Tap a move to load it and keep playing.'
               : 'No playable suggestions with your current rack—draw or adjust tiles and try again.';
           }
@@ -2977,8 +3144,21 @@ $aiSetupNotes = [
         <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
       </div>
       <div class="ai-status" id="aiStatus">
-        <span id="aiStep">Warming up the move engine…</span>
-        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        <div class="ai-anim" aria-hidden="true">
+          <div class="ai-trail"></div>
+          <div class="ai-track">
+            <div class="ai-node" style="transform: translate(120px, -8px);"><span class="ai-tile">A</span></div>
+            <div class="ai-node" style="transform: translate(-118px, -18px);"><span class="ai-tile word">WORDS</span></div>
+            <div class="ai-node" style="transform: translate(14px, -104px);"><span class="ai-tile">AI</span></div>
+            <div class="ai-node" style="transform: translate(96px, 86px);"><span class="ai-tile">+</span></div>
+          </div>
+          <div class="ai-track">
+            <div class="ai-node" style="transform: translate(-18px, 104px);"><span class="ai-tile">PLAY</span></div>
+            <div class="ai-node" style="transform: translate(-124px, 66px);"><span class="ai-tile">?!</span></div>
+          </div>
+          <div class="ai-wave"><span>thinking</span><span>shuffling</span><span>spelling</span></div>
+        </div>
+        <span class="ai-step" id="aiStep">Warming up the move engine…</span>
         <p class="ai-meta" id="aiSubtext">Returning tiles to your rack and dreaming up moves.</p>
       </div>
       <ul class="ai-list" id="aiList" aria-live="polite"></ul>
