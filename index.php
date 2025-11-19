@@ -2,6 +2,51 @@
 require __DIR__ . '/config/env.php';
 
 $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
+
+$premiumBoard = [
+  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
+  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
+  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
+  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
+  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
+  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
+  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
+  ['TW', '', '', 'DL', '', '', '', 'DW', '', '', '', 'DL', '', '', 'TW'],
+  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
+  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
+  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
+  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
+  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
+  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
+  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
+];
+
+$rowLabels = range('A', 'O');
+$columnLabels = range(1, 15);
+
+$sampleTiles = [
+  'H8' => ['letter' => 'O', 'value' => 1],
+  'I8' => ['letter' => 'R', 'value' => 1],
+  'J8' => ['letter' => 'A', 'value' => 1],
+  'K8' => ['letter' => 'T', 'value' => 1],
+  'L8' => ['letter' => 'I', 'value' => 1],
+  'M8' => ['letter' => 'O', 'value' => 1],
+  'N8' => ['letter' => 'N', 'value' => 1],
+  'F7' => ['letter' => 'T', 'value' => 1],
+  'F8' => ['letter' => 'O', 'value' => 1],
+  'F9' => ['letter' => 'N', 'value' => 1],
+  'F10' => ['letter' => 'E', 'value' => 1],
+];
+
+$rackTiles = [
+  ['letter' => 'T', 'value' => 1],
+  ['letter' => 'I', 'value' => 1],
+  ['letter' => 'L', 'value' => 1],
+  ['letter' => 'E', 'value' => 1],
+  ['letter' => 'M', 'value' => 3],
+  ['letter' => 'A', 'value' => 1],
+  ['letter' => '?', 'value' => 0],
+];
 ?>
 <!doctype html>
 <html lang="en">
@@ -122,31 +167,84 @@ $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !
     .board-preview {
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
       border-radius: var(--radius);
-      padding: 14px;
+      padding: 12px;
       border: 1px dashed #cbd5e1;
     }
 
     .board-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 5px;
+      background: #e2e8f0;
+      padding: 8px;
+      border-radius: 14px;
+      border: 1px solid #cbd5e1;
     }
 
-    .tile {
+    .cell {
+      position: relative;
       aspect-ratio: 1;
-      border-radius: 10px;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.12);
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
       display: grid;
       place-items: center;
       font-weight: 700;
-      color: #4338ca;
-      font-size: 14px;
+      color: #0f172a;
+      font-size: 12px;
+      text-transform: uppercase;
+      overflow: hidden;
     }
 
-    .tile:nth-child(3n) { color: #dc2626; box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.14); }
-    .tile:nth-child(4n) { color: #0284c7; box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.14); }
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      pointer-events: none;
+    }
+
+    .cell.triple-word { background: #fecdd3; color: #7f1d1d; }
+    .cell.double-word { background: #ffe4e6; color: #9f1239; }
+    .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
+    .cell.double-letter { background: #e0f2fe; color: #075985; }
+    .cell.center-star { background: #ffe4e6; color: #9f1239; }
+
+    .cell-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .coordinate {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .coordinate.col { top: 6px; right: 8px; }
+    .coordinate.row { bottom: 6px; left: 8px; }
+
+    .tile {
+      width: calc(100% - 8px);
+      height: calc(100% - 8px);
+      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      border-radius: 6px;
+      border: 1px solid #d4a373;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      grid-template-rows: 1fr auto;
+      padding: 4px 6px;
+      color: #0f172a;
+    }
+
+    .tile .letter { font-size: 18px; font-weight: 800; }
+    .tile .value { font-size: 10px; font-weight: 700; justify-self: end; }
 
     .rack-bar {
       display: flex;
@@ -159,14 +257,23 @@ $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !
       border-radius: 12px;
     }
 
-    .rack-chip {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      font-weight: 700;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    .rack-tile {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      grid-template-rows: 1fr auto;
+      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      border-radius: 8px;
+      border: 1px solid #d4a373;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      color: #0f172a;
+      font-weight: 800;
     }
+
+    .rack-tile .letter { font-size: 18px; }
+    .rack-tile .value { font-size: 11px; justify-self: end; font-weight: 700; }
 
     .actions {
       display: grid;
@@ -276,7 +383,7 @@ $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !
   <header>
     <span class="eyebrow">Phase 2 · Experience design</span>
     <h1>Designing the TileMasterAI board experience</h1>
-    <p class="lede">Mobile-first scaffolding for the main play surface: board grid, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
+    <p class="lede">Mobile-first scaffolding for a Scrabble-standard play surface: authentic 15x15 bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
     <div class="status" aria-live="polite">
       <span class="status-icon" aria-hidden="true"></span>
       <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
@@ -286,26 +393,65 @@ $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !
   <section class="grid" aria-label="Phase 2 layout preview">
     <article class="card">
       <h2 class="subhead">Primary layout</h2>
-      <p class="note">Board sits left, with rack and actions tucked underneath; move results and upload stubs stay to the right on larger viewports and stack gracefully on mobile.</p>
+      <p class="note">Standard 15x15 Scrabble grid with the authentic premium pattern, a centered star on the H8 double word, and sample tiles placed using real coordinates.</p>
       <div class="layout-shell">
         <div class="board-preview" aria-label="Board preview">
           <div class="board-grid" role="presentation">
-            <div class="tile">TW</div><div class="tile">DL</div><div class="tile">DW</div><div class="tile">TL</div><div class="tile">DL</div>
-            <div class="tile">A</div><div class="tile">I</div><div class="tile">R</div><div class="tile">TL</div><div class="tile">DW</div>
-            <div class="tile">DL</div><div class="tile">DW</div><div class="tile">*</div><div class="tile">DL</div><div class="tile">TL</div>
-            <div class="tile">DW</div><div class="tile">TL</div><div class="tile">O</div><div class="tile">N</div><div class="tile">A</div>
-            <div class="tile">DL</div><div class="tile">TL</div><div class="tile">DW</div><div class="tile">DL</div><div class="tile">TL</div>
+            <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+              <?php foreach ($row as $colIndex => $cellType):
+                $rowLabel = $rowLabels[$rowIndex];
+                $colLabel = $columnLabels[$colIndex];
+                $coordKey = $rowLabel . $colLabel;
+                $tile = $sampleTiles[$coordKey] ?? null;
+                $isCenter = $rowIndex === 7 && $colIndex === 7;
+                $classes = 'cell';
+
+                if ($cellType === 'TW') { $classes .= ' triple-word'; }
+                if ($cellType === 'DW') { $classes .= ' double-word'; }
+                if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+                if ($cellType === 'DL') { $classes .= ' double-letter'; }
+                if ($isCenter) { $classes .= ' center-star'; }
+
+                $cellName = match ($cellType) {
+                  'TW' => 'triple word',
+                  'DW' => 'double word',
+                  'TL' => 'triple letter',
+                  'DL' => 'double letter',
+                  default => 'regular'
+                };
+
+                $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+                if ($isCenter) { $ariaParts[] = 'start star'; }
+                if ($tile) { $ariaParts[] = "tile {$tile['letter']} ({$tile['value']} pt)"; }
+                $ariaLabel = implode(' · ', $ariaParts);
+              ?>
+              <div class="<?php echo $classes; ?>" aria-label="<?php echo $ariaLabel; ?>">
+                <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+                <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
+
+                <?php if ($tile): ?>
+                  <div class="tile" aria-hidden="true">
+                    <span class="letter"><?php echo $tile['letter']; ?></span>
+                    <span class="value"><?php echo $tile['value']; ?></span>
+                  </div>
+                <?php elseif ($isCenter): ?>
+                  <span class="cell-label">★ DW</span>
+                <?php elseif ($cellType !== ''): ?>
+                  <span class="cell-label"><?php echo $cellType; ?></span>
+                <?php endif; ?>
+              </div>
+              <?php endforeach; ?>
+            <?php endforeach; ?>
           </div>
         </div>
         <div class="card" style="box-shadow:none; border-style:dashed;">
           <div class="rack-bar" aria-label="Rack preview">
-            <span class="rack-chip">T</span>
-            <span class="rack-chip">I</span>
-            <span class="rack-chip">L</span>
-            <span class="rack-chip">E</span>
-            <span class="rack-chip">M</span>
-            <span class="rack-chip">A</span>
-            <span class="rack-chip">*</span>
+            <?php foreach ($rackTiles as $rackTile): ?>
+              <div class="rack-tile" aria-label="Rack tile <?php echo $rackTile['letter']; ?>">
+                <span class="letter"><?php echo $rackTile['letter']; ?></span>
+                <span class="value"><?php echo $rackTile['value']; ?></span>
+              </div>
+            <?php endforeach; ?>
           </div>
           <div class="actions" aria-label="Action buttons">
             <div class="btn">Run solver</div>
