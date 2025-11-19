@@ -39,12 +39,30 @@ class GameRepository
         return $session !== false ? $session : null;
     }
 
+    public function getSessionById(int $sessionId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM sessions WHERE id = :id LIMIT 1');
+        $statement->execute([':id' => $sessionId]);
+        $session = $statement->fetch();
+
+        return $session !== false ? $session : null;
+    }
+
     public function createPlayer(string $name): int
     {
         $statement = $this->pdo->prepare('INSERT INTO players (name) VALUES (:name)');
         $statement->execute([':name' => $name]);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    public function getPlayer(int $playerId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM players WHERE id = :id LIMIT 1');
+        $statement->execute([':id' => $playerId]);
+        $player = $statement->fetch();
+
+        return $player !== false ? $player : null;
     }
 
     public function addPlayerToSession(int $sessionId, int $playerId, int $joinOrder, bool $isHost = false): void
@@ -65,6 +83,15 @@ class GameRepository
         ]);
     }
 
+    public function removePlayerFromSession(int $sessionId, int $playerId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM session_players WHERE session_id = :session_id AND player_id = :player_id');
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+        ]);
+    }
+
     public function countPlayersInSession(int $sessionId): int
     {
         $statement = $this->pdo->prepare('SELECT COUNT(*) as total FROM session_players WHERE session_id = :session_id');
@@ -72,6 +99,88 @@ class GameRepository
         $result = $statement->fetch();
 
         return isset($result['total']) ? (int) $result['total'] : 0;
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, join_order: int, is_host: bool}>
+     */
+    public function listPlayersForSession(int $sessionId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT p.id, p.name, sp.join_order, sp.is_host '
+            . 'FROM session_players sp '
+            . 'JOIN players p ON p.id = sp.player_id '
+            . 'WHERE sp.session_id = :session_id '
+            . 'ORDER BY sp.join_order ASC'
+        );
+        $statement->execute([':session_id' => $sessionId]);
+        $players = $statement->fetchAll();
+
+        return array_map(
+            static fn ($player) => [
+                'id' => (int) $player['id'],
+                'name' => (string) $player['name'],
+                'join_order' => (int) $player['join_order'],
+                'is_host' => (bool) $player['is_host'],
+            ],
+            $players ?: []
+        );
+    }
+
+    public function getPlayerSessionRole(int $sessionId, int $playerId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT join_order, is_host FROM session_players WHERE session_id = :session_id AND player_id = :player_id LIMIT 1'
+        );
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+        ]);
+        $result = $statement->fetch();
+
+        if ($result === false) {
+            return null;
+        }
+
+        return [
+            'join_order' => (int) $result['join_order'],
+            'is_host' => (bool) $result['is_host'],
+        ];
+    }
+
+    public function assignNextHost(int $sessionId): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT player_id FROM session_players WHERE session_id = :session_id ORDER BY join_order ASC LIMIT 1'
+        );
+        $statement->execute([':session_id' => $sessionId]);
+        $nextHost = $statement->fetch();
+
+        if ($nextHost === false) {
+            return;
+        }
+
+        $playerId = (int) $nextHost['player_id'];
+
+        $reset = $this->pdo->prepare('UPDATE session_players SET is_host = 0 WHERE session_id = :session_id');
+        $reset->execute([':session_id' => $sessionId]);
+
+        $assign = $this->pdo->prepare(
+            'UPDATE session_players SET is_host = 1 WHERE session_id = :session_id AND player_id = :player_id'
+        );
+        $assign->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+        ]);
+    }
+
+    public function setSessionStatus(int $sessionId, string $status): void
+    {
+        $statement = $this->pdo->prepare('UPDATE sessions SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $statement->execute([
+            ':status' => $status,
+            ':id' => $sessionId,
+        ]);
     }
 
     /**

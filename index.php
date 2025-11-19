@@ -824,6 +824,89 @@ $aiSetupNotes = [
 
     .session-empty { margin: 0; color: var(--muted); font-weight: 700; }
 
+    .lobby-card {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .lobby-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .lobby-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      color: var(--muted);
+    }
+
+    .lobby-roster {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .lobby-player {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .lobby-order {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #e2e8f0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .badge.host {
+      background: rgba(99, 102, 241, 0.12);
+      color: var(--accent-strong);
+      border: 1px solid rgba(99, 102, 241, 0.24);
+    }
+
+    .badge.self {
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--ink);
+      border: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .lobby-actions {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
     .lede.small { font-size: 15px; }
 
     .list {
@@ -1675,6 +1758,7 @@ $aiSetupNotes = [
         </div>
         <div class="session-actions">
           <button class="btn small" type="submit">Create session</button>
+          <button class="btn small ghost" type="button" id="joinSessionBtn">Join session</button>
           <p class="session-hint">Max 4 players per table. Creators are marked as host.</p>
         </div>
       </form>
@@ -1683,6 +1767,23 @@ $aiSetupNotes = [
     <div class="session-flash" id="sessionFlash" role="status" aria-live="polite"></div>
     <div class="session-list" id="sessionList" role="list"></div>
     <p class="session-empty" id="sessionEmpty">No sessions yet — create one.</p>
+    <div class="lobby-card" id="lobbyCard" hidden>
+      <div class="lobby-header">
+        <div>
+          <p class="eyebrow">Live lobby</p>
+          <h3 class="subhead" id="lobbyTitle">Session lobby</h3>
+        </div>
+        <div class="lobby-meta">
+          <span class="hud-pill" id="lobbyStatus">Waiting for players</span>
+          <span class="hud-pill" id="lobbyCapacity"></span>
+        </div>
+      </div>
+      <div class="lobby-roster" id="lobbyRoster"></div>
+      <div class="lobby-actions">
+        <button class="btn" type="button" id="startGameBtn" disabled aria-disabled="true">Start game</button>
+        <button class="btn ghost" type="button" id="leaveSessionBtn">Leave lobby</button>
+      </div>
+    </div>
   </section>
 
   <main class="app-shell" aria-label="TileMasterAI board">
@@ -1825,7 +1926,26 @@ $aiSetupNotes = [
       const createSessionForm = document.getElementById('createSessionForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
+      const joinSessionBtn = document.getElementById('joinSessionBtn');
+      const lobbyCard = document.getElementById('lobbyCard');
+      const lobbyTitle = document.getElementById('lobbyTitle');
+      const lobbyStatus = document.getElementById('lobbyStatus');
+      const lobbyCapacity = document.getElementById('lobbyCapacity');
+      const lobbyRoster = document.getElementById('lobbyRoster');
+      const startGameBtn = document.getElementById('startGameBtn');
+      const leaveSessionBtn = document.getElementById('leaveSessionBtn');
       const MAX_PLAYERS = 4;
+      const lobbyWsUrl = <?php
+        $explicitWsUrl = getenv('LOBBY_WS_URL') ?: '';
+        $wsPort = getenv('LOBBY_WS_PORT') ?: '8090';
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'wss' : 'ws';
+        $computed = $protocol . '://' . ($_SERVER['SERVER_NAME'] ?? 'localhost') . ':' . $wsPort;
+        echo json_encode($explicitWsUrl ?: $computed);
+      ?>;
+      let lobbySocket = null;
+      let lobbyConnected = false;
+      let activeSession = null;
+      let currentPlayer = null;
 
       const setSessionFlash = (message, tone = 'info') => {
         if (!sessionFlashEl) return;
@@ -1837,6 +1957,162 @@ $aiSetupNotes = [
 
         sessionFlashEl.className = classes.join(' ');
         sessionFlashEl.textContent = message;
+      };
+
+      const openLobbySocket = () => {
+        if (lobbySocket && lobbyConnected) {
+          return lobbySocket;
+        }
+
+        try {
+          lobbySocket = new WebSocket(lobbyWsUrl);
+        } catch (error) {
+          console.error('Unable to connect to lobby WebSocket', error);
+          return null;
+        }
+
+        lobbySocket.addEventListener('open', () => {
+          lobbyConnected = true;
+          if (activeSession?.code) {
+            lobbySocket?.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
+            lobbySocket?.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
+          }
+        });
+
+        lobbySocket.addEventListener('close', () => {
+          lobbyConnected = false;
+          setTimeout(() => {
+            lobbySocket = null;
+            if (activeSession?.code) {
+              openLobbySocket();
+            }
+          }, 800);
+        });
+
+        lobbySocket.addEventListener('message', (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.type === 'session.roster') {
+              renderRoster(payload);
+            }
+            if (payload.type === 'session.started') {
+              renderLobbyStatus('started');
+              playFx('accept');
+            }
+            if (payload.type === 'player.sound' && payload.tone) {
+              playFx(payload.tone, { rate: 1.05 });
+            }
+          } catch (error) {
+            console.error('WS message error', error);
+          }
+        });
+
+        lobbySocket.addEventListener('error', (event) => {
+          console.error('Lobby WebSocket error', event);
+        });
+
+        return lobbySocket;
+      };
+
+      const renderLobbyStatus = (status) => {
+        if (!lobbyStatus || !activeSession) return;
+        const tone = status === 'started' ? 'In progress' : 'Waiting for players';
+        lobbyStatus.textContent = tone;
+      };
+
+      const renderRoster = (payload) => {
+        if (!lobbyCard || !lobbyRoster || !payload?.players) return;
+
+        const { players, sessionCode, canStart, status = 'pending' } = payload;
+        lobbyCard.hidden = false;
+        lobbyTitle.textContent = `Session ${sessionCode}`;
+        lobbyCapacity.textContent = `${players.length}/${payload.maxPlayers} players`;
+        renderLobbyStatus(status);
+        if (activeSession) {
+          activeSession.status = status;
+        }
+
+        lobbyRoster.innerHTML = '';
+
+        players.forEach((player) => {
+          const row = document.createElement('div');
+          row.className = 'lobby-player';
+
+          const order = document.createElement('span');
+          order.className = 'lobby-order';
+          order.textContent = player.join_order;
+
+          const name = document.createElement('div');
+          name.innerHTML = `<strong>${player.name}</strong>`;
+
+          const badges = document.createElement('div');
+          badges.className = 'lobby-meta';
+
+          if (player.is_host) {
+            const hostBadge = document.createElement('span');
+            hostBadge.className = 'badge host';
+            hostBadge.textContent = 'Host';
+            badges.appendChild(hostBadge);
+          }
+
+          if (currentPlayer?.id === player.id) {
+            const selfBadge = document.createElement('span');
+            selfBadge.className = 'badge self';
+            selfBadge.textContent = 'You';
+            badges.appendChild(selfBadge);
+            currentPlayer.is_host = !!player.is_host;
+            currentPlayer.join_order = player.join_order;
+          }
+
+          row.appendChild(order);
+          row.appendChild(name);
+          row.appendChild(badges);
+
+          lobbyRoster.appendChild(row);
+        });
+
+        if (startGameBtn) {
+          const isHost = Boolean(currentPlayer?.is_host);
+          const readyToStart = canStart && status !== 'started';
+          startGameBtn.disabled = !(isHost && readyToStart);
+          startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
+        }
+      };
+
+      const setActiveSession = (session, player) => {
+        activeSession = session;
+        currentPlayer = player;
+        openLobbySocket();
+        if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN) {
+          lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
+          lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
+        }
+      };
+
+      const refreshLobby = async (code) => {
+        try {
+          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(code)}`);
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to load lobby.');
+          }
+
+          renderRoster({
+            sessionCode: data.session.code,
+            status: data.session.status,
+            maxPlayers: data.session.max_players,
+            players: data.players,
+            canStart: data.players.length >= 2,
+          });
+
+          if (lobbySocket?.readyState === WebSocket.OPEN) {
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: data.session.code }));
+          }
+        } catch (error) {
+          console.error(error);
+          setSessionFlash('Unable to load lobby roster.', 'error');
+        }
       };
 
       const renderSessions = (sessions = []) => {
@@ -1951,6 +2227,17 @@ $aiSetupNotes = [
           setSessionFlash(`Session ${data.session.code} created. You're the host.`, 'success');
           sessionCodeInput.value = '';
           playerNameInput.value = '';
+          setActiveSession({
+            id: data.session.id,
+            code: data.session.code,
+            status: data.session.status,
+            max_players: data.session.max_players ?? MAX_PLAYERS,
+          }, {
+            id: data.session.host?.id,
+            name: data.session.host?.name || playerName,
+            is_host: true,
+          });
+          refreshLobby(data.session.code);
           fetchSessions();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to create session.';
@@ -1958,8 +2245,143 @@ $aiSetupNotes = [
         }
       };
 
+      const handleJoinSession = async () => {
+        if (!sessionCodeInput || !playerNameInput) return;
+
+        const code = sessionCodeInput.value.trim();
+        const playerName = playerNameInput.value.trim();
+
+        if (code === '' || playerName === '') {
+          setSessionFlash('Enter a session code and your name to join.', 'error');
+          return;
+        }
+
+        setSessionFlash('Joining session…');
+
+        try {
+          const response = await fetch('/api/session_players.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, playerName }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to join session.');
+          }
+
+          setSessionFlash(`Joined ${data.session.code}.`, 'success');
+          setActiveSession({
+            id: data.session.id,
+            code: data.session.code,
+            status: data.session.status,
+            max_players: data.session.max_players ?? MAX_PLAYERS,
+          }, {
+            id: data.player.id,
+            name: data.player.name,
+            is_host: false,
+          });
+          renderRoster({
+            sessionCode: data.session.code,
+            status: data.session.status,
+            maxPlayers: data.session.max_players ?? MAX_PLAYERS,
+            players: data.players,
+            canStart: data.players.length >= 2,
+          });
+          if (lobbySocket?.readyState === WebSocket.OPEN) {
+            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: data.session.code, tone: 'accept' }));
+          }
+          fetchSessions();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to join session.';
+          setSessionFlash(message, 'error');
+        }
+      };
+
+      const handleLeaveSession = async () => {
+        if (!activeSession?.code || !currentPlayer?.id) {
+          return;
+        }
+
+        try {
+          const code = activeSession.code;
+          const response = await fetch('/api/session_players.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: activeSession.code, playerId: currentPlayer.id }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to leave session.');
+          }
+
+          if (lobbySocket?.readyState === WebSocket.OPEN) {
+            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: code, tone: 'reset' }));
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
+          }
+
+          activeSession = null;
+          currentPlayer = null;
+          if (lobbyCard) {
+            lobbyCard.hidden = true;
+          }
+          if (lobbyRoster) {
+            lobbyRoster.innerHTML = '';
+          }
+          setSessionFlash('Left the lobby.', 'success');
+          fetchSessions();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to leave session.';
+          setSessionFlash(message, 'error');
+        }
+      };
+
+      const handleStartGame = async () => {
+        if (!activeSession?.code || !currentPlayer?.id) return;
+
+        try {
+          const response = await fetch('/api/session_players.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to start game.');
+          }
+
+          activeSession.status = data.session.status;
+          renderLobbyStatus('started');
+          if (lobbySocket?.readyState === WebSocket.OPEN) {
+            lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
+            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: activeSession.code, tone: 'accept' }));
+          }
+          setSessionFlash('Game started.', 'success');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to start game.';
+          setSessionFlash(message, 'error');
+        }
+      };
+
       if (createSessionForm) {
         createSessionForm.addEventListener('submit', handleCreateSession);
+      }
+
+      if (joinSessionBtn) {
+        joinSessionBtn.addEventListener('click', handleJoinSession);
+      }
+
+      if (leaveSessionBtn) {
+        leaveSessionBtn.addEventListener('click', handleLeaveSession);
+      }
+
+      if (startGameBtn) {
+        startGameBtn.addEventListener('click', handleStartGame);
       }
 
       let tileId = 0;
