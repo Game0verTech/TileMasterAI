@@ -301,7 +301,10 @@ $aiSetupNotes = [
       font-size: 12px;
       text-transform: uppercase;
       overflow: hidden;
+      grid-template-rows: 1fr;
     }
+
+    .cell > * { grid-area: 1 / 1 / 2 / 2; }
 
     .cell::after {
       content: "";
@@ -317,6 +320,15 @@ $aiSetupNotes = [
     .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
     .cell.double-letter { background: #e0f2fe; color: #075985; }
     .cell.center-star { background: #ffe4e6; color: #9f1239; }
+
+    .cell.show-premium {
+      grid-template-rows: auto 1fr;
+      align-items: start;
+    }
+
+    .cell.show-premium > .cell-label { align-self: start; }
+    .cell.show-premium > .tile { grid-area: 2 / 1 / 3 / 2; }
+    .cell.premium-used > .cell-label { display: none; }
 
     .cell-label {
       font-size: 11px;
@@ -427,11 +439,81 @@ $aiSetupNotes = [
       font-size: 13px;
     }
 
+    .message {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
+    .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+
+    .cell.invalid {
+      outline: 2px solid #ef4444;
+      outline-offset: -2px;
+      box-shadow: inset 0 0 0 2px #fee2e2;
+    }
+
+    .cell[data-tooltip]:hover::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+      font-size: 12px;
+      z-index: 5;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+    }
+
+    .cell[data-tooltip]:hover::after { display: none; }
+
+    .score-line { display: flex; align-items: center; gap: 6px; }
+
+    .board-grid .cell.drag-target {
+      border-color: #6366f1;
+      box-shadow: inset 0 0 0 2px #c7d2fe;
+    }
+
     .actions {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 10px;
     }
+
+    .turn-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .pill strong { font-size: 15px; }
 
     .btn {
       padding: 12px 14px;
@@ -448,6 +530,12 @@ $aiSetupNotes = [
       background: #f8fafc;
       color: var(--ink);
       border-style: dashed;
+    }
+
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
     }
 
     .list {
@@ -657,27 +745,18 @@ $aiSetupNotes = [
                 }
                 $ariaLabel = implode(' · ', $ariaParts);
               ?>
-              <div class="<?php echo $classes; ?>" aria-label="<?php echo $ariaLabel; ?>">
+              <div
+                class="<?php echo $classes; ?>"
+                aria-label="<?php echo $ariaLabel; ?>"
+                data-row="<?php echo $rowIndex; ?>"
+                data-col="<?php echo $colIndex; ?>"
+                data-premium="<?php echo $cellType; ?>"
+                data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+              >
                 <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
                 <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
-                <?php if ($tile): ?>
-                  <?php
-                    $tileLetter = $tile->letter();
-                    $isBlankTile = $tile->isBlank();
-                    $tileClasses = 'tile' . ($isBlankTile ? ' blank' : '');
-                    $letterClass = 'letter';
-                    if ($isBlankTile) {
-                      $letterClass .= $tileLetter === '?' ? ' blank-empty' : ' blank-assigned';
-                    }
-                    $tileLetterDisplay = $isBlankTile && $tileLetter === '?' ? '&nbsp;' : $tileLetter;
-                    $tileValueDisplay = $isBlankTile ? '' : $tile->value();
-                  ?>
-                  <div class="<?php echo $tileClasses; ?>" aria-hidden="true">
-                    <span class="<?php echo $letterClass; ?>"><?php echo $tileLetterDisplay; ?></span>
-                    <span class="value"><?php echo $tileValueDisplay; ?></span>
-                  </div>
-                <?php elseif ($isCenter): ?>
+                <?php if ($isCenter): ?>
                   <span class="cell-label">★ DW</span>
                 <?php elseif ($cellType !== ''): ?>
                   <span class="cell-label"><?php echo $cellType; ?></span>
@@ -688,33 +767,20 @@ $aiSetupNotes = [
           </div>
         </div>
         <div class="card" style="box-shadow:none; border-style:dashed;">
-          <div class="rack-bar" aria-label="Rack preview">
-            <?php foreach ($rackTiles as $rackTile): ?>
-              <?php
-                $rackTileClass = 'rack-tile' . ($rackTile['isBlank'] ? ' blank' : '');
-                $rackLetterClass = 'letter';
-                if ($rackTile['isBlank']) {
-                  $rackLetterClass .= $rackTile['displayLetter'] === '' ? ' blank-empty' : ' blank-assigned';
-                }
-                $rackLetterDisplay = $rackTile['displayLetter'] === '' ? '&nbsp;' : $rackTile['displayLetter'];
-                $rackValueDisplay = $rackTile['isBlank'] ? '' : $rackTile['value'];
-                $rackLabel = $rackTile['isBlank']
-                  ? 'Rack tile blank (0 pts)'
-                  : 'Rack tile ' . $rackTile['letter'] . ' (' . $rackTile['value'] . ' pts)';
-              ?>
-              <div class="<?php echo $rackTileClass; ?>" aria-label="<?php echo $rackLabel; ?>">
-                <span class="<?php echo $rackLetterClass; ?>"><?php echo $rackLetterDisplay; ?></span>
-                <span class="value"><?php echo $rackValueDisplay; ?></span>
-              </div>
-            <?php endforeach; ?>
-          </div>
-          <p class="rack-note">Blank tiles stay empty until you assign a letter during play; the letter turns blue and still scores 0 points.</p>
-          <div class="actions" aria-label="Action buttons">
-            <div class="btn">Run solver</div>
-            <div class="btn secondary">Reset board</div>
-            <div class="btn secondary">Clear rack</div>
-            <div class="btn secondary">Shuffle rack</div>
-            <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
+          <div class="turn-panel">
+            <div class="status-strip" aria-label="Tile pool and score">
+              <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles left</span>
+              <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+            </div>
+            <div class="rack-bar" aria-label="Rack" id="rack"></div>
+            <p class="rack-note">Blank tiles stay empty until you assign a letter during play; the letter turns blue and still scores 0 points.</p>
+            <div class="actions" aria-label="Action buttons">
+              <button class="btn" type="button" id="startTurnBtn">Start turn &amp; draw</button>
+              <button class="btn secondary" type="button" id="endTurnBtn">Submit move</button>
+              <button class="btn secondary" type="button" id="resetBoardBtn">Reset board</button>
+              <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
+            </div>
+            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
           </div>
         </div>
       </div>
@@ -909,6 +975,517 @@ Response
 }</pre>
     </article>
   </section>
+
+  <script>
+    const premiumLayout = <?php echo json_encode($premiumBoard); ?>;
+    const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
+    const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
+    const dictionaryUrl = <?php echo json_encode(str_replace(__DIR__ . '/', '', $dictionaryPath)); ?>;
+
+    (() => {
+      const BOARD_SIZE = 15;
+      const rackEl = document.getElementById('rack');
+      const messageEl = document.getElementById('turnMessage');
+      const bagCountEl = document.getElementById('bagCount');
+      const scoreEl = document.getElementById('scoreTotal');
+      const startBtn = document.getElementById('startTurnBtn');
+      const endBtn = document.getElementById('endTurnBtn');
+      const resetBtn = document.getElementById('resetBoardBtn');
+      const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
+
+      let tileId = 0;
+      let bag = [];
+      let rack = [];
+      let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+      let totalScore = 0;
+      let firstTurn = true;
+      let dictionaryReady = false;
+      let dictionary = new Set();
+
+      const buildBag = () => {
+        bag = [];
+        Object.entries(tileDistribution).forEach(([letter, entry]) => {
+          for (let i = 0; i < entry.count; i += 1) {
+            bag.push(letter);
+          }
+        });
+      };
+
+      const pickTileFromBag = () => {
+        if (!bag.length) return null;
+        const index = Math.floor(Math.random() * bag.length);
+        const [letter] = bag.splice(index, 1);
+        return letter;
+      };
+
+      const createTile = (letter) => {
+        const isBlank = letter === '?';
+        const id = `tile-${++tileId}`;
+        const tile = {
+          id,
+          letter,
+          assignedLetter: isBlank ? '' : letter,
+          isBlank,
+          value: isBlank ? 0 : (tileValues[letter] || 0),
+          locked: false,
+          justPlaced: false,
+          invalidReason: ''
+        };
+        return tile;
+      };
+
+      const setMessage = (text, tone = '') => {
+        messageEl.textContent = text;
+        messageEl.classList.remove('error', 'success');
+        if (tone) {
+          messageEl.classList.add(tone);
+        }
+      };
+
+      const updateBagCount = () => {
+        bagCountEl.textContent = bag.length;
+      };
+
+      const renderRack = () => {
+        rackEl.innerHTML = '';
+        rack.forEach((tile) => {
+          const tileEl = document.createElement('div');
+          tileEl.className = `rack-tile${tile.isBlank ? ' blank' : ''}`;
+          tileEl.draggable = true;
+          tileEl.dataset.tileId = tile.id;
+          tileEl.dataset.location = 'rack';
+          tileEl.addEventListener('dragstart', handleTileDragStart);
+
+          const letterEl = document.createElement('span');
+          letterEl.className = `letter${tile.isBlank && tile.assignedLetter === '' ? ' blank-empty' : tile.isBlank ? ' blank-assigned' : ''}`;
+          letterEl.textContent = tile.isBlank ? (tile.assignedLetter || '·') : tile.letter;
+
+          const valueEl = document.createElement('span');
+          valueEl.className = 'value';
+          valueEl.textContent = tile.isBlank ? '' : tile.value;
+
+          tileEl.appendChild(letterEl);
+          tileEl.appendChild(valueEl);
+          rackEl.appendChild(tileEl);
+        });
+      };
+
+      const renderBoard = () => {
+        cells.forEach((cell) => {
+          const row = Number(cell.dataset.row);
+          const col = Number(cell.dataset.col);
+          const tile = board[row][col];
+          const premium = premiumLayout[row][col];
+          const labelEl = cell.querySelector('.cell-label');
+          cell.classList.remove('invalid', 'drag-target');
+          cell.classList.toggle('show-premium', Boolean(tile && tile.justPlaced && premium));
+          cell.classList.toggle('premium-used', Boolean(tile && tile.locked && premium));
+          cell.removeAttribute('data-tooltip');
+          const existingTile = cell.querySelector('.tile');
+          if (existingTile) {
+            existingTile.remove();
+          }
+
+          if (labelEl) {
+            const hideLabel = Boolean(tile && tile.locked && premium);
+            labelEl.style.display = hideLabel ? 'none' : '';
+          }
+
+          if (!tile) return;
+
+          if (tile.invalidReason) {
+            cell.classList.add('invalid');
+            cell.dataset.tooltip = tile.invalidReason;
+          }
+
+          const tileEl = document.createElement('div');
+          tileEl.className = `tile${tile.isBlank ? ' blank' : ''}`;
+          tileEl.draggable = !tile.locked;
+          tileEl.dataset.tileId = tile.id;
+          tileEl.dataset.location = 'board';
+          tileEl.addEventListener('dragstart', handleTileDragStart);
+          tileEl.addEventListener('dblclick', () => moveTileToRack(tile.id));
+
+          const letterEl = document.createElement('span');
+          const letterClass = tile.isBlank && !tile.assignedLetter ? 'letter blank-empty' : tile.isBlank ? 'letter blank-assigned' : 'letter';
+          letterEl.className = letterClass;
+          letterEl.textContent = tile.isBlank ? (tile.assignedLetter || '·') : tile.letter;
+
+          const valueEl = document.createElement('span');
+          valueEl.className = 'value';
+          valueEl.textContent = tile.isBlank ? '' : tile.value;
+
+          tileEl.appendChild(letterEl);
+          tileEl.appendChild(valueEl);
+          cell.appendChild(tileEl);
+        });
+      };
+
+      const resetInvalidMarkers = () => {
+        board.forEach((row) => row.forEach((tile) => {
+          if (tile) tile.invalidReason = '';
+        }));
+      };
+
+      const handleTileDragStart = (event) => {
+        const tileId = event.target.dataset.tileId;
+        event.dataTransfer.setData('text/plain', tileId);
+        event.dataTransfer.effectAllowed = 'move';
+      };
+
+      const moveTileToBoard = (tileId, row, col) => {
+        const tile = findTile(tileId);
+        if (!tile || tile.locked) return;
+
+        if (board[row][col] && board[row][col].locked) {
+          setMessage('That square already holds a locked tile.', 'error');
+          return;
+        }
+
+        if (tile.isBlank && !tile.assignedLetter) {
+          const letter = prompt('Assign a letter to this blank tile (A-Z):', '');
+          if (!letter || !letter.match(/^[a-zA-Z]$/)) {
+            setMessage('Blank tiles must be assigned A–Z before placing.', 'error');
+            return;
+          }
+          tile.assignedLetter = letter.toUpperCase();
+        }
+
+        removeTileFromCurrentPosition(tile);
+        tile.justPlaced = true;
+        tile.invalidReason = '';
+        board[row][col] = tile;
+        tile.position = { type: 'board', row, col };
+        renderBoard();
+        renderRack();
+      };
+
+      const moveTileToRack = (tileId) => {
+        const tile = findTile(tileId);
+        if (!tile || tile.locked) return;
+        removeTileFromCurrentPosition(tile);
+        tile.justPlaced = false;
+        tile.position = { type: 'rack' };
+        rack.push(tile);
+        renderRack();
+        renderBoard();
+      };
+
+      const removeTileFromCurrentPosition = (tile) => {
+        if (tile.position?.type === 'board') {
+          const { row, col } = tile.position;
+          if (board[row][col]?.id === tile.id) {
+            board[row][col] = null;
+          }
+        }
+        if (tile.position?.type === 'rack') {
+          rack = rack.filter((t) => t.id !== tile.id);
+        }
+      };
+
+      const findTile = (tileId) => {
+        const fromRack = rack.find((tile) => tile.id === tileId);
+        if (fromRack) return fromRack;
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && tile.id === tileId) {
+              return tile;
+            }
+          }
+        }
+        return null;
+      };
+
+      const startTurn = () => {
+        const needed = Math.max(0, 7 - rack.length);
+        if (needed === 0) {
+          setMessage('Rack already has seven tiles.', 'success');
+          return;
+        }
+
+        for (let i = 0; i < needed; i += 1) {
+          const letter = pickTileFromBag();
+          if (!letter) break;
+          const tile = createTile(letter);
+          tile.position = { type: 'rack' };
+          rack.push(tile);
+        }
+
+        updateBagCount();
+        renderRack();
+        setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
+      };
+
+      const tilesPlacedThisTurn = () => {
+        const placed = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && tile.justPlaced) {
+              placed.push({ row: r, col: c, tile });
+            }
+          }
+        }
+        return placed;
+      };
+
+      const contiguousLine = (coords) => {
+        const rows = coords.map((c) => c.row);
+        const cols = coords.map((c) => c.col);
+        const sameRow = rows.every((r) => r === rows[0]);
+        const sameCol = cols.every((c) => c === cols[0]);
+        if (!sameRow && !sameCol) return { ok: false, reason: 'Tiles must share one row or column.' };
+
+        if (sameRow) {
+          const min = Math.min(...cols);
+          const max = Math.max(...cols);
+          for (let c = min; c <= max; c += 1) {
+            if (!board[rows[0]][c]) return { ok: false, reason: 'Main word cannot have gaps.' };
+          }
+          return { ok: true, axis: 'row', fixed: rows[0], start: min, end: max };
+        }
+
+        const min = Math.min(...rows);
+        const max = Math.max(...rows);
+        for (let r = min; r <= max; r += 1) {
+          if (!board[r][cols[0]]) return { ok: false, reason: 'Main word cannot have gaps.' };
+        }
+        return { ok: true, axis: 'col', fixed: cols[0], start: min, end: max };
+      };
+
+      const wordCoordinates = (row, col, dRow, dCol) => {
+        let r = row;
+        let c = col;
+        while (r - dRow >= 0 && r - dRow < BOARD_SIZE && c - dCol >= 0 && c - dCol < BOARD_SIZE && board[r - dRow][c - dCol]) {
+          r -= dRow;
+          c -= dCol;
+        }
+
+        const coords = [];
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c]) {
+          coords.push({ row: r, col: c });
+          r += dRow;
+          c += dCol;
+        }
+        return coords;
+      };
+
+      const wordFromCoords = (coords) => coords.map(({ row, col }) => {
+        const tile = board[row][col];
+        return tile.isBlank ? tile.assignedLetter : tile.letter;
+      }).join('');
+
+      const wordScore = (coords) => {
+        let total = 0;
+        let wordMultiplier = 1;
+
+        coords.forEach(({ row, col }) => {
+          const tile = board[row][col];
+          const premium = premiumLayout[row][col];
+          let letterScore = tile.isBlank ? 0 : tile.value;
+
+          if (tile.justPlaced) {
+            if (premium === 'DL') letterScore *= 2;
+            if (premium === 'TL') letterScore *= 3;
+            if (premium === 'DW') wordMultiplier *= 2;
+            if (premium === 'TW') wordMultiplier *= 3;
+          }
+
+          total += letterScore;
+        });
+
+        return total * wordMultiplier;
+      };
+
+      const hasAdjacentLocked = (coords) => coords.some(({ row, col }) => {
+        const deltas = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        return deltas.some(([dr, dc]) => {
+          const nr = row + dr;
+          const nc = col + dc;
+          if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) return false;
+          const neighbor = board[nr][nc];
+          return neighbor && neighbor.locked;
+        });
+      });
+
+      const validateTurn = () => {
+        resetInvalidMarkers();
+        const placements = tilesPlacedThisTurn();
+        if (placements.length === 0) {
+          setMessage('Place at least one tile before submitting.', 'error');
+          renderBoard();
+          return false;
+        }
+
+        if (placements.some((p) => p.tile.isBlank && !p.tile.assignedLetter)) {
+          setMessage('Assign letters to all blanks.', 'error');
+          return false;
+        }
+
+        const centerCell = placements.find(({ row, col }) => row === 7 && col === 7);
+        const contiguity = contiguousLine(placements);
+        if (!contiguity.ok) {
+          placements.forEach(({ tile }) => { tile.invalidReason = contiguity.reason; });
+          renderBoard();
+          setMessage(contiguity.reason, 'error');
+          return false;
+        }
+
+        if (firstTurn && !centerCell) {
+          placements.forEach(({ tile }) => { tile.invalidReason = 'Opening move must use the center star.'; });
+          renderBoard();
+          setMessage('Opening move must touch the center star.', 'error');
+          return false;
+        }
+
+        if (!firstTurn && !hasAdjacentLocked(placements)) {
+          placements.forEach(({ tile }) => { tile.invalidReason = 'New tiles must connect to existing words.'; });
+          renderBoard();
+          setMessage('New tiles have to connect to an existing word.', 'error');
+          return false;
+        }
+
+        const mainCoords = contiguity.axis === 'row'
+          ? wordCoordinates(contiguity.fixed, contiguity.start, 0, 1)
+          : wordCoordinates(contiguity.start, contiguity.fixed, 1, 0);
+
+        const wordsToCheck = [mainCoords];
+        placements.forEach(({ row, col }) => {
+          const perpendicular = contiguity.axis === 'row'
+            ? wordCoordinates(row, col, 1, 0)
+            : wordCoordinates(row, col, 0, 1);
+          if (perpendicular.length > 1) {
+            wordsToCheck.push(perpendicular);
+          }
+        });
+
+        const invalidWords = wordsToCheck.filter((coords) => {
+          if (coords.length <= 1) return false;
+          const word = wordFromCoords(coords);
+          return !dictionaryReady || !dictionary.has(word);
+        });
+
+        if (invalidWords.length) {
+          invalidWords.forEach((coords) => {
+            coords.forEach(({ row, col }) => {
+              const tile = board[row][col];
+              if (tile.justPlaced) {
+                tile.invalidReason = '“' + wordFromCoords(coords) + '” is not in the dictionary.';
+              }
+            });
+          });
+          renderBoard();
+          setMessage('Every formed word must appear in the dictionary.', 'error');
+          return false;
+        }
+
+        if (mainCoords.length === 1) {
+          placements.forEach(({ tile }) => { tile.invalidReason = 'A word must use at least two tiles.'; });
+          renderBoard();
+          setMessage('A valid move needs a word of length two or more.', 'error');
+          return false;
+        }
+
+        const total = wordsToCheck.reduce((sum, coords) => sum + wordScore(coords), 0) + (placements.length === 7 ? 50 : 0);
+        finalizeTurn(total, placements.length === 7);
+        return true;
+      };
+
+      const finalizeTurn = (turnScore, bingo) => {
+        tilesPlacedThisTurn().forEach(({ tile }) => {
+          tile.locked = true;
+          tile.justPlaced = false;
+        });
+        totalScore += turnScore;
+        scoreEl.textContent = totalScore;
+        firstTurn = false;
+        renderBoard();
+        const scoreNote = bingo ? ' + 50-point bingo!' : '';
+        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
+      };
+
+      const resetBoard = () => {
+        tileId = 0;
+        rack = [];
+        board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+        totalScore = 0;
+        firstTurn = true;
+        buildBag();
+        updateBagCount();
+        renderRack();
+        renderBoard();
+        scoreEl.textContent = '0';
+        setMessage('Board reset. Start a turn to draw tiles.', 'success');
+      };
+
+      const setupDragAndDrop = () => {
+        cells.forEach((cell) => {
+          cell.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            cell.classList.add('drag-target');
+          });
+          cell.addEventListener('dragleave', () => cell.classList.remove('drag-target'));
+          cell.addEventListener('drop', (event) => {
+            event.preventDefault();
+            cell.classList.remove('drag-target');
+            const tileId = event.dataTransfer.getData('text/plain');
+            const row = Number(cell.dataset.row);
+            const col = Number(cell.dataset.col);
+            if (tileId) {
+              moveTileToBoard(tileId, row, col);
+            }
+          });
+        });
+
+        rackEl.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          rackEl.classList.add('drag-target');
+        });
+        rackEl.addEventListener('dragleave', () => rackEl.classList.remove('drag-target'));
+        rackEl.addEventListener('drop', (event) => {
+          event.preventDefault();
+          rackEl.classList.remove('drag-target');
+          const tileId = event.dataTransfer.getData('text/plain');
+          if (tileId) {
+            moveTileToRack(tileId);
+          }
+        });
+      };
+
+      const loadDictionary = async () => {
+        try {
+          const response = await fetch(dictionaryUrl);
+          const text = await response.text();
+          text.split(/\r?\n/).forEach((word) => {
+            if (word.trim()) dictionary.add(word.trim().toUpperCase());
+          });
+          dictionaryReady = true;
+          setMessage('Dictionary loaded. You can now validate moves.', 'success');
+        } catch (error) {
+          dictionaryReady = false;
+          setMessage('Dictionary failed to load; validation will block plays.', 'error');
+        }
+      };
+
+      startBtn.addEventListener('click', startTurn);
+      endBtn.addEventListener('click', () => {
+        if (!dictionaryReady) {
+          setMessage('Dictionary still loading. Try again in a moment.', 'error');
+          return;
+        }
+        validateTurn();
+      });
+      resetBtn.addEventListener('click', resetBoard);
+
+      buildBag();
+      updateBagCount();
+      renderRack();
+      renderBoard();
+      setupDragAndDrop();
+      loadDictionary();
+    })();
+  </script>
 
   <div class="modal-backdrop" id="rulesModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
