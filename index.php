@@ -836,9 +836,17 @@ $aiSetupNotes = [
     .dock-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
       gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dock-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 260px;
     }
 
     .dock-label {
@@ -856,16 +864,37 @@ $aiSetupNotes = [
       flex-wrap: wrap;
     }
 
-    .ai-btn {
-      background: #0ea5e9;
-      border-color: #0284c7;
-      color: #0f172a;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(14, 165, 233, 0.24);
+    .ai-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      color: #fff;
+      border-color: #ea580c;
+      box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      padding-inline: 16px 18px;
+      border-radius: 14px;
+      margin-left: auto;
+      flex-shrink: 0;
     }
 
-    .ai-btn:hover {
-      background: #0284c7;
-      color: #e0f2fe;
+    .ai-cta:hover {
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      transform: translateY(-1px);
+      box-shadow: 0 20px 42px rgba(225, 29, 72, 0.36);
+    }
+
+    .ai-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.16);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      line-height: 1;
     }
 
     .turn-toggle.start {
@@ -989,13 +1018,18 @@ $aiSetupNotes = [
   <footer class="turn-dock" aria-label="Turn controls">
     <div class="dock-inner">
       <div class="dock-row">
-        <span class="dock-label">Rack</span>
-        <div class="dock-actions">
-          <button class="btn ghost ai-btn" type="button" id="aiMovesBtn">AI suggested moves</button>
-          <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
-          <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
-          <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
+        <div class="dock-main">
+          <span class="dock-label">Rack</span>
+          <div class="dock-actions">
+            <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
+            <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
+            <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
+          </div>
         </div>
+        <button class="btn ai-cta" type="button" id="aiMovesBtn">
+          <span class="ai-icon" aria-hidden="true">🤖</span>
+          <span class="ai-text">AI suggested moves</span>
+        </button>
       </div>
       <div class="rack-bar" aria-label="Rack" id="rack"></div>
       <p class="rack-note">Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</p>
@@ -1023,7 +1057,7 @@ $aiSetupNotes = [
       ];
     }, $moveSuggestions)); ?>;
 
-    (() => {
+    document.addEventListener('DOMContentLoaded', () => {
       const BOARD_SIZE = 15;
       const rackEl = document.getElementById('rack');
       const messageEl = document.getElementById('turnMessage');
@@ -1699,7 +1733,7 @@ $aiSetupNotes = [
       updateTurnButton();
       setupDragAndDrop();
       loadDictionary();
-    })();
+    });
   </script>
 
   <div class="modal-backdrop" id="aiModal" aria-hidden="true">
