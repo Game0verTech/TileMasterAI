@@ -190,8 +190,8 @@ $aiSetupNotes = [
       --cell-size: 56px;
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 86px;
-      --bottom-dock-height: 122px;
+      --top-dock-height: 82px;
+      --bottom-dock-height: 116px;
     }
 
     * {
@@ -915,25 +915,29 @@ $aiSetupNotes = [
     .hud-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 10px 18px 10px;
+      padding: 10px 16px 10px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      justify-content: space-between;
+      gap: 10px;
     }
 
     .hud-right {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       flex-wrap: wrap;
       justify-content: flex-end;
+      margin-left: auto;
     }
+
+    .hud-menu { flex-shrink: 0; order: 3; }
+    .brand { order: 1; }
+    .hud-right { order: 2; }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-mark {
@@ -949,7 +953,7 @@ $aiSetupNotes = [
       box-shadow: 0 12px 24px rgba(79, 70, 229, 0.2);
     }
 
-    .hud-text { display: grid; gap: 4px; }
+    .hud-text { display: grid; gap: 3px; }
 
     .app-title {
       margin: 0;
@@ -980,18 +984,12 @@ $aiSetupNotes = [
       flex-wrap: wrap;
     }
 
-    .hud-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
     .hud-menu {
       position: relative;
     }
 
     .menu-toggle {
-      padding: 10px 14px;
+      padding: 9px 13px;
       border-radius: 12px;
       border: 1px solid rgba(148, 163, 184, 0.5);
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.08));
@@ -1074,9 +1072,9 @@ $aiSetupNotes = [
       border: 1px solid rgba(148, 163, 184, 0.35);
       color: #e2e8f0;
       border-radius: 12px;
-      padding: 8px 12px;
+      padding: 7px 11px;
       display: inline-flex;
-      gap: 8px;
+      gap: 7px;
       align-items: center;
       font-weight: 700;
       box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
@@ -1252,6 +1250,30 @@ $aiSetupNotes = [
       .grid .card:first-child { grid-column: span 2; }
     }
 
+    @media (max-width: 720px) {
+      :root {
+        --top-dock-height: 74px;
+        --bottom-dock-height: 110px;
+      }
+
+      body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
+      .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+      .hud-menu { order: 1; }
+      .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
+      .hud-right { order: 3; margin-left: 0; flex: 1; justify-content: flex-end; justify-self: end; }
+      .hud-menu { justify-self: start; }
+      .hud-meta { gap: 6px; }
+      .hud-pill { padding: 6px 9px; font-size: 13px; }
+      .app-title { font-size: clamp(18px, 5vw, 22px); }
+      .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
+
+      .dock-inner { padding: 8px 10px 9px; gap: 8px; }
+      .dock-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+      .dock-cta { min-width: 0; }
+      .turn-toggle { width: 100%; min-width: 0; }
+      .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
+    }
+
     @media (max-width: 599px) {
       .board-preview { padding: 10px; }
       .board-grid { min-width: 360px; }
@@ -1263,6 +1285,15 @@ $aiSetupNotes = [
 <body>
   <header class="hud-dock" aria-label="Game status dock">
     <div class="hud-inner">
+      <div class="hud-menu" id="hudMenu">
+        <button class="menu-toggle" type="button" id="menuToggle" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
+          Menu <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="menu-panel" id="menuPanel" role="menu">
+          <button class="menu-item" type="button" id="openRules" role="menuitem">Rules</button>
+          <button class="menu-item danger" type="button" id="resetBoardBtn" role="menuitem">Reset board</button>
+        </div>
+      </div>
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">TM</span>
         <div class="hud-text">
@@ -1274,17 +1305,6 @@ $aiSetupNotes = [
         <div class="hud-meta">
           <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
           <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
-        </div>
-        <div class="hud-actions">
-          <div class="hud-menu" id="hudMenu">
-            <button class="menu-toggle" type="button" id="menuToggle" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
-              Menu <span class="chevron" aria-hidden="true">▾</span>
-            </button>
-            <div class="menu-panel" id="menuPanel" role="menu">
-              <button class="menu-item" type="button" id="openRules" role="menuitem">Rules</button>
-              <button class="menu-item danger" type="button" id="resetBoardBtn" role="menuitem">Reset board</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
