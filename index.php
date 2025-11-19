@@ -190,6 +190,8 @@ $aiSetupNotes = [
       --cell-size: 56px;
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
+      --top-dock-height: 86px;
+      --bottom-dock-height: 192px;
     }
 
     * {
@@ -203,7 +205,7 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: 32px 18px 200px;
+      padding: calc(var(--top-dock-height) + 16px) 18px calc(var(--bottom-dock-height) + 18px);
       display: flex;
       flex-direction: column;
       gap: 22px;
@@ -431,13 +433,15 @@ $aiSetupNotes = [
 
     .rack-bar {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      padding: 10px;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
-      border-radius: 12px;
+      padding: 8px;
+      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.15), transparent 40%),
+        linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.18));
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 14px 26px rgba(79, 70, 229, 0.22);
       justify-content: center;
     }
 
@@ -473,9 +477,9 @@ $aiSetupNotes = [
 
     .rack-note {
       text-align: center;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 13px;
+      margin-top: 4px;
+      color: #cbd5e1;
+      font-size: 12px;
     }
 
     .message {
@@ -793,6 +797,7 @@ $aiSetupNotes = [
       margin: 0 auto;
       display: grid;
       gap: 16px;
+      min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
     }
 
     .board-chrome {
@@ -805,12 +810,26 @@ $aiSetupNotes = [
       gap: 14px;
     }
 
-    .top-bar {
+    .hud-dock {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 900;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.9));
+      border-bottom: 1px solid #0ea5e9;
+      box-shadow: 0 14px 30px rgba(14, 165, 233, 0.18);
+      backdrop-filter: blur(12px);
+    }
+
+    .hud-inner {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      padding: 12px 18px 10px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
+      justify-content: space-between;
     }
 
     .brand {
@@ -820,8 +839,8 @@ $aiSetupNotes = [
     }
 
     .brand-mark {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
       background: linear-gradient(135deg, #4f46e5, #22c55e);
       display: grid;
@@ -829,20 +848,51 @@ $aiSetupNotes = [
       color: #fff;
       font-weight: 900;
       letter-spacing: 0.4px;
-      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.16);
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.2);
     }
 
-    .pill-group {
-      display: inline-flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
-    }
+    .hud-text { display: grid; gap: 4px; }
 
     .app-title {
       margin: 0;
-      font-size: clamp(24px, 4vw, 32px);
+      font-size: clamp(22px, 4vw, 30px);
+      color: #e2e8f0;
+    }
+
+    .hud-eyebrow {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #c7d2fe;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+      width: fit-content;
+    }
+
+    .hud-meta {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .hud-pill {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2));
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 8px 12px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font-weight: 700;
+      box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
     }
 
     .board-preview {
@@ -858,18 +908,19 @@ $aiSetupNotes = [
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(248, 250, 252, 0.94);
-      backdrop-filter: blur(10px);
-      border-top: 1px solid var(--border);
-      box-shadow: 0 -18px 38px rgba(15, 23, 42, 0.16);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(79, 70, 229, 0.9));
+      backdrop-filter: blur(12px);
+      border-top: 1px solid #0ea5e9;
+      box-shadow: 0 -18px 38px rgba(79, 70, 229, 0.24);
+      z-index: 800;
     }
 
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 14px 18px 18px;
+      padding: 10px 18px 12px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .dock-row {
@@ -877,6 +928,7 @@ $aiSetupNotes = [
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+      justify-content: space-between;
     }
 
     .dock-main {
@@ -890,10 +942,13 @@ $aiSetupNotes = [
 
     .dock-label {
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       font-weight: 800;
-      color: var(--muted);
+      color: #e2e8f0;
       font-size: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 6px 10px;
+      border-radius: 10px;
     }
 
     .dock-actions {
@@ -963,7 +1018,7 @@ $aiSetupNotes = [
     }
 
     @media (min-width: 900px) {
-      body { padding: 42px 32px 220px; }
+      body { padding: calc(var(--top-dock-height) + 22px) 32px calc(var(--bottom-dock-height) + 22px); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -977,22 +1032,24 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
-  <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="board-chrome">
-      <div class="top-bar">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">TM</span>
-          <div>
-            <p class="eyebrow" style="margin:0;">Live play</p>
-            <h1 class="app-title">TileMasterAI</h1>
-          </div>
-        </div>
-        <div class="pill-group" aria-label="Game status">
-          <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+  <header class="hud-dock" aria-label="Game status dock">
+    <div class="hud-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">TM</span>
+        <div class="hud-text">
+          <p class="hud-eyebrow">Live play</p>
+          <h1 class="app-title">TileMasterAI</h1>
         </div>
       </div>
+      <div class="hud-meta">
+        <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+        <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+      </div>
+    </div>
+  </header>
 
+  <main class="app-shell" aria-label="TileMasterAI board">
+    <div class="board-chrome">
       <div class="board-preview" aria-label="Game board">
         <div class="board-grid" role="presentation">
           <?php foreach ($premiumBoard as $rowIndex => $row): ?>
