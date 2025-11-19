@@ -1259,6 +1259,8 @@ $aiSetupNotes = [
       :root {
         --top-dock-height: 74px;
         --bottom-dock-height: 110px;
+        --cell-size: 48px;
+        --cell-gap: 4px;
       }
 
       body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
@@ -1281,7 +1283,7 @@ $aiSetupNotes = [
 
     @media (max-width: 599px) {
       .board-preview { padding: 10px; }
-      .board-grid { min-width: 360px; }
+      .board-grid { min-width: 320px; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -1515,8 +1517,8 @@ $aiSetupNotes = [
 
       const applyBoardTransform = () => {
         if (!boardScaleEl) return;
-        const MIN_ZOOM = 0.6;
-        const MAX_ZOOM = 1.4;
+        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
         const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
         boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
@@ -1544,8 +1546,10 @@ $aiSetupNotes = [
       };
 
       const adjustZoom = (factor) => {
-        const minFactor = 0.6 / (baseScale || 1);
-        const maxFactor = 1.4 / (baseScale || 1);
+        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
+        const minFactor = MIN_ZOOM / (baseScale || 1);
+        const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
         applyBoardTransform();
       };
@@ -1567,25 +1571,54 @@ $aiSetupNotes = [
       };
 
       const handleTouchStart = (event) => {
+        if (!boardViewport) return;
         if (event.touches.length === 2) {
+          isPanning = false;
+          boardViewport.classList.remove('dragging');
           pinchDistance = touchDistance(event.touches);
+          return;
         }
+
+        const [touch] = event.touches;
+        const target = event.target;
+        if (!touch || (target.closest('.tile') || target.closest('.rack-tile'))) return;
+
+        isPanning = true;
+        panOrigin = { x: touch.clientX - panX, y: touch.clientY - panY };
+        boardViewport.classList.add('dragging');
       };
 
       const handleTouchMove = (event) => {
-        if (!boardScaleEl || event.touches.length < 2 || pinchDistance === null) return;
-        event.preventDefault();
-        const newDistance = touchDistance(event.touches);
-        if (newDistance > 0) {
-          const factor = newDistance / (pinchDistance || newDistance);
-          adjustZoom(factor);
-          pinchDistance = newDistance;
+        if (!boardScaleEl) return;
+
+        if (event.touches.length >= 2) {
+          if (pinchDistance === null) return;
+          event.preventDefault();
+          const newDistance = touchDistance(event.touches);
+          if (newDistance > 0) {
+            const factor = newDistance / (pinchDistance || newDistance);
+            adjustZoom(factor);
+            pinchDistance = newDistance;
+          }
+          return;
         }
+
+        if (!isPanning || !event.touches.length) return;
+        const [touch] = event.touches;
+        if (!touch) return;
+        event.preventDefault();
+        panX = touch.clientX - panOrigin.x;
+        panY = touch.clientY - panOrigin.y;
+        applyBoardTransform();
       };
 
       const handleTouchEnd = () => {
         if (pinchDistance !== null) {
           pinchDistance = null;
+        }
+
+        if (isPanning) {
+          endBoardPan();
         }
       };
 
