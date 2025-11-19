@@ -1,5 +1,13 @@
 <?php
 require __DIR__ . '/config/env.php';
+require __DIR__ . '/src/bootstrap.php';
+
+use TileMasterAI\Game\Board;
+use TileMasterAI\Game\Dictionary;
+use TileMasterAI\Game\MoveGenerator;
+use TileMasterAI\Game\Rack;
+use TileMasterAI\Game\Scoring;
+use TileMasterAI\Game\Tile;
 
 $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
 
@@ -47,13 +55,41 @@ $rackTiles = [
   ['letter' => 'A', 'value' => 1],
   ['letter' => '?', 'value' => 0],
 ];
+
+$boardModel = Board::standard();
+foreach ($sampleTiles as $coordinate => $tileData) {
+  $boardModel->placeTileByCoordinate(
+    $coordinate,
+    new Tile($tileData['letter'], $tileData['letter'] === '?', $tileData['value'])
+  );
+}
+
+$dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.txt';
+$dictionary = new Dictionary($dictionaryPath);
+$demoWord = 'ORATION';
+
+$rackModel = Rack::fromLetters(array_map(static fn ($tile) => $tile['letter'], $rackTiles));
+$moveGenerator = new MoveGenerator($boardModel, $dictionary);
+$moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
+
+$demoPlacements = [];
+foreach (['H8', 'I8', 'J8', 'K8', 'L8', 'M8', 'N8'] as $coordinate) {
+  $letter = $sampleTiles[$coordinate]['letter'] ?? '';
+  if ($letter === '') {
+    continue;
+  }
+  $demoPlacements[] = ['coord' => $coordinate, 'tile' => Tile::fromLetter($letter)];
+}
+
+$demoScore = Scoring::scorePlacements($boardModel, $demoPlacements);
+$dictionaryHasDemoWord = $dictionary->has($demoWord);
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TileMasterAI | Phase 2 Experience Design</title>
+  <title>TileMasterAI | Phase 4 Move Generation Preview</title>
   <style>
     :root {
       color-scheme: light;
@@ -157,6 +193,16 @@ $rackTiles = [
       padding: 18px 18px 16px;
     }
 
+    pre.code {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 12px;
+      overflow: auto;
+      font-size: 13px;
+      border: 1px solid #0f172a;
+    }
+
     .layout-shell {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -169,16 +215,20 @@ $rackTiles = [
       border-radius: var(--radius);
       padding: 12px;
       border: 1px dashed #cbd5e1;
+      overflow-x: auto;
     }
 
     .board-grid {
       display: grid;
-      grid-template-columns: repeat(15, minmax(0, 1fr));
+      grid-template-columns: repeat(15, minmax(20px, 1fr));
       gap: 5px;
       background: #e2e8f0;
       padding: 8px;
       border-radius: 14px;
       border: 1px solid #cbd5e1;
+      width: min(100%, 720px);
+      min-width: 420px;
+      margin: 0 auto;
     }
 
     .cell {
@@ -373,7 +423,8 @@ $rackTiles = [
     }
 
     @media (max-width: 599px) {
-      .board-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .board-preview { padding: 10px; }
+      .board-grid { min-width: 360px; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -464,14 +515,23 @@ $rackTiles = [
     </article>
 
     <article class="card">
-      <h2 class="subhead">Top moves (mocked)</h2>
-      <p class="note">Placeholder output for the solver: score, notation, and rack consumption for the leading candidates.</p>
-      <ul class="list" aria-label="Mock move results">
-        <li class="list-item"><div><strong>1) ORATION</strong> · H8 ➜ Down</div><span class="badge">78 pts</span></li>
-        <li class="list-item"><div><strong>2) TONE</strong> · F7 ➜ Across</div><span class="badge">38 pts</span></li>
-        <li class="list-item"><div><strong>3) MATE</strong> · I5 ➜ Across</div><span class="badge">32 pts</span></li>
-        <li class="list-item"><div><strong>4) LATHE</strong> · D9 ➜ Down</div><span class="badge">29 pts</span></li>
-        <li class="list-item"><div><strong>5) RAIN</strong> · L4 ➜ Across</div><span class="badge">22 pts</span></li>
+      <h2 class="subhead">Phase 4: anchor-based move generation</h2>
+      <p class="note">Suggestions are generated from board anchors (adjacent empties) using the demo rack, dictionary validation, and scoring with cross-checks.</p>
+      <ul class="list" aria-label="Generated move results">
+        <?php if ($moveSuggestions === []): ?>
+          <li class="list-item"><div>No legal moves found with the current rack.</div><span class="badge">–</span></li>
+        <?php else: ?>
+          <?php foreach ($moveSuggestions as $index => $move): ?>
+            <?php $crossCount = count($move['crossWords']); ?>
+            <li class="list-item">
+              <div>
+                <strong><?php echo ($index + 1) . ') ' . $move['word']; ?></strong> · <?php echo $move['start']; ?> ➜ <?php echo ucfirst($move['direction']); ?><br>
+                <span class="note">Main: <?php echo $move['mainWordScore']; ?> pts<?php if ($crossCount > 0): ?> · Cross-words: <?php echo $crossCount; ?><?php endif; ?></span>
+              </div>
+              <span class="badge"><?php echo $move['score']; ?> pts</span>
+            </li>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </ul>
     </article>
 
@@ -536,6 +596,82 @@ $rackTiles = [
           <p class="note">Enter runs solver, Ctrl/Cmd+Z undoes last placement, Shift+R shuffles rack, Shift+C clears rack.</p>
         </div>
       </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Phase 3 game engine foundations">
+    <article class="card">
+      <h2 class="subhead">Phase 3 kickoff: board state & scoring helpers</h2>
+      <p class="note">Backend-friendly PHP domain classes now describe the 15x15 board, rack tiles, dictionary lookups, and baseline scoring (tile values + letter/word multipliers).</p>
+      <div class="list" aria-label="Engine milestones">
+        <div class="list-item">
+          <div><strong>Board &amp; rack models</strong><br><span class="note">Coordinate parsing (A1–O15), premium lookup, tile storage, and rack containers.</span></div>
+          <span class="badge">Board::standard()</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Dictionary</strong><br><span class="note">Pluggable wordlist driven by <code>DICTIONARY_PATH</code> (defaults to <code>data/dictionary-mini.txt</code>).</span></div>
+          <span class="badge"><?php echo number_format($dictionary->count()); ?> entries</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Scoring helpers</strong><br><span class="note">Tile values + DL/TL/DW/TW multipliers ready for solver integration.</span></div>
+          <span class="badge">Helpers: Scoring::tileValues()</span>
+        </div>
+      </div>
+      <div class="list" aria-label="Dictionary and scoring preview" style="margin-top: 12px;">
+        <div class="list-item">
+          <div><strong><?php echo $demoWord; ?></strong> lookup</div>
+          <span class="badge"><?php echo $dictionaryHasDemoWord ? 'In wordlist' : 'Missing'; ?></span>
+        </div>
+        <div class="list-item">
+          <div><strong>Move score preview</strong><br><span class="note"><?php echo $demoWord; ?> on H8 across (DW on start) using tile values + multipliers.</span></div>
+          <span class="badge"><?php echo $demoScore['total']; ?> pts</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Phase 4 move generation">
+    <article class="card">
+      <h2 class="subhead">Phase 4 kickoff: anchor & cross-check solver loop</h2>
+      <div class="list" aria-label="Solver highlights">
+        <div class="list-item">
+          <div><strong>Anchors & adjacency</strong><br><span class="note">Empty squares touching existing tiles (plus center start) seed the horizontal generator.</span></div>
+          <span class="badge">Board-aware</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Dictionary validation</strong><br><span class="note">Main word and all perpendicular cross-words must appear in the active dictionary.</span></div>
+          <span class="badge"><?php echo number_format($dictionary->count()); ?> words</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Scoring integration</strong><br><span class="note">Letter/word multipliers apply only to newly placed tiles; cross-word totals are added.</span></div>
+          <span class="badge">Scoring::scoreMove()</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">API contract: request top N moves</h2>
+      <p class="note">Planned endpoint signature for the solver surface (JSON). Takes current board state, rack letters, and desired limit; returns ranked moves with scoring breakdowns.</p>
+      <pre class="code" aria-label="API contract example">POST /api/moves
+{
+  "board": "array of placed tiles [{coord: 'H8', letter: 'O', blank: false}]",
+  "rack": ["T", "I", "L", "E", "M", "A", "?"],
+  "limit": 5
+}
+
+Response
+{
+  "moves": [
+    {
+      "word": "ORATION",
+      "start": "H8",
+      "direction": "horizontal",
+      "score": 78,
+      "mainWord": {"word": "ORATION", "total": 78},
+      "crossWords": []
+    }
+  ]
+}</pre>
     </article>
   </section>
 </body>

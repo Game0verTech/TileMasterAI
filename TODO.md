@@ -21,14 +21,14 @@ A living checklist to track progress while designing and building TileMasterAI.
 - [x] Design upload affordances for board/rack images with clear “stub/coming soon” messaging.
 
 ## Phase 3 – Game engine foundations
-- [ ] Model board (15x15 with bonuses) and rack structures in code.
-- [ ] Load a pluggable dictionary (word list file) and expose lookup utilities.
-- [ ] Implement scoring helpers (tile values, multipliers, blanks).
+- [x] Model board (15x15 with bonuses) and rack structures in code.
+- [x] Load a pluggable dictionary (word list file) and expose lookup utilities.
+- [x] Implement scoring helpers (tile values, multipliers, blanks).
 
 ## Phase 4 – Move generation & validation
-- [ ] Anchor-based move generator with cross-check validation.
-- [ ] Scoring integration for main word and cross-words.
-- [ ] API contract for requesting top N moves.
+- [x] Anchor-based move generator with cross-check validation.
+- [x] Scoring integration for main word and cross-words.
+- [x] API contract for requesting top N moves.
 
 ## Phase 5 – Frontend implementation
 - [ ] Build interactive board and rack UI per design.
