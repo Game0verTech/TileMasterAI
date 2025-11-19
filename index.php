@@ -536,6 +536,27 @@ $aiSetupNotes = [
       min-height: 60px;
     }
 
+    .rack-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .rack-shuffle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      border-color: #0ea5e9;
+      box-shadow: 0 12px 24px rgba(14, 165, 233, 0.28);
+    }
+
+    .rack-shuffle:hover { transform: translateY(-1px); }
+
     .rack-tile {
       width: var(--tile-size);
       height: var(--tile-size);
@@ -641,6 +662,18 @@ $aiSetupNotes = [
     }
 
     .pill strong { font-size: 15px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     .btn {
       padding: 12px 14px;
@@ -1172,6 +1205,15 @@ $aiSetupNotes = [
       justify-self: end;
     }
 
+    .ai-cta.disabled,
+    .ai-cta:disabled {
+      background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+      border-color: #94a3b8;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     .ai-cta:hover {
       background: linear-gradient(135deg, #f43f5e, #e11d48);
       transform: translateY(-1px);
@@ -1419,7 +1461,7 @@ $aiSetupNotes = [
             </span>
           </button>
         </div>
-        <button class="btn ai-cta" type="button" id="aiMovesBtn">
+        <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
         </button>
@@ -1427,6 +1469,9 @@ $aiSetupNotes = [
       <div class="rack-wrap">
         <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
         <div class="rack-bar" aria-label="Rack" id="rack"></div>
+        <div class="rack-actions">
+          <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
+        </div>
         <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
           <strong>Rack tips</strong>
           <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
@@ -1445,6 +1490,7 @@ $aiSetupNotes = [
 
     document.addEventListener('DOMContentLoaded', () => {
       const BOARD_SIZE = 15;
+      const RACK_SIZE = 7;
       const rackEl = document.getElementById('rack');
       const messageEl = document.getElementById('turnMessage');
       const bagCountEl = document.getElementById('bagCount');
@@ -1455,6 +1501,7 @@ $aiSetupNotes = [
       const resetBtn = document.getElementById('resetBoardBtn');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
       const aiBtn = document.getElementById('aiMovesBtn');
+      const shuffleBtn = document.getElementById('shuffleRackBtn');
       const aiModal = document.getElementById('aiModal');
       const aiCloseBtn = document.getElementById('closeAi');
       const aiListEl = document.getElementById('aiList');
@@ -1743,6 +1790,14 @@ $aiSetupNotes = [
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
 
+      const updateAiButton = () => {
+        if (!aiBtn) return;
+        const disabled = !turnActive;
+        aiBtn.disabled = disabled;
+        aiBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        aiBtn.classList.toggle('disabled', disabled);
+      };
+
       const updateBagCount = () => {
         bagCountEl.textContent = bag.length;
       };
@@ -1865,6 +1920,11 @@ $aiSetupNotes = [
       const moveTileToRack = (tileId) => {
         const tile = findTile(tileId);
         if (!tile || tile.locked) return;
+        const projectedRackSize = rack.length - (tile.position?.type === 'rack' ? 1 : 0);
+        if (projectedRackSize >= RACK_SIZE) {
+          setMessage('Your rack can only hold seven tiles.', 'error');
+          return;
+        }
         removeTileFromCurrentPosition(tile);
         tile.justPlaced = false;
         if (tile.isBlank) {
@@ -2267,24 +2327,29 @@ $aiSetupNotes = [
       };
 
       const startTurn = () => {
-        const needed = Math.max(0, 7 - rack.length);
-        if (needed === 0) {
-          setMessage('Rack already has seven tiles.', 'success');
-          return false;
-        }
+        let drewTiles = false;
 
-        for (let i = 0; i < needed; i += 1) {
+        while (rack.length < RACK_SIZE) {
           const letter = pickTileFromBag();
           if (!letter) break;
           const tile = createTile(letter);
           tile.position = { type: 'rack' };
           rack.push(tile);
+          drewTiles = true;
         }
 
         updateBagCount();
         renderRack();
-        setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
-        playChord([480, 640]);
+
+        if (rack.length === RACK_SIZE) {
+          setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
+          if (drewTiles) {
+            playChord([480, 640]);
+          }
+        } else {
+          setMessage('Bag is empty—continue with the tiles you have.', 'success');
+        }
+
         return true;
       };
 
@@ -2473,6 +2538,7 @@ $aiSetupNotes = [
         firstTurn = false;
         turnActive = false;
         updateTurnButton();
+        updateAiButton();
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
@@ -2493,6 +2559,7 @@ $aiSetupNotes = [
         scoreEl.textContent = '0';
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
         updateTurnButton();
+        updateAiButton();
         playTone(196, 0.28, 'sawtooth', 0.07);
       };
 
@@ -2545,44 +2612,64 @@ $aiSetupNotes = [
         }
       };
 
-      const handleToggleClick = () => {
-        if (!turnActive) {
-          const started = startTurn();
-          if (started) {
-            turnActive = true;
-            updateTurnButton();
+        const handleToggleClick = () => {
+          if (!turnActive) {
+            const started = startTurn();
+            if (started) {
+              turnActive = true;
+              updateTurnButton();
+              updateAiButton();
+            }
+            return;
           }
-          return;
-        }
 
-        if (!dictionaryReady) {
-          setMessage('Dictionary still loading. Try again in a moment.', 'error');
-          return;
-        }
+          if (!dictionaryReady) {
+            setMessage('Dictionary still loading. Try again in a moment.', 'error');
+            return;
+          }
 
-        const valid = validateTurn();
-        if (valid) {
-          turnActive = false;
-          updateTurnButton();
-        }
-      };
+          const valid = validateTurn();
+          if (valid) {
+            turnActive = false;
+            updateTurnButton();
+            updateAiButton();
+          }
+        };
 
-      const handleAiClick = async () => {
-        returnLooseTilesToRack();
-        renderBoard();
-        renderRack();
-        openAiModal();
-        await showAiThinking();
-      };
+        const handleAiClick = async () => {
+          if (!turnActive) {
+            setMessage('Start your turn to request AI suggestions.', 'error');
+            return;
+          }
+          returnLooseTilesToRack();
+          renderBoard();
+          renderRack();
+          openAiModal();
+          await showAiThinking();
+        };
 
-      const handleAiClose = () => {
-        closeAiModal();
-      };
+        const shuffleRack = () => {
+          if (!rack.length) {
+            setMessage('No tiles to shuffle yet.', 'error');
+            return;
+          }
+          for (let i = rack.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rack[i], rack[j]] = [rack[j], rack[i]];
+          }
+          renderRack();
+          setMessage('Rack shuffled.', 'success');
+        };
+
+        const handleAiClose = () => {
+          closeAiModal();
+        };
 
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
+      if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleRack);
       if (aiModal) {
         aiModal.addEventListener('click', (event) => {
           if (event.target === aiModal) {
@@ -2646,6 +2733,7 @@ $aiSetupNotes = [
       renderRack();
       renderBoard();
       updateTurnButton();
+      updateAiButton();
       resizeBoardToViewport();
       setTimeout(resizeBoardToViewport, 120);
       setupDragAndDrop();
