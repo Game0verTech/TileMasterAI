@@ -33,28 +33,53 @@ $rowLabels = range('A', 'O');
 $columnLabels = range(1, 15);
 
 $sampleTiles = [
-  'H8' => ['letter' => 'O', 'value' => 1],
-  'I8' => ['letter' => 'R', 'value' => 1],
-  'J8' => ['letter' => 'A', 'value' => 1],
-  'K8' => ['letter' => 'T', 'value' => 1],
-  'L8' => ['letter' => 'I', 'value' => 1],
-  'M8' => ['letter' => 'O', 'value' => 1],
-  'N8' => ['letter' => 'N', 'value' => 1],
-  'F7' => ['letter' => 'T', 'value' => 1],
-  'F8' => ['letter' => 'O', 'value' => 1],
-  'F9' => ['letter' => 'N', 'value' => 1],
-  'F10' => ['letter' => 'E', 'value' => 1],
+  'H8' => ['letter' => 'O'],
+  'I8' => ['letter' => 'R'],
+  'J8' => ['letter' => 'A'],
+  'K8' => ['letter' => 'T'],
+  'L8' => ['letter' => 'I'],
+  'M8' => ['letter' => 'O'],
+  'N8' => ['letter' => 'N'],
+  'F7' => ['letter' => 'T'],
+  'F8' => ['letter' => 'O'],
+  'F9' => ['letter' => 'N'],
+  'F10' => ['letter' => 'E'],
 ];
 
-$rackTiles = [
-  ['letter' => 'T', 'value' => 1],
-  ['letter' => 'I', 'value' => 1],
-  ['letter' => 'L', 'value' => 1],
-  ['letter' => 'E', 'value' => 1],
-  ['letter' => 'M', 'value' => 3],
-  ['letter' => 'A', 'value' => 1],
-  ['letter' => '?', 'value' => 0],
-];
+foreach ($sampleTiles as $coordinate => &$tileData) {
+  $tileData['value'] = Scoring::tileValue($tileData['letter']);
+}
+unset($tileData);
+
+$rackLetters = ['T', 'I', 'L', 'E', 'M', 'A', '?'];
+$rackTiles = array_map(static fn ($letter) => [
+  'letter' => $letter,
+  'value' => Scoring::tileValue($letter),
+], $rackLetters);
+
+$tileDistribution = Scoring::tileDistribution();
+$totalTiles = array_sum(array_map(static fn ($entry) => $entry['count'], $tileDistribution));
+$blankCount = $tileDistribution['?']['count'] ?? 0;
+$distributionValid = $totalTiles === 100 && $blankCount === 2;
+$tileValuesAligned = array_reduce(array_keys($tileDistribution), static function ($carry, $letter) use ($tileDistribution) {
+  if ($carry === false) {
+    return false;
+  }
+
+  return $tileDistribution[$letter]['value'] === Scoring::tileValue($letter);
+}, true);
+
+$premiumLayout = Board::standardLayout();
+$layoutSymmetric = true;
+for ($r = 0; $r < Board::ROWS; $r++) {
+  for ($c = 0; $c < Board::COLUMNS; $c++) {
+    if ($premiumLayout[$r][$c] !== $premiumLayout[Board::ROWS - $r - 1][Board::COLUMNS - $c - 1]) {
+      $layoutSymmetric = false;
+      break 2;
+    }
+  }
+}
+$centerPremium = $premiumLayout[7][7] ?? '';
 
 $boardModel = Board::standard();
 foreach ($sampleTiles as $coordinate => $tileData) {
@@ -83,6 +108,41 @@ foreach (['H8', 'I8', 'J8', 'K8', 'L8', 'M8', 'N8'] as $coordinate) {
 
 $demoScore = Scoring::scorePlacements($boardModel, $demoPlacements);
 $dictionaryHasDemoWord = $dictionary->has($demoWord);
+
+$sanityChecks = [
+  [
+    'label' => 'Tile distribution',
+    'status' => $distributionValid ? '100 tiles accounted for' : 'Check counts',
+    'detail' => "Total {$totalTiles} tiles • {$blankCount} blanks • values " . ($tileValuesAligned ? 'aligned' : 'mismatch'),
+  ],
+  [
+    'label' => 'Premium layout symmetry',
+    'status' => $layoutSymmetric ? 'Mirrors correctly' : 'Needs attention',
+    'detail' => 'Layout mirrors across center; center square is ' . ($centerPremium ?: 'unset'),
+  ],
+  [
+    'label' => 'Center start star',
+    'status' => $centerPremium === 'DW' ? 'DW anchor ready' : 'Center premium off',
+    'detail' => 'H8 is marked as the first play double word.',
+  ],
+  [
+    'label' => 'Dictionary health',
+    'status' => $dictionaryHasDemoWord ? 'Word lookups OK' : 'Dictionary missing samples',
+    'detail' => basename($dictionaryPath) . ' • ' . number_format($dictionary->count()) . ' entries',
+  ],
+  [
+    'label' => 'AI key readiness',
+    'status' => $hasOpenAiKey ? 'OPENAI_API_KEY loaded' : 'Add OPENAI_API_KEY',
+    'detail' => $hasOpenAiKey ? 'Ready to call OpenAI for move advice.' : 'Store the key in .env and keep it server-side.',
+  ],
+];
+
+$aiSetupNotes = [
+  'Keep OPENAI_API_KEY in the server-side .env; never ship it to the browser.',
+  'Expose a POST /api/moves endpoint that validates board/rack payloads before calling OpenAI.',
+  'Use the move generator output as function-call arguments so GPT can rank or explain candidates.',
+  'Cache dictionary lookups and rate-limit the API route to avoid accidental overuse.',
+];
 ?>
 <!doctype html>
 <html lang="en">
@@ -440,6 +500,33 @@ $dictionaryHasDemoWord = $dictionary->has($demoWord);
       <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
     </div>
   </header>
+
+  <section class="grid" aria-label="Sanity checks and AI readiness">
+    <article class="card">
+      <h2 class="subhead">Scrabble sanity checks</h2>
+      <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
+      <div class="list" aria-label="Sanity check results">
+        <?php foreach ($sanityChecks as $check): ?>
+          <div class="list-item">
+            <div><strong><?php echo $check['label']; ?></strong><br><span class="note"><?php echo $check['detail']; ?></span></div>
+            <span class="badge"><?php echo $check['status']; ?></span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">AI helper setup</h2>
+      <p class="note">Guardrails for letting OpenAI rank moves or explain choices without leaking secrets.</p>
+      <div class="list" aria-label="AI setup guidance">
+        <?php foreach ($aiSetupNotes as $note): ?>
+          <div class="list-item">
+            <div><span class="note"><?php echo $note; ?></span></div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </article>
+  </section>
 
   <section class="grid" aria-label="Phase 2 layout preview">
     <article class="card">
