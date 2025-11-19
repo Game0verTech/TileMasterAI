@@ -2184,12 +2184,24 @@ $aiSetupNotes = [
 
         try {
           const response = await fetch('/api/sessions');
-          const data = await response.json();
-          renderSessions(Array.isArray(data.sessions) ? data.sessions : []);
+          const contentType = response.headers.get('content-type') || '';
+          const isJson = contentType.toLowerCase().includes('application/json');
+          const payload = isJson ? await response.json() : null;
+
+          if (!response.ok || !isJson) {
+            const message =
+              isJson && payload && typeof payload.message === 'string'
+                ? payload.message
+                : 'Unable to load sessions right now.';
+            throw new Error(message);
+          }
+
+          renderSessions(Array.isArray(payload.sessions) ? payload.sessions : []);
         } catch (error) {
           sessionEmptyEl.hidden = false;
           sessionListEl.hidden = true;
-          setSessionFlash('Unable to load sessions right now.', 'error');
+          const message = error instanceof Error ? error.message : 'Unable to load sessions right now.';
+          setSessionFlash(message, 'error');
           console.error(error);
         }
       };
