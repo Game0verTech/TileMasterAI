@@ -2163,6 +2163,7 @@ $aiSetupNotes = [
         const placements = [];
         const placementLetters = new Map();
         const blankPositions = new Set();
+        const blankAssignments = new Map();
 
         if (Array.isArray(move.placements)) {
           move.placements.forEach((placement) => {
@@ -2172,6 +2173,7 @@ $aiSetupNotes = [
             placementLetters.set(key, (placement.letter || '').toUpperCase());
             if (placement.isBlank) {
               blankPositions.add(key);
+              blankAssignments.set(key, (placement.letter || '').toUpperCase());
             }
           });
         }
@@ -2200,7 +2202,9 @@ $aiSetupNotes = [
 
           const key = `${row}-${col}`;
           const recordedLetter = placementLetters.get(key);
-          const letterForPosition = recordedLetter && recordedLetter !== '?' ? recordedLetter : word[i];
+          const letterForPosition = (blankAssignments.get(key)
+            || (recordedLetter && recordedLetter !== '?' ? recordedLetter : '')
+            || word[i]);
           const needsBlank = blankPositions.has(key);
           const foundId = availableIds.find((id) => {
             const candidate = findTile(id);
