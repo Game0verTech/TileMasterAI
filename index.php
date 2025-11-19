@@ -79,6 +79,37 @@ $demoWord = 'ORATION';
 $moveGenerator = new MoveGenerator($boardModel, $dictionary);
 $moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'suggestions') {
+  $input = json_decode(file_get_contents('php://input'), true) ?? [];
+  $rackLetters = array_map(static fn ($letter) => strtoupper((string) $letter), $input['rack'] ?? []);
+  $boardPayload = $input['board'] ?? [];
+
+  $boardForMoveGen = Board::standard();
+  foreach ($boardPayload as $placement) {
+    $row = (int) ($placement['row'] ?? -1) + 1; // convert 0-index from client
+    $col = (int) ($placement['col'] ?? -1) + 1;
+    $letter = strtoupper((string) ($placement['letter'] ?? ''));
+    $assigned = strtoupper((string) ($placement['assignedLetter'] ?? ''));
+    $isBlank = (bool) ($placement['isBlank'] ?? false);
+
+    if ($row < 1 || $col < 1 || $row > Board::ROWS || $col > Board::COLUMNS || $letter === '') {
+      continue;
+    }
+
+    $tileLetter = $isBlank ? ($assigned ?: '?') : $letter;
+    $tile = Tile::fromLetter($tileLetter, $isBlank);
+    $boardForMoveGen->placeTile($row, $col, $tile);
+  }
+
+  $rackForMoveGen = Rack::fromLetters($rackLetters);
+  $generator = new MoveGenerator($boardForMoveGen, $dictionary);
+  $suggestions = $generator->generateMoves($rackForMoveGen, 10);
+
+  header('Content-Type: application/json');
+  echo json_encode(['suggestions' => $suggestions]);
+  exit;
+}
+
 $demoPlacements = [];
 $demoBoard = Board::standard();
 $demoStartRow = 8;
@@ -1313,11 +1344,7 @@ $aiSetupNotes = [
         }
       };
 
-      const baseSuggestions = (serverSuggestions || []).length ? serverSuggestions : [
-        { word: 'RATION', start: 'H8', direction: 'horizontal', score: 64, mainWordScore: 64, crossWords: [] },
-        { word: 'MIRATE', start: 'H8', direction: 'horizontal', score: 58, mainWordScore: 58, crossWords: [] },
-        { word: 'LIMNER', start: 'H8', direction: 'horizontal', score: 52, mainWordScore: 52, crossWords: [] },
-      ];
+      let latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
 
       const parseCoordinate = (coord) => {
         const match = /^([A-Oa-o])(\d{1,2})$/.exec((coord || '').trim());
@@ -1346,6 +1373,35 @@ $aiSetupNotes = [
         });
 
         return { letters, blanks };
+      };
+
+      const rackLettersForServer = () => rack.map((tile) => {
+        if (tile.isBlank && tile.assignedLetter) {
+          return tile.assignedLetter;
+        }
+        if (tile.isBlank) {
+          return '?';
+        }
+        return tile.letter;
+      });
+
+      const boardStateForServer = () => {
+        const placements = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (!tile) continue;
+            placements.push({
+              row: r,
+              col: c,
+              letter: tile.letter,
+              assignedLetter: tile.assignedLetter,
+              isBlank: tile.isBlank,
+              locked: tile.locked,
+            });
+          }
+        }
+        return placements;
       };
 
       const suggestionPlayable = (move) => {
@@ -1389,6 +1445,28 @@ $aiSetupNotes = [
         }
 
         return true;
+      };
+
+      const fetchAiSuggestions = async () => {
+        try {
+          const response = await fetch('index.php?action=suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rack: rackLettersForServer(),
+              board: boardStateForServer(),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Suggestion fetch failed');
+          }
+
+          const data = await response.json();
+          latestSuggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+        } catch (error) {
+          latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
+        }
       };
 
       const findCell = (row, col) => cells.find((cell) => Number(cell.dataset.row) === row && Number(cell.dataset.col) === col);
@@ -1565,7 +1643,7 @@ $aiSetupNotes = [
         });
       };
 
-      const showAiThinking = () => {
+      const showAiThinking = async () => {
         if (!aiStatusEl || !aiStepEl) return;
         const steps = [
           'Scanning premiums and openings…',
@@ -1584,8 +1662,9 @@ $aiSetupNotes = [
         }
 
         clearAiTimers();
-        aiRevealTimeout = setTimeout(() => {
-          const playable = baseSuggestions.filter((move) => suggestionPlayable(move));
+        aiRevealTimeout = setTimeout(async () => {
+          await fetchAiSuggestions();
+          const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
           renderAiSuggestions(playable);
           if (aiSubtextEl) {
             aiSubtextEl.textContent = playable.length
@@ -1900,12 +1979,12 @@ $aiSetupNotes = [
         }
       };
 
-      const handleAiClick = () => {
+      const handleAiClick = async () => {
         returnLooseTilesToRack();
         renderBoard();
         renderRack();
         openAiModal();
-        showAiThinking();
+        await showAiThinking();
       };
 
       const handleAiClose = () => {
