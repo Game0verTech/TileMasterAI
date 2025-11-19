@@ -488,6 +488,64 @@ $aiSetupNotes = [
       gap: 10px;
     }
 
+    .ai-helper {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #f8fafc;
+      display: grid;
+      gap: 10px;
+    }
+
+    .ai-helper__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .suggestion-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .suggestion {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      cursor: pointer;
+      display: grid;
+      gap: 4px;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .suggestion:hover {
+      border-color: #c7d2fe;
+      box-shadow: 0 10px 28px rgba(99, 102, 241, 0.14);
+    }
+
+    .suggestion-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .suggestion-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .suggestion .badge { margin-left: auto; }
+
     .turn-panel {
       display: grid;
       gap: 12px;
@@ -780,6 +838,18 @@ $aiSetupNotes = [
               <button class="btn secondary" type="button" id="resetBoardBtn">Reset board</button>
               <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
             </div>
+            <div class="ai-helper" aria-label="AI move helper">
+              <div class="ai-helper__header">
+                <div>
+                  <div class="pill">AI Move</div>
+                  <p class="note" style="margin:6px 0 0;">Server-side solver returns the top five legal plays for your rack.</p>
+                </div>
+                <button class="btn secondary" type="button" id="suggestMovesBtn">Suggest best moves</button>
+              </div>
+              <div class="suggestion-list" id="suggestionsList">
+                <p class="note" style="margin:0;">Request suggestions to preview placements before submitting.</p>
+              </div>
+            </div>
             <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
           </div>
         </div>
@@ -991,6 +1061,8 @@ Response
       const startBtn = document.getElementById('startTurnBtn');
       const endBtn = document.getElementById('endTurnBtn');
       const resetBtn = document.getElementById('resetBoardBtn');
+      const suggestBtn = document.getElementById('suggestMovesBtn');
+      const suggestionsEl = document.getElementById('suggestionsList');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
 
       let tileId = 0;
@@ -1001,6 +1073,7 @@ Response
       let firstTurn = true;
       let dictionaryReady = false;
       let dictionary = new Set();
+      let suggestedMoves = [];
 
       const buildBag = () => {
         bag = [];
@@ -1040,6 +1113,61 @@ Response
         if (tone) {
           messageEl.classList.add(tone);
         }
+      };
+
+      const clearUncommittedTiles = () => {
+        let moved = false;
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && !tile.locked) {
+              tile.position = { type: 'rack' };
+              tile.justPlaced = false;
+              board[r][c] = null;
+              rack.push(tile);
+              moved = true;
+            }
+          }
+        }
+
+        if (moved) {
+          renderBoard();
+          renderRack();
+        }
+      };
+
+      const serializeBoardForApi = () => {
+        const tiles = [];
+        board.forEach((row, r) => row.forEach((tile, c) => {
+          if (!tile || !tile.locked) return;
+          const letter = tile.isBlank ? (tile.assignedLetter || '?') : tile.letter;
+          tiles.push({
+            row: r + 1,
+            column: c + 1,
+            letter,
+            isBlank: tile.isBlank,
+            value: tile.value,
+          });
+        }));
+
+        return { premiumLayout, tiles };
+      };
+
+      const serializeRackForApi = () => {
+        const normalize = (tile) => ({
+          letter: tile.isBlank ? (tile.assignedLetter || '?') : (tile.assignedLetter || tile.letter),
+          isBlank: tile.isBlank,
+          value: tile.value,
+        });
+
+        const tiles = rack.map(normalize);
+        board.forEach((row) => row.forEach((tile) => {
+          if (tile && !tile.locked) {
+            tiles.push(normalize(tile));
+          }
+        }));
+
+        return tiles;
       };
 
       const updateBagCount = () => {
@@ -1195,6 +1323,137 @@ Response
           }
         }
         return null;
+      };
+
+      const renderSuggestions = () => {
+        suggestionsEl.innerHTML = '';
+
+        if (!suggestedMoves.length) {
+          const note = document.createElement('p');
+          note.className = 'note';
+          note.textContent = 'No suggestions yet. Ask the solver to see the best options.';
+          suggestionsEl.appendChild(note);
+          return;
+        }
+
+        suggestedMoves.forEach((move, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'suggestion';
+          const title = document.createElement('div');
+          title.className = 'suggestion-title';
+          title.innerHTML = `<span>${index + 1}. ${move.word}</span><span class="badge">${move.score} pts</span>`;
+
+          const metaParts = [
+            `${move.start} → ${move.direction === 'horizontal' ? 'Across' : 'Down'}`,
+            `${move.placements.length} tile${move.placements.length === 1 ? '' : 's'}`,
+          ];
+
+          if (move.crossWords?.length) {
+            metaParts.push(`${move.crossWords.length} cross word${move.crossWords.length === 1 ? '' : 's'}`);
+          }
+          if (move.bingo) {
+            metaParts.push('Bingo +50');
+          }
+
+          const meta = document.createElement('div');
+          meta.className = 'suggestion-meta';
+          meta.textContent = metaParts.join(' · ');
+
+          button.appendChild(title);
+          button.appendChild(meta);
+          button.addEventListener('click', () => previewSuggestion(move));
+          suggestionsEl.appendChild(button);
+        });
+      };
+
+      const previewSuggestion = (move) => {
+        clearUncommittedTiles();
+        const claimedIds = new Set();
+        const takeTile = (letter, mustBeBlank) => {
+          const faceMatches = (tile) => {
+            if (mustBeBlank) return tile.isBlank;
+            if (tile.isBlank) return tile.assignedLetter === letter;
+            return tile.letter === letter;
+          };
+
+          let candidate = rack.find((tile) => !claimedIds.has(tile.id) && faceMatches(tile));
+
+          if (!candidate && !mustBeBlank) {
+            candidate = rack.find((tile) => !claimedIds.has(tile.id) && tile.isBlank);
+          }
+
+          if (candidate) {
+            claimedIds.add(candidate.id);
+          }
+
+          return candidate;
+        };
+
+        for (const placement of move.placements) {
+          const targetRow = placement.row - 1;
+          const targetCol = placement.column - 1;
+          const existing = board[targetRow][targetCol];
+          if (existing && existing.locked) {
+            continue;
+          }
+
+          const tile = takeTile(placement.letter, placement.isBlank);
+          if (!tile) {
+            setMessage('You do not have the tiles needed for this suggestion.', 'error');
+            return;
+          }
+
+          if (tile.isBlank) {
+            tile.assignedLetter = placement.letter;
+          }
+
+          moveTileToBoard(tile.id, targetRow, targetCol);
+        }
+
+        renderBoard();
+        renderRack();
+        setMessage(`Previewing ${move.word} for ${move.score} points. Submit to lock it in.`, 'success');
+      };
+
+      const requestMoveSuggestions = async () => {
+        if (!suggestBtn) return;
+        suggestBtn.disabled = true;
+        suggestBtn.textContent = 'Thinking…';
+        setMessage('Calculating best moves on the server…', '');
+
+        const payload = {
+          board: serializeBoardForApi(),
+          rack: serializeRackForApi(),
+          limit: 5,
+        };
+
+        try {
+          const response = await fetch('api/suggest_moves.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            throw new Error('HTTP error');
+          }
+
+          const data = await response.json();
+          suggestedMoves = data.moves || [];
+          renderSuggestions();
+
+          if (suggestedMoves.length === 0) {
+            setMessage(data.message || 'No moves available with this rack.', 'error');
+          } else {
+            setMessage(`Top ${suggestedMoves.length} moves ready. Click to preview.`, 'success');
+          }
+        } catch (error) {
+          setMessage('Could not fetch suggestions. Confirm PHP is running locally.', 'error');
+        } finally {
+          suggestBtn.disabled = false;
+          suggestBtn.textContent = 'Suggest best moves';
+        }
       };
 
       const startTurn = () => {
@@ -1477,11 +1736,13 @@ Response
         validateTurn();
       });
       resetBtn.addEventListener('click', resetBoard);
+      suggestBtn.addEventListener('click', requestMoveSuggestions);
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
+      renderSuggestions();
       setupDragAndDrop();
       loadDictionary();
     })();
