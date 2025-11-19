@@ -15,7 +15,7 @@ class Tile
         $upper = strtoupper($letter);
         $this->letter = $upper;
         $this->isBlank = $isBlank;
-        $this->value = $isBlank ? 0 : ($value ?? (Scoring::tileValues()[$upper] ?? 0));
+        $this->value = $isBlank ? 0 : ($value ?? Scoring::tileValue($upper));
     }
 
     public static function fromLetter(string $letter, bool $isBlank = false): self

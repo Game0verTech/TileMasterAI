@@ -13,6 +13,11 @@ Bootstrap PHP landing page for TileMasterAI.
 ## Local usage
 Serve the repository with PHP (e.g., `php -S localhost:8000`) and visit the root to confirm the welcome page and environment status indicator.
 
+## Scrabble sanity checks
+- `Scoring::tileDistribution()` enumerates the full 100-tile English set (including blanks) with their official point values.
+- The landing page lists live sanity checks for tile counts, premium-grid symmetry, center start square, dictionary health, and OpenAI key presence.
+- Board and rack samples derive tile values from `Scoring::tileValue()` so the face values always match classic scoring.
+
 ## Game engine foundations
 - Core domain classes live in `src/Game` (board/rack models, dictionary loader, scoring helpers, move generator).
 - Override the default word list by setting `DICTIONARY_PATH` to a readable file; otherwise `data/dictionary-mini.txt` is used for local previews.
