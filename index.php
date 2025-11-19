@@ -390,6 +390,14 @@ $aiSetupNotes = [
     .tile.blank .value,
     .rack-tile.blank .value { display: none; }
 
+    .tile-ghost {
+      position: fixed;
+      z-index: 1200;
+      pointer-events: none;
+      transition: transform 0.38s ease, opacity 0.38s ease;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    }
+
     .rack-bar {
       display: flex;
       gap: 10px;
@@ -1288,7 +1296,7 @@ $aiSetupNotes = [
         return null;
       };
 
-      const returnLooseTilesToRack = () => {
+      const returnLooseTilesToRack = (announce = true) => {
         const movable = [];
         for (let r = 0; r < BOARD_SIZE; r += 1) {
           for (let c = 0; c < BOARD_SIZE; c += 1) {
@@ -1300,7 +1308,7 @@ $aiSetupNotes = [
         }
 
         movable.forEach((id) => moveTileToRack(id));
-        if (movable.length) {
+        if (movable.length && announce) {
           setMessage('Tiles returned to your rack for the new AI run.', 'success');
         }
       };
@@ -1310,6 +1318,138 @@ $aiSetupNotes = [
         { word: 'MIRATE', start: 'H8', direction: 'horizontal', score: 58, mainWordScore: 58, crossWords: [] },
         { word: 'LIMNER', start: 'H8', direction: 'horizontal', score: 52, mainWordScore: 52, crossWords: [] },
       ];
+
+      const parseCoordinate = (coord) => {
+        const match = /^([A-Oa-o])(\d{1,2})$/.exec((coord || '').trim());
+        if (!match) return null;
+        const row = match[1].toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
+        const col = Number(match[2]) - 1;
+        if (Number.isNaN(row) || Number.isNaN(col) || row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) {
+          return null;
+        }
+        return { row, col };
+      };
+
+      const findCell = (row, col) => cells.find((cell) => Number(cell.dataset.row) === row && Number(cell.dataset.col) === col);
+
+      const animateTileToCell = (tile, cell, row, col) => {
+        if (!tile) return;
+        const source = document.querySelector(`[data-tile-id="${tile.id}"][data-location="rack"]`);
+        const targetRect = cell?.getBoundingClientRect();
+        const sourceRect = source?.getBoundingClientRect();
+
+        if (sourceRect && targetRect) {
+          const ghost = (source?.cloneNode(true) || document.createElement('div'));
+          ghost.classList.add('tile-ghost');
+          ghost.style.width = `${sourceRect.width}px`;
+          ghost.style.height = `${sourceRect.height}px`;
+          ghost.style.top = `${sourceRect.top}px`;
+          ghost.style.left = `${sourceRect.left}px`;
+          ghost.style.transform = 'translate(0, 0) scale(1)';
+          ghost.style.opacity = '1';
+          document.body.appendChild(ghost);
+
+          requestAnimationFrame(() => {
+            const targetX = targetRect.left + (targetRect.width - sourceRect.width) / 2;
+            const targetY = targetRect.top + (targetRect.height - sourceRect.height) / 2;
+            ghost.style.transform = `translate(${targetX - sourceRect.left}px, ${targetY - sourceRect.top}px) scale(1.05)`;
+            ghost.style.opacity = '0.1';
+          });
+
+          setTimeout(() => {
+            moveTileToBoard(tile.id, row, col);
+            ghost.remove();
+          }, 380);
+          return;
+        }
+
+        moveTileToBoard(tile.id, row, col);
+      };
+
+      const applySuggestedMove = (move) => {
+        if (!move || !move.word) {
+          setMessage('No suggestion to place right now.', 'error');
+          return;
+        }
+
+        returnLooseTilesToRack(false);
+        renderBoard();
+        renderRack();
+
+        const start = parseCoordinate(move.start || 'H8');
+        if (!start) {
+          setMessage('Unable to read that suggestion position.', 'error');
+          return;
+        }
+
+        const direction = move.direction === 'vertical' ? 'vertical' : 'horizontal';
+        const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
+        const word = (move.word || '').toUpperCase();
+        const availableIds = rack.map((tile) => tile.id);
+        const placements = [];
+
+        for (let i = 0; i < word.length; i += 1) {
+          const row = start.row + delta.dr * i;
+          const col = start.col + delta.dc * i;
+          if (row >= BOARD_SIZE || col >= BOARD_SIZE) {
+            setMessage('That suggestion would run off the board.', 'error');
+            return;
+          }
+
+          const targetTile = board[row][col];
+          if (targetTile && targetTile.locked) {
+            const lockedLetter = targetTile.isBlank ? (targetTile.assignedLetter || targetTile.letter) : targetTile.letter;
+            if (lockedLetter.toUpperCase() !== word[i]) {
+              setMessage('A locked tile blocks part of that suggestion.', 'error');
+              return;
+            }
+            continue;
+          }
+
+          if (targetTile && !targetTile.locked) {
+            moveTileToRack(targetTile.id);
+          }
+
+          const foundId = availableIds.find((id) => {
+            const candidate = findTile(id);
+            if (!candidate) return false;
+            if (!candidate.isBlank && candidate.letter.toUpperCase() === word[i]) return true;
+            if (candidate.isBlank) return true;
+            return false;
+          });
+
+          if (!foundId) {
+            setMessage(`Missing the tile “${word[i]}” to build ${word}.`, 'error');
+            return;
+          }
+
+          availableIds.splice(availableIds.indexOf(foundId), 1);
+          placements.push({ tileId: foundId, letter: word[i], row, col });
+        }
+
+        if (!placements.length) {
+          setMessage('No movable tiles needed for that suggestion.', 'error');
+          return;
+        }
+
+        placements.forEach((placement, index) => {
+          const tile = findTile(placement.tileId);
+          if (tile && tile.isBlank) {
+            tile.assignedLetter = placement.letter;
+          }
+          const cell = findCell(placement.row, placement.col);
+          setTimeout(() => {
+            animateTileToCell(tile, cell, placement.row, placement.col);
+          }, index * 160);
+        });
+
+        const finalDelay = (placements.length - 1) * 160 + 420;
+        setTimeout(() => {
+          setMessage(`Placed “${word}” from AI suggestions.`, 'success');
+        }, finalDelay);
+
+        closeAiModal();
+      };
 
       const clearAiTimers = () => {
         if (aiStepInterval) clearInterval(aiStepInterval);
@@ -1357,8 +1497,7 @@ $aiSetupNotes = [
           `;
 
           li.addEventListener('click', () => {
-            setMessage(`You picked the suggested word “${move.word}”. Place its tiles to try it out!`, 'success');
-            closeAiModal();
+            applySuggestedMove(move);
           });
 
           aiListEl.appendChild(li);
