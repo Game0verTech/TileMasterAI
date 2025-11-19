@@ -706,6 +706,126 @@ $aiSetupNotes = [
       box-shadow: none;
     }
 
+    .sessions-card {
+      display: grid;
+      gap: 12px;
+      margin: 18px auto 0;
+      width: min(1200px, 100%);
+    }
+
+    .session-header {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items: start;
+    }
+
+    .session-form {
+      display: grid;
+      gap: 8px;
+    }
+
+    .session-fields {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .input {
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .input:focus {
+      outline: 2px solid #a5b4fc;
+      border-color: #818cf8;
+      background: #fff;
+    }
+
+    .session-hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .session-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .session-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .session-meta { display: grid; gap: 4px; }
+
+    .session-title {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+    }
+
+    .session-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: #eef2ff;
+      color: #312e81;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .session-players {
+      color: var(--muted);
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .session-actions { display: inline-flex; gap: 8px; align-items: center; }
+
+    .btn.small { padding: 10px 12px; font-size: 14px; }
+
+    .btn.ghost {
+      background: #fff;
+      color: var(--ink);
+      border-style: dashed;
+    }
+
+    .session-flash {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 700;
+      display: none;
+    }
+
+    .session-flash.show { display: block; }
+    .session-flash.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+    .session-flash.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
+
+    .session-empty { margin: 0; color: var(--muted); font-weight: 700; }
+
+    .lede.small { font-size: 15px; }
+
     .list {
       list-style: none;
       padding: 0;
@@ -1539,6 +1659,32 @@ $aiSetupNotes = [
     </div>
   </header>
 
+  <section class="card sessions-card" aria-labelledby="sessionsTitle">
+    <div class="session-header">
+      <div>
+        <p class="eyebrow">Multiplayer lobby</p>
+        <h2 class="subhead" id="sessionsTitle">Sessions</h2>
+        <p class="lede small">Open games ready for up to four players.</p>
+      </div>
+      <form class="session-form" id="createSessionForm" novalidate>
+        <div class="session-fields">
+          <label class="sr-only" for="sessionCode">Session code</label>
+          <input class="input" type="text" id="sessionCode" name="code" placeholder="e.g., ALPHA" required maxlength="12" />
+          <label class="sr-only" for="playerName">Your name</label>
+          <input class="input" type="text" id="playerName" name="playerName" placeholder="Display name" required maxlength="40" />
+        </div>
+        <div class="session-actions">
+          <button class="btn small" type="submit">Create session</button>
+          <p class="session-hint">Max 4 players per table. Creators are marked as host.</p>
+        </div>
+      </form>
+    </div>
+
+    <div class="session-flash" id="sessionFlash" role="status" aria-live="polite"></div>
+    <div class="session-list" id="sessionList" role="list"></div>
+    <p class="session-empty" id="sessionEmpty">No sessions yet — create one.</p>
+  </section>
+
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
       <div class="board-scale" id="boardScale">
@@ -1673,6 +1819,148 @@ $aiSetupNotes = [
       const boardChromeEl = document.getElementById('boardChrome');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
+      const sessionListEl = document.getElementById('sessionList');
+      const sessionEmptyEl = document.getElementById('sessionEmpty');
+      const sessionFlashEl = document.getElementById('sessionFlash');
+      const createSessionForm = document.getElementById('createSessionForm');
+      const sessionCodeInput = document.getElementById('sessionCode');
+      const playerNameInput = document.getElementById('playerName');
+      const MAX_PLAYERS = 4;
+
+      const setSessionFlash = (message, tone = 'info') => {
+        if (!sessionFlashEl) return;
+
+        const classes = ['session-flash'];
+        if (message) classes.push('show');
+        if (tone === 'success') classes.push('success');
+        if (tone === 'error') classes.push('error');
+
+        sessionFlashEl.className = classes.join(' ');
+        sessionFlashEl.textContent = message;
+      };
+
+      const renderSessions = (sessions = []) => {
+        if (!sessionListEl || !sessionEmptyEl) return;
+
+        sessionListEl.innerHTML = '';
+
+        if (!sessions.length) {
+          sessionListEl.hidden = true;
+          sessionEmptyEl.hidden = false;
+          return;
+        }
+
+        sessionListEl.hidden = false;
+        sessionEmptyEl.hidden = true;
+
+        sessions.forEach((session) => {
+          const row = document.createElement('div');
+          row.className = 'session-row';
+          row.setAttribute('role', 'listitem');
+
+          const meta = document.createElement('div');
+          meta.className = 'session-meta';
+
+          const title = document.createElement('h3');
+          title.className = 'session-title';
+          title.textContent = session.code;
+
+          const status = document.createElement('span');
+          status.className = 'session-status';
+          status.textContent = session.status;
+
+          const players = document.createElement('p');
+          players.className = 'session-players';
+          players.textContent = `${session.player_count}/${MAX_PLAYERS} players`;
+
+          meta.appendChild(title);
+          meta.appendChild(status);
+          meta.appendChild(players);
+
+          const actions = document.createElement('div');
+          actions.className = 'session-actions';
+
+          const joinBtn = document.createElement('button');
+          joinBtn.type = 'button';
+          joinBtn.className = 'btn small';
+          joinBtn.textContent = session.player_count >= MAX_PLAYERS ? 'Full' : 'Join';
+          joinBtn.disabled = session.player_count >= MAX_PLAYERS;
+          joinBtn.addEventListener('click', () => {
+            if (sessionCodeInput) sessionCodeInput.value = session.code;
+            if (playerNameInput) playerNameInput.focus();
+            if (createSessionForm) {
+              const { top } = createSessionForm.getBoundingClientRect();
+              window.scrollTo({ top: window.scrollY + top - 80, behavior: 'smooth' });
+            }
+            setSessionFlash(`Joining ${session.code}? Add your name to continue.`, 'success');
+          });
+
+          actions.appendChild(joinBtn);
+
+          row.appendChild(meta);
+          row.appendChild(actions);
+          sessionListEl.appendChild(row);
+        });
+      };
+
+      const fetchSessions = async () => {
+        if (!sessionListEl || !sessionEmptyEl) return;
+
+        try {
+          const response = await fetch('/api/sessions');
+          const data = await response.json();
+          renderSessions(Array.isArray(data.sessions) ? data.sessions : []);
+        } catch (error) {
+          sessionEmptyEl.hidden = false;
+          sessionListEl.hidden = true;
+          setSessionFlash('Unable to load sessions right now.', 'error');
+          console.error(error);
+        }
+      };
+
+      const handleCreateSession = async (event) => {
+        event.preventDefault();
+
+        if (!sessionCodeInput || !playerNameInput) {
+          return;
+        }
+
+        const code = sessionCodeInput.value.trim();
+        const playerName = playerNameInput.value.trim();
+
+        if (code === '' || playerName === '') {
+          setSessionFlash('Enter a session code and your name to create a game.', 'error');
+          return;
+        }
+
+        setSessionFlash('Creating session…');
+
+        try {
+          const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, playerName }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to create session.');
+          }
+
+          setSessionFlash(`Session ${data.session.code} created. You're the host.`, 'success');
+          sessionCodeInput.value = '';
+          playerNameInput.value = '';
+          fetchSessions();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to create session.';
+          setSessionFlash(message, 'error');
+        }
+      };
+
+      if (createSessionForm) {
+        createSessionForm.addEventListener('submit', handleCreateSession);
+      }
 
       let tileId = 0;
       let bag = [];
@@ -3139,6 +3427,7 @@ $aiSetupNotes = [
       setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
       setupDragAndDrop();
       loadDictionary();
+      fetchSessions();
     });
   </script>
 

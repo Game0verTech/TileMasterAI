@@ -65,6 +65,43 @@ class GameRepository
         ]);
     }
 
+    public function countPlayersInSession(int $sessionId): int
+    {
+        $statement = $this->pdo->prepare('SELECT COUNT(*) as total FROM session_players WHERE session_id = :session_id');
+        $statement->execute([':session_id' => $sessionId]);
+        $result = $statement->fetch();
+
+        return isset($result['total']) ? (int) $result['total'] : 0;
+    }
+
+    /**
+     * @return array<int, array{id: int, code: string, status: string, player_count: int}>
+     */
+    public function listOpenSessionsWithCounts(): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT s.id, s.code, s.status, COUNT(sp.id) as player_count '
+            . 'FROM sessions s '
+            . 'LEFT JOIN session_players sp ON sp.session_id = s.id '
+            . 'WHERE s.status IN ("pending", "active") '
+            . 'GROUP BY s.id, s.code, s.status '
+            . 'ORDER BY s.updated_at DESC, s.created_at DESC'
+        );
+
+        $statement->execute();
+        $sessions = $statement->fetchAll();
+
+        return array_map(
+            static fn ($session) => [
+                'id' => (int) $session['id'],
+                'code' => (string) $session['code'],
+                'status' => (string) $session['status'],
+                'player_count' => (int) $session['player_count'],
+            ],
+            $sessions ?: []
+        );
+    }
+
     /**
      * @param array<int, array<string, mixed>> $placements
      */
