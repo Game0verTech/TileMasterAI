@@ -33,10 +33,18 @@ $rowLabels = range('A', 'O');
 $columnLabels = range(1, 15);
 
 $rackLetters = ['T', 'I', 'L', 'E', 'M', 'A', '?'];
-$rackTiles = array_map(static fn ($letter) => [
-  'letter' => $letter,
-  'value' => Scoring::tileValue($letter),
-], $rackLetters);
+$rackModel = Rack::fromLetters($rackLetters);
+$rackTiles = array_map(static function (Tile $tile) {
+  $letter = $tile->letter();
+  $isBlank = $tile->isBlank();
+
+  return [
+    'letter' => $letter,
+    'value' => $tile->value(),
+    'isBlank' => $isBlank,
+    'displayLetter' => $isBlank && $letter === '?' ? '' : $letter,
+  ];
+}, $rackModel->tiles());
 
 $tileDistribution = Scoring::tileDistribution();
 $totalTiles = array_sum(array_map(static fn ($entry) => $entry['count'], $tileDistribution));
@@ -68,7 +76,6 @@ $dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.
 $dictionary = new Dictionary($dictionaryPath);
 $demoWord = 'ORATION';
 
-$rackModel = Rack::fromLetters(array_map(static fn ($tile) => $tile['letter'], $rackTiles));
 $moveGenerator = new MoveGenerator($boardModel, $dictionary);
 $moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
 
@@ -332,8 +339,20 @@ $aiSetupNotes = [
       color: #0f172a;
     }
 
+    .tile.blank,
+    .rack-tile.blank {
+      background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+      border-color: #a5b4fc;
+    }
+
     .tile .letter { font-size: 18px; font-weight: 800; }
     .tile .value { font-size: 10px; font-weight: 700; justify-self: end; }
+
+    .letter.blank-empty { color: transparent; }
+    .letter.blank-assigned { color: #2563eb; }
+
+    .tile.blank .value,
+    .rack-tile.blank .value { display: none; }
 
     .rack-bar {
       display: flex;
@@ -364,6 +383,13 @@ $aiSetupNotes = [
 
     .rack-tile .letter { font-size: 18px; }
     .rack-tile .value { font-size: 11px; justify-self: end; font-weight: 700; }
+
+    .rack-note {
+      text-align: center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     .actions {
       display: grid;
@@ -456,6 +482,80 @@ $aiSetupNotes = [
       gap: 6px;
     }
 
+    .rules-btn {
+      justify-self: start;
+      width: fit-content;
+      cursor: pointer;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.36);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 10;
+    }
+
+    .modal-backdrop.active { display: flex; }
+
+    .modal {
+      background: #fff;
+      max-width: 720px;
+      width: min(720px, 100%);
+      border-radius: 16px;
+      box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
+      border: 1px solid #e2e8f0;
+      padding: 18px 18px 20px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal h3 { margin: 0; }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .rules-list {
+      padding-left: 18px;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .rules-highlight {
+      background: #eef2ff;
+      color: #312e81;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #c7d2fe;
+      font-weight: 600;
+    }
+
+    .modal-footer-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    body.modal-open { overflow: hidden; }
+
     @media (min-width: 900px) {
       body { padding: 42px 32px 80px; }
       .grid { grid-template-columns: 2fr 1fr; }
@@ -474,7 +574,7 @@ $aiSetupNotes = [
   <header>
     <span class="eyebrow">Phase 2 · Experience design</span>
     <h1>Designing the TileMasterAI board experience</h1>
-    <p class="lede">Mobile-first scaffolding for a Scrabble-standard play surface: authentic 15x15 bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
+    <p class="lede">Mobile-first scaffolding for a classic 15x15 word-tile play surface: authentic bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
     <div class="status" aria-live="polite">
       <span class="status-icon" aria-hidden="true"></span>
       <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
@@ -484,7 +584,7 @@ $aiSetupNotes = [
   <section class="grid" aria-label="Phase 2 layout preview">
     <article class="card">
       <h2 class="subhead">Primary layout</h2>
-      <p class="note">Standard 15x15 Scrabble grid with the authentic premium pattern, a centered star on the H8 double word, and an empty board ready for live placements.</p>
+      <p class="note">Standard 15x15 word game grid with the authentic premium pattern, a centered star on the H8 double word, and an empty board ready for live placements.</p>
       <div class="layout-shell">
         <div class="board-preview" aria-label="Board preview">
           <div class="board-grid" role="presentation">
@@ -512,7 +612,13 @@ $aiSetupNotes = [
 
                 $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
                 if ($isCenter) { $ariaParts[] = 'start star'; }
-                if ($tile) { $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)"; }
+                if ($tile) {
+                  if ($tile->isBlank()) {
+                    $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                  } else {
+                    $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
+                  }
+                }
                 $ariaLabel = implode(' · ', $ariaParts);
               ?>
               <div class="<?php echo $classes; ?>" aria-label="<?php echo $ariaLabel; ?>">
@@ -520,9 +626,20 @@ $aiSetupNotes = [
                 <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
                 <?php if ($tile): ?>
-                  <div class="tile" aria-hidden="true">
-                    <span class="letter"><?php echo $tile->letter(); ?></span>
-                    <span class="value"><?php echo $tile->value(); ?></span>
+                  <?php
+                    $tileLetter = $tile->letter();
+                    $isBlankTile = $tile->isBlank();
+                    $tileClasses = 'tile' . ($isBlankTile ? ' blank' : '');
+                    $letterClass = 'letter';
+                    if ($isBlankTile) {
+                      $letterClass .= $tileLetter === '?' ? ' blank-empty' : ' blank-assigned';
+                    }
+                    $tileLetterDisplay = $isBlankTile && $tileLetter === '?' ? '&nbsp;' : $tileLetter;
+                    $tileValueDisplay = $isBlankTile ? '' : $tile->value();
+                  ?>
+                  <div class="<?php echo $tileClasses; ?>" aria-hidden="true">
+                    <span class="<?php echo $letterClass; ?>"><?php echo $tileLetterDisplay; ?></span>
+                    <span class="value"><?php echo $tileValueDisplay; ?></span>
                   </div>
                 <?php elseif ($isCenter): ?>
                   <span class="cell-label">★ DW</span>
@@ -537,17 +654,31 @@ $aiSetupNotes = [
         <div class="card" style="box-shadow:none; border-style:dashed;">
           <div class="rack-bar" aria-label="Rack preview">
             <?php foreach ($rackTiles as $rackTile): ?>
-              <div class="rack-tile" aria-label="Rack tile <?php echo $rackTile['letter']; ?>">
-                <span class="letter"><?php echo $rackTile['letter']; ?></span>
-                <span class="value"><?php echo $rackTile['value']; ?></span>
+              <?php
+                $rackTileClass = 'rack-tile' . ($rackTile['isBlank'] ? ' blank' : '');
+                $rackLetterClass = 'letter';
+                if ($rackTile['isBlank']) {
+                  $rackLetterClass .= $rackTile['displayLetter'] === '' ? ' blank-empty' : ' blank-assigned';
+                }
+                $rackLetterDisplay = $rackTile['displayLetter'] === '' ? '&nbsp;' : $rackTile['displayLetter'];
+                $rackValueDisplay = $rackTile['isBlank'] ? '' : $rackTile['value'];
+                $rackLabel = $rackTile['isBlank']
+                  ? 'Rack tile blank (0 pts)'
+                  : 'Rack tile ' . $rackTile['letter'] . ' (' . $rackTile['value'] . ' pts)';
+              ?>
+              <div class="<?php echo $rackTileClass; ?>" aria-label="<?php echo $rackLabel; ?>">
+                <span class="<?php echo $rackLetterClass; ?>"><?php echo $rackLetterDisplay; ?></span>
+                <span class="value"><?php echo $rackValueDisplay; ?></span>
               </div>
             <?php endforeach; ?>
           </div>
+          <p class="rack-note">Blank tiles stay empty until you assign a letter during play; the letter turns blue and still scores 0 points.</p>
           <div class="actions" aria-label="Action buttons">
             <div class="btn">Run solver</div>
             <div class="btn secondary">Reset board</div>
             <div class="btn secondary">Clear rack</div>
             <div class="btn secondary">Shuffle rack</div>
+            <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
           </div>
         </div>
       </div>
@@ -556,7 +687,7 @@ $aiSetupNotes = [
 
   <section class="grid" aria-label="Sanity checks and AI readiness">
     <article class="card">
-      <h2 class="subhead">Scrabble sanity checks</h2>
+      <h2 class="subhead">Word game sanity checks</h2>
       <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
       <div class="list" aria-label="Sanity check results">
         <?php foreach ($sanityChecks as $check): ?>
@@ -742,5 +873,64 @@ Response
 }</pre>
     </article>
   </section>
+
+  <div class="modal-backdrop" id="rulesModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+      <div class="modal-header">
+        <h3 id="rulesTitle">Rules for the word tile game</h3>
+        <button class="modal-close" type="button" id="closeRules" aria-label="Close rules">×</button>
+      </div>
+      <div class="rules-highlight">
+        Tile pool: 100 total tiles. Counts: 12 E, 9 A, 9 I, 8 O, 6 each N R T, 4 each D L S U, 3 G, 2 each B C F H M P V W Y, and 1 each J K Q X Z. Two blanks score 0 and start empty until assigned.
+      </div>
+      <ol class="rules-list">
+        <li><strong>Objective.</strong> Score the most points by forming valid words horizontally or vertically on the 15x15 board.</li>
+        <li><strong>Setup.</strong> Each player draws seven tiles from the facedown pool. The first play must use the center double word square.</li>
+        <li><strong>Tile placement.</strong> Words read left to right or top to bottom and must connect to the existing chain after the opening turn.</li>
+        <li><strong>Premium squares.</strong> Double and triple letter or word squares affect only newly placed tiles; multiple word bonuses in a single play multiply together.</li>
+        <li><strong>Blank tiles.</strong> Two blanks act as wild letters. Choose a value when played; the tile shows a blue letter and always scores 0 points.</li>
+        <li><strong>Scoring a turn.</strong> Add letter values with any letter bonuses, then apply word bonuses. Include scores for every new cross word formed. Playing all seven tiles in one turn adds a 50 point bonus.</li>
+        <li><strong>Exchanging tiles.</strong> On your turn you may swap any number of tiles with the pool if at least seven tiles remain, but you forfeit scoring that turn.</li>
+        <li><strong>Challenging words.</strong> A play can be challenged before the next turn. Invalid words are removed and score zero; valid plays stand.</li>
+        <li><strong>Ending the game.</strong> Play ends when the pool is empty and a player uses all tiles or when every player passes twice. Subtract leftover rack points from each player; add the opponent totals to the score of the player who went out.</li>
+      </ol>
+      <p class="modal-footer-note">A blank tile appears as an empty face until you assign it, at which point the blue letter reminds everyone it still carries no points.</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const modal = document.getElementById('rulesModal');
+      const openBtn = document.getElementById('openRules');
+      const closeBtn = document.getElementById('closeRules');
+
+      if (!modal || !openBtn || !closeBtn) {
+        return;
+      }
+
+      const setModalState = (open) => {
+        modal.classList.toggle('active', open);
+        modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+        document.body.classList.toggle('modal-open', open);
+
+        if (open) {
+          closeBtn.focus();
+        }
+      };
+
+      openBtn.addEventListener('click', () => setModalState(true));
+      closeBtn.addEventListener('click', () => setModalState(false));
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          setModalState(false);
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('active')) {
+          setModalState(false);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
