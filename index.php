@@ -172,7 +172,7 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: 28px 18px 60px;
+      padding: 32px 18px 200px;
       display: flex;
       flex-direction: column;
       gap: 22px;
@@ -488,64 +488,6 @@ $aiSetupNotes = [
       gap: 10px;
     }
 
-    .ai-helper {
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      background: #f8fafc;
-      display: grid;
-      gap: 10px;
-    }
-
-    .ai-helper__header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .suggestion-list {
-      display: grid;
-      gap: 8px;
-    }
-
-    .suggestion {
-      width: 100%;
-      text-align: left;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: #fff;
-      cursor: pointer;
-      display: grid;
-      gap: 4px;
-      transition: border-color 120ms ease, box-shadow 120ms ease;
-    }
-
-    .suggestion:hover {
-      border-color: #c7d2fe;
-      box-shadow: 0 10px 28px rgba(99, 102, 241, 0.14);
-    }
-
-    .suggestion-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-weight: 800;
-    }
-
-    .suggestion-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .suggestion .badge { margin-left: auto; }
-
     .turn-panel {
       display: grid;
       gap: 12px;
@@ -738,8 +680,141 @@ $aiSetupNotes = [
 
     body.modal-open { overflow: hidden; }
 
+    .app-shell {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .board-chrome {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--glow);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f46e5, #22c55e);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.16);
+    }
+
+    .pill-group {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 32px);
+    }
+
+    .board-preview {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+      border-radius: var(--radius);
+      padding: 12px;
+      border: 1px dashed #cbd5e1;
+      overflow-x: auto;
+    }
+
+    .turn-dock {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(248, 250, 252, 0.94);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -18px 38px rgba(15, 23, 42, 0.16);
+    }
+
+    .dock-inner {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      padding: 14px 18px 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .dock-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .dock-label {
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 800;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dock-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .turn-toggle.start {
+      background: #16a34a;
+      border-color: #15803d;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.2);
+    }
+
+    .turn-toggle.stop {
+      background: #dc2626;
+      border-color: #b91c1c;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.2);
+    }
+
+    .btn.ghost {
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .message {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
     @media (min-width: 900px) {
-      body { padding: 42px 32px 80px; }
+      body { padding: 42px 32px 220px; }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -753,300 +828,99 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
-  <header>
-    <span class="eyebrow">Phase 2 · Experience design</span>
-    <h1>Designing the TileMasterAI board experience</h1>
-    <p class="lede">Mobile-first scaffolding for a classic 15x15 word-tile play surface: authentic bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
-    <div class="status" aria-live="polite">
-      <span class="status-icon" aria-hidden="true"></span>
-      <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
-    </div>
-  </header>
+  <main class="app-shell" aria-label="TileMasterAI board">
+    <div class="board-chrome">
+      <div class="top-bar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">TM</span>
+          <div>
+            <p class="eyebrow" style="margin:0;">Live play</p>
+            <h1 class="app-title">TileMasterAI</h1>
+          </div>
+        </div>
+        <div class="pill-group" aria-label="Game status">
+          <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+          <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+        </div>
+      </div>
 
-  <section class="grid" aria-label="Phase 2 layout preview">
-    <article class="card">
-      <h2 class="subhead">Primary layout</h2>
-      <p class="note">Standard 15x15 word game grid with the authentic premium pattern, a centered star on the H8 double word, and an empty board ready for live placements.</p>
-      <div class="layout-shell">
-        <div class="board-preview" aria-label="Board preview">
-          <div class="board-grid" role="presentation">
-            <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-              <?php foreach ($row as $colIndex => $cellType):
-                $rowLabel = $rowLabels[$rowIndex];
-                $colLabel = $columnLabels[$colIndex];
-                $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-                $isCenter = $rowIndex === 7 && $colIndex === 7;
-                $classes = 'cell';
+      <div class="board-preview" aria-label="Game board">
+        <div class="board-grid" role="presentation">
+          <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+            <?php foreach ($row as $colIndex => $cellType):
+              $rowLabel = $rowLabels[$rowIndex];
+              $colLabel = $columnLabels[$colIndex];
+              $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
+              $isCenter = $rowIndex === 7 && $colIndex === 7;
+              $classes = 'cell';
 
-                if ($cellType === 'TW') { $classes .= ' triple-word'; }
-                if ($cellType === 'DW') { $classes .= ' double-word'; }
-                if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-                if ($cellType === 'DL') { $classes .= ' double-letter'; }
-                if ($isCenter) { $classes .= ' center-star'; }
+              if ($cellType === 'TW') { $classes .= ' triple-word'; }
+              if ($cellType === 'DW') { $classes .= ' double-word'; }
+              if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+              if ($cellType === 'DL') { $classes .= ' double-letter'; }
+              if ($isCenter) { $classes .= ' center-star'; }
 
-                $cellName = match ($cellType) {
-                  'TW' => 'triple word',
-                  'DW' => 'double word',
-                  'TL' => 'triple letter',
-                  'DL' => 'double letter',
-                  default => 'regular'
-                };
+              $cellName = match ($cellType) {
+                'TW' => 'triple word',
+                'DW' => 'double word',
+                'TL' => 'triple letter',
+                'DL' => 'double letter',
+                default => 'regular'
+              };
 
-                $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-                if ($isCenter) { $ariaParts[] = 'start star'; }
-                if ($tile) {
-                  if ($tile->isBlank()) {
-                    $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                  } else {
-                    $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                  }
+              $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+              if ($isCenter) { $ariaParts[] = 'start star'; }
+              if ($tile) {
+                if ($tile->isBlank()) {
+                  $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                } else {
+                  $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
                 }
-                $ariaLabel = implode(' · ', $ariaParts);
-              ?>
-              <div
-                class="<?php echo $classes; ?>"
-                aria-label="<?php echo $ariaLabel; ?>"
-                data-row="<?php echo $rowIndex; ?>"
-                data-col="<?php echo $colIndex; ?>"
-                data-premium="<?php echo $cellType; ?>"
-                data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-              >
-                <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
-                <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
+              }
+              $ariaLabel = implode(' · ', $ariaParts);
+            ?>
+            <div
+              class="<?php echo $classes; ?>"
+              aria-label="<?php echo $ariaLabel; ?>"
+              data-row="<?php echo $rowIndex; ?>"
+              data-col="<?php echo $colIndex; ?>"
+              data-premium="<?php echo $cellType; ?>"
+              data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+            >
+              <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+              <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
-                <?php if ($isCenter): ?>
-                  <span class="cell-label">★ DW</span>
-                <?php elseif ($cellType !== ''): ?>
-                  <span class="cell-label"><?php echo $cellType; ?></span>
-                <?php endif; ?>
-              </div>
-              <?php endforeach; ?>
+              <?php if ($isCenter): ?>
+                <span class="cell-label">★ DW</span>
+              <?php elseif ($cellType !== ''): ?>
+                <span class="cell-label"><?php echo $cellType; ?></span>
+              <?php endif; ?>
+            </div>
             <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="card" style="box-shadow:none; border-style:dashed;">
-          <div class="turn-panel">
-            <div class="status-strip" aria-label="Tile pool and score">
-              <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles left</span>
-              <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
-            </div>
-            <div class="rack-bar" aria-label="Rack" id="rack"></div>
-            <p class="rack-note">Blank tiles stay empty until you assign a letter during play; the letter turns blue and still scores 0 points.</p>
-            <div class="actions" aria-label="Action buttons">
-              <button class="btn" type="button" id="startTurnBtn">Start turn &amp; draw</button>
-              <button class="btn secondary" type="button" id="endTurnBtn">Submit move</button>
-              <button class="btn secondary" type="button" id="resetBoardBtn">Reset board</button>
-              <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
-            </div>
-            <div class="ai-helper" aria-label="AI move helper">
-              <div class="ai-helper__header">
-                <div>
-                  <div class="pill">AI Move</div>
-                  <p class="note" style="margin:6px 0 0;">Server-side solver returns the top five legal plays for your rack.</p>
-                </div>
-                <button class="btn secondary" type="button" id="suggestMovesBtn">Suggest best moves</button>
-              </div>
-              <div class="suggestion-list" id="suggestionsList">
-                <p class="note" style="margin:0;">Request suggestions to preview placements before submitting.</p>
-              </div>
-            </div>
-            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
-          </div>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Sanity checks and AI readiness">
-    <article class="card">
-      <h2 class="subhead">Word game sanity checks</h2>
-      <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
-      <div class="list" aria-label="Sanity check results">
-        <?php foreach ($sanityChecks as $check): ?>
-          <div class="list-item">
-            <div><strong><?php echo $check['label']; ?></strong><br><span class="note"><?php echo $check['detail']; ?></span></div>
-            <span class="badge"><?php echo $check['status']; ?></span>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">AI helper setup</h2>
-      <p class="note">Guardrails for letting OpenAI rank moves or explain choices without leaking secrets.</p>
-      <div class="list" aria-label="AI setup guidance">
-        <?php foreach ($aiSetupNotes as $note): ?>
-          <div class="list-item">
-            <div><span class="note"><?php echo $note; ?></span></div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 4 move preview & uploads">
-    <article class="card">
-      <h2 class="subhead">Phase 4: anchor-based move generation</h2>
-      <p class="note">Suggestions are generated from board anchors (adjacent empties) using the demo rack, dictionary validation, and scoring with cross-checks.</p>
-      <ul class="list" aria-label="Generated move results">
-        <?php if ($moveSuggestions === []): ?>
-          <li class="list-item"><div>No legal moves found with the current rack.</div><span class="badge">–</span></li>
-        <?php else: ?>
-          <?php foreach ($moveSuggestions as $index => $move): ?>
-            <?php $crossCount = count($move['crossWords']); ?>
-            <li class="list-item">
-              <div>
-                <strong><?php echo ($index + 1) . ') ' . $move['word']; ?></strong> · <?php echo $move['start']; ?> ➜ <?php echo ucfirst($move['direction']); ?><br>
-                <span class="note">Main: <?php echo $move['mainWordScore']; ?> pts<?php if ($crossCount > 0): ?> · Cross-words: <?php echo $crossCount; ?><?php endif; ?></span>
-              </div>
-              <span class="badge"><?php echo $move['score']; ?> pts</span>
-            </li>
           <?php endforeach; ?>
-        <?php endif; ?>
-      </ul>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">Uploads & stubs</h2>
-      <p class="note">File and camera affordances stay present but clearly labeled as “coming soon” until OCR lands.</p>
-      <div class="interaction-grid">
-        <div class="upload-card" aria-label="Board upload stub">
-          <strong>Board image</strong>
-          <span class="badge">Coming soon</span>
-          <p class="note">Drop or tap to select. Preview will show and feed a future OCR parser.</p>
-        </div>
-        <div class="upload-card" aria-label="Rack upload stub">
-          <strong>Rack image</strong>
-          <span class="badge">Coming soon</span>
-          <p class="note">Camera-friendly surface to capture letters; parsing will stub in demo values.</p>
         </div>
       </div>
-    </article>
-  </section>
 
-  <section class="grid" aria-label="Experience flows and interactions">
-    <article class="card">
-      <h2 class="subhead">MVP flow</h2>
-      <div class="flow-grid">
-        <div class="flow-step">
-          <strong>1) Board setup</strong>
-          <p class="note">Tap to place tiles, long-press for blanks, or import via image stub.</p>
-        </div>
-        <div class="flow-step">
-          <strong>2) Rack input</strong>
-          <p class="note">On-screen rack accepts typing (letters + ? for blank) with optional shuffle/clear.</p>
-        </div>
-        <div class="flow-step">
-          <strong>3) Request best moves</strong>
-          <p class="note">Press “Run solver” or hit Enter; results stream into the move list with scores and notation.</p>
-        </div>
-        <div class="flow-step">
-          <strong>4) Optional uploads</strong>
-          <p class="note">Board/rack uploads stay opt-in; parsed tiles prefill the grid once OCR is wired.</p>
+      <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+    </div>
+  </main>
+
+  <footer class="turn-dock" aria-label="Turn controls">
+    <div class="dock-inner">
+      <div class="dock-row">
+        <span class="dock-label">Rack</span>
+        <div class="dock-actions">
+          <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
+          <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
+          <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
         </div>
       </div>
-    </article>
+      <div class="rack-bar" aria-label="Rack" id="rack"></div>
+      <p class="rack-note">Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</p>
+    </div>
+  </footer>
 
-    <article class="card">
-      <h2 class="subhead">Keyboard & touch patterns</h2>
-      <div class="interaction-grid">
-        <div class="flow-step">
-          <strong>Placement</strong>
-          <p class="note">Tap to focus a square, type letters to place; arrow keys move focus for speed play.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Drag / drop</strong>
-          <p class="note">Drag from rack to board on desktop; touch-hold to pick up a tile and tap a target square on mobile.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Blanks</strong>
-          <p class="note">Long-press or hold modifier to assign blank value inline before confirming placement.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Shortcuts</strong>
-          <p class="note">Enter runs solver, Ctrl/Cmd+Z undoes last placement, Shift+R shuffles rack, Shift+C clears rack.</p>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 3 game engine foundations">
-    <article class="card">
-      <h2 class="subhead">Phase 3 kickoff: board state & scoring helpers</h2>
-      <p class="note">Backend-friendly PHP domain classes now describe the 15x15 board, rack tiles, dictionary lookups, and baseline scoring (tile values + letter/word multipliers).</p>
-      <div class="list" aria-label="Engine milestones">
-        <div class="list-item">
-          <div><strong>Board &amp; rack models</strong><br><span class="note">Coordinate parsing (A1–O15), premium lookup, tile storage, and rack containers.</span></div>
-          <span class="badge">Board::standard()</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Dictionary</strong><br><span class="note">Pluggable wordlist driven by <code>DICTIONARY_PATH</code> (defaults to <code>data/dictionary-mini.txt</code>).</span></div>
-          <span class="badge"><?php echo number_format($dictionary->count()); ?> entries</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Scoring helpers</strong><br><span class="note">Tile values + DL/TL/DW/TW multipliers ready for solver integration.</span></div>
-          <span class="badge">Helpers: Scoring::tileValues()</span>
-        </div>
-      </div>
-      <div class="list" aria-label="Dictionary and scoring preview" style="margin-top: 12px;">
-        <div class="list-item">
-          <div><strong><?php echo $demoWord; ?></strong> lookup</div>
-          <span class="badge"><?php echo $dictionaryHasDemoWord ? 'In wordlist' : 'Missing'; ?></span>
-        </div>
-        <div class="list-item">
-          <div><strong>Move score preview</strong><br><span class="note"><?php echo $demoWord; ?> on H8 across (DW on start) using tile values + multipliers.</span></div>
-          <span class="badge"><?php echo $demoScore['total']; ?> pts</span>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 4 move generation">
-    <article class="card">
-      <h2 class="subhead">Phase 4 kickoff: anchor & cross-check solver loop</h2>
-      <div class="list" aria-label="Solver highlights">
-        <div class="list-item">
-          <div><strong>Anchors & adjacency</strong><br><span class="note">Empty squares touching existing tiles (plus center start) seed the horizontal generator.</span></div>
-          <span class="badge">Board-aware</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Dictionary validation</strong><br><span class="note">Main word and all perpendicular cross-words must appear in the active dictionary.</span></div>
-          <span class="badge"><?php echo number_format($dictionary->count()); ?> words</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Scoring integration</strong><br><span class="note">Letter/word multipliers apply only to newly placed tiles; cross-word totals are added.</span></div>
-          <span class="badge">Scoring::scoreMove()</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">API contract: request top N moves</h2>
-      <p class="note">Planned endpoint signature for the solver surface (JSON). Takes current board state, rack letters, and desired limit; returns ranked moves with scoring breakdowns.</p>
-      <pre class="code" aria-label="API contract example">POST /api/moves
-{
-  "board": "array of placed tiles [{coord: 'H8', letter: 'O', blank: false}]",
-  "rack": ["T", "I", "L", "E", "M", "A", "?"],
-  "limit": 5
-}
-
-Response
-{
-  "moves": [
-    {
-      "word": "ORATION",
-      "start": "H8",
-      "direction": "horizontal",
-      "score": 78,
-      "mainWord": {"word": "ORATION", "total": 78},
-      "crossWords": []
-    }
-  ]
-}</pre>
-    </article>
-  </section>
-
-  <script>
+<script>
     const premiumLayout = <?php echo json_encode($premiumBoard); ?>;
     const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
     const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
@@ -1058,11 +932,8 @@ Response
       const messageEl = document.getElementById('turnMessage');
       const bagCountEl = document.getElementById('bagCount');
       const scoreEl = document.getElementById('scoreTotal');
-      const startBtn = document.getElementById('startTurnBtn');
-      const endBtn = document.getElementById('endTurnBtn');
+      const toggleBtn = document.getElementById('turnToggleBtn');
       const resetBtn = document.getElementById('resetBoardBtn');
-      const suggestBtn = document.getElementById('suggestMovesBtn');
-      const suggestionsEl = document.getElementById('suggestionsList');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
 
       let tileId = 0;
@@ -1071,9 +942,9 @@ Response
       let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
       let totalScore = 0;
       let firstTurn = true;
+      let turnActive = false;
       let dictionaryReady = false;
       let dictionary = new Set();
-      let suggestedMoves = [];
 
       const buildBag = () => {
         bag = [];
@@ -1115,59 +986,11 @@ Response
         }
       };
 
-      const clearUncommittedTiles = () => {
-        let moved = false;
-        for (let r = 0; r < BOARD_SIZE; r += 1) {
-          for (let c = 0; c < BOARD_SIZE; c += 1) {
-            const tile = board[r][c];
-            if (tile && !tile.locked) {
-              tile.position = { type: 'rack' };
-              tile.justPlaced = false;
-              board[r][c] = null;
-              rack.push(tile);
-              moved = true;
-            }
-          }
-        }
-
-        if (moved) {
-          renderBoard();
-          renderRack();
-        }
-      };
-
-      const serializeBoardForApi = () => {
-        const tiles = [];
-        board.forEach((row, r) => row.forEach((tile, c) => {
-          if (!tile || !tile.locked) return;
-          const letter = tile.isBlank ? (tile.assignedLetter || '?') : tile.letter;
-          tiles.push({
-            row: r + 1,
-            column: c + 1,
-            letter,
-            isBlank: tile.isBlank,
-            value: tile.value,
-          });
-        }));
-
-        return { premiumLayout, tiles };
-      };
-
-      const serializeRackForApi = () => {
-        const normalize = (tile) => ({
-          letter: tile.isBlank ? (tile.assignedLetter || '?') : (tile.assignedLetter || tile.letter),
-          isBlank: tile.isBlank,
-          value: tile.value,
-        });
-
-        const tiles = rack.map(normalize);
-        board.forEach((row) => row.forEach((tile) => {
-          if (tile && !tile.locked) {
-            tiles.push(normalize(tile));
-          }
-        }));
-
-        return tiles;
+      const updateTurnButton = () => {
+        toggleBtn.classList.toggle('start', !turnActive);
+        toggleBtn.classList.toggle('stop', turnActive);
+        toggleBtn.textContent = turnActive ? 'Submit move' : 'Start turn';
+        toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
 
       const updateBagCount = () => {
@@ -1325,142 +1148,11 @@ Response
         return null;
       };
 
-      const renderSuggestions = () => {
-        suggestionsEl.innerHTML = '';
-
-        if (!suggestedMoves.length) {
-          const note = document.createElement('p');
-          note.className = 'note';
-          note.textContent = 'No suggestions yet. Ask the solver to see the best options.';
-          suggestionsEl.appendChild(note);
-          return;
-        }
-
-        suggestedMoves.forEach((move, index) => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'suggestion';
-          const title = document.createElement('div');
-          title.className = 'suggestion-title';
-          title.innerHTML = `<span>${index + 1}. ${move.word}</span><span class="badge">${move.score} pts</span>`;
-
-          const metaParts = [
-            `${move.start} → ${move.direction === 'horizontal' ? 'Across' : 'Down'}`,
-            `${move.placements.length} tile${move.placements.length === 1 ? '' : 's'}`,
-          ];
-
-          if (move.crossWords?.length) {
-            metaParts.push(`${move.crossWords.length} cross word${move.crossWords.length === 1 ? '' : 's'}`);
-          }
-          if (move.bingo) {
-            metaParts.push('Bingo +50');
-          }
-
-          const meta = document.createElement('div');
-          meta.className = 'suggestion-meta';
-          meta.textContent = metaParts.join(' · ');
-
-          button.appendChild(title);
-          button.appendChild(meta);
-          button.addEventListener('click', () => previewSuggestion(move));
-          suggestionsEl.appendChild(button);
-        });
-      };
-
-      const previewSuggestion = (move) => {
-        clearUncommittedTiles();
-        const claimedIds = new Set();
-        const takeTile = (letter, mustBeBlank) => {
-          const faceMatches = (tile) => {
-            if (mustBeBlank) return tile.isBlank;
-            if (tile.isBlank) return tile.assignedLetter === letter;
-            return tile.letter === letter;
-          };
-
-          let candidate = rack.find((tile) => !claimedIds.has(tile.id) && faceMatches(tile));
-
-          if (!candidate && !mustBeBlank) {
-            candidate = rack.find((tile) => !claimedIds.has(tile.id) && tile.isBlank);
-          }
-
-          if (candidate) {
-            claimedIds.add(candidate.id);
-          }
-
-          return candidate;
-        };
-
-        for (const placement of move.placements) {
-          const targetRow = placement.row - 1;
-          const targetCol = placement.column - 1;
-          const existing = board[targetRow][targetCol];
-          if (existing && existing.locked) {
-            continue;
-          }
-
-          const tile = takeTile(placement.letter, placement.isBlank);
-          if (!tile) {
-            setMessage('You do not have the tiles needed for this suggestion.', 'error');
-            return;
-          }
-
-          if (tile.isBlank) {
-            tile.assignedLetter = placement.letter;
-          }
-
-          moveTileToBoard(tile.id, targetRow, targetCol);
-        }
-
-        renderBoard();
-        renderRack();
-        setMessage(`Previewing ${move.word} for ${move.score} points. Submit to lock it in.`, 'success');
-      };
-
-      const requestMoveSuggestions = async () => {
-        if (!suggestBtn) return;
-        suggestBtn.disabled = true;
-        suggestBtn.textContent = 'Thinking…';
-        setMessage('Calculating best moves on the server…', '');
-
-        const payload = {
-          board: serializeBoardForApi(),
-          rack: serializeRackForApi(),
-          limit: 5,
-        };
-
-        try {
-          const response = await fetch('api/suggest_moves.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok) {
-            throw new Error('HTTP error');
-          }
-
-          const data = await response.json();
-          suggestedMoves = data.moves || [];
-          renderSuggestions();
-
-          if (suggestedMoves.length === 0) {
-            setMessage(data.message || 'No moves available with this rack.', 'error');
-          } else {
-            setMessage(`Top ${suggestedMoves.length} moves ready. Click to preview.`, 'success');
-          }
-        } catch (error) {
-          setMessage('Could not fetch suggestions. Confirm PHP is running locally.', 'error');
-        } finally {
-          suggestBtn.disabled = false;
-          suggestBtn.textContent = 'Suggest best moves';
-        }
-      };
-
       const startTurn = () => {
         const needed = Math.max(0, 7 - rack.length);
         if (needed === 0) {
           setMessage('Rack already has seven tiles.', 'success');
-          return;
+          return false;
         }
 
         for (let i = 0; i < needed; i += 1) {
@@ -1474,6 +1166,7 @@ Response
         updateBagCount();
         renderRack();
         setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
+        return true;
       };
 
       const tilesPlacedThisTurn = () => {
@@ -1659,6 +1352,8 @@ Response
         totalScore += turnScore;
         scoreEl.textContent = totalScore;
         firstTurn = false;
+        turnActive = false;
+        updateTurnButton();
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
@@ -1670,12 +1365,14 @@ Response
         board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
         totalScore = 0;
         firstTurn = true;
+        turnActive = false;
         buildBag();
         updateBagCount();
         renderRack();
         renderBoard();
         scoreEl.textContent = '0';
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
+        updateTurnButton();
       };
 
       const setupDragAndDrop = () => {
@@ -1727,22 +1424,36 @@ Response
         }
       };
 
-      startBtn.addEventListener('click', startTurn);
-      endBtn.addEventListener('click', () => {
+      const handleToggleClick = () => {
+        if (!turnActive) {
+          const started = startTurn();
+          if (started) {
+            turnActive = true;
+            updateTurnButton();
+          }
+          return;
+        }
+
         if (!dictionaryReady) {
           setMessage('Dictionary still loading. Try again in a moment.', 'error');
           return;
         }
-        validateTurn();
-      });
+
+        const valid = validateTurn();
+        if (valid) {
+          turnActive = false;
+          updateTurnButton();
+        }
+      };
+
+      toggleBtn.addEventListener('click', handleToggleClick);
       resetBtn.addEventListener('click', resetBoard);
-      suggestBtn.addEventListener('click', requestMoveSuggestions);
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
-      renderSuggestions();
+      updateTurnButton();
       setupDragAndDrop();
       loadDictionary();
     })();
