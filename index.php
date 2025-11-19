@@ -190,8 +190,8 @@ $aiSetupNotes = [
       --cell-size: 56px;
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 92px;
-      --bottom-dock-height: 148px;
+      --top-dock-height: 86px;
+      --bottom-dock-height: 122px;
     }
 
     * {
@@ -205,10 +205,10 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: calc(var(--top-dock-height) + 16px) 18px calc(var(--bottom-dock-height) + 18px);
+      padding: calc(var(--top-dock-height) + 12px) 18px calc(var(--bottom-dock-height) + 12px);
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 14px;
     }
 
     header {
@@ -304,7 +304,7 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       padding: 12px;
       border: 1px dashed #cbd5e1;
-      overflow-x: auto;
+      overflow: hidden;
       width: min(1100px, 100%);
       display: flex;
       justify-content: center;
@@ -434,18 +434,82 @@ $aiSetupNotes = [
       box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
     }
 
+    .rack-wrap {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .dock-help {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      border: 1px solid rgba(226, 232, 240, 0.6);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(148, 163, 184, 0.14));
+      color: #e2e8f0;
+      box-shadow: 0 10px 24px rgba(14, 165, 233, 0.22);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .dock-help:hover { transform: translateY(-1px); border-color: rgba(125, 211, 252, 0.9); }
+
+    .dock-tooltip {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 10px);
+      width: min(320px, 90vw);
+      background: rgba(15, 23, 42, 0.96);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 14px 32px rgba(79, 70, 229, 0.25);
+      display: grid;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity 150ms ease, transform 150ms ease;
+      z-index: 20;
+    }
+
+    .dock-tooltip::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      bottom: -8px;
+      border-width: 8px 8px 0;
+      border-style: solid;
+      border-color: rgba(148, 163, 184, 0.5) transparent transparent transparent;
+      filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.3));
+    }
+
+    .dock-tooltip strong { font-size: 14px; letter-spacing: 0.2px; }
+
+    .dock-tooltip.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
     .rack-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       flex-wrap: wrap;
-      padding: 6px 8px;
+      padding: 5px 8px;
       background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
         linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
       border: 1px solid rgba(148, 163, 184, 0.5);
       border-radius: 12px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
+      min-height: 60px;
     }
 
     .rack-tile {
@@ -477,18 +541,6 @@ $aiSetupNotes = [
       font-weight: 700;
       line-height: 1;
     }
-
-    .rack-note {
-      text-align: center;
-      margin: 2px 0 0;
-      color: #dbeafe;
-      font-size: 12px;
-      font-weight: 700;
-      display: grid;
-      gap: 2px;
-    }
-
-    .rack-note .note-secondary { color: #cbd5e1; font-weight: 600; }
 
     .message {
       padding: 10px 12px;
@@ -815,9 +867,26 @@ $aiSetupNotes = [
       width: min(1200px, 100%);
       margin: 0 auto;
       display: grid;
-      gap: 16px;
+      gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       justify-items: center;
+    }
+
+    .board-viewport {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .board-scale {
+      transform-origin: center;
+      transition: transform 180ms ease;
+      will-change: transform;
+      display: grid;
+      place-items: center;
     }
 
     .board-chrome {
@@ -825,9 +894,9 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
-      padding: 18px;
+      padding: 16px;
       display: grid;
-      gap: 14px;
+      gap: 12px;
       justify-items: center;
     }
 
@@ -846,7 +915,7 @@ $aiSetupNotes = [
     .hud-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 12px 18px 10px;
+      padding: 10px 18px 10px;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -1013,16 +1082,16 @@ $aiSetupNotes = [
       box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
     }
 
-    .board-preview {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
-      border-radius: var(--radius);
-      padding: 12px;
-      border: 1px dashed #cbd5e1;
-      overflow-x: auto;
-      width: min(1100px, 100%);
-      display: flex;
-      justify-content: center;
-    }
+      .board-preview {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+        border-radius: var(--radius);
+        padding: 12px;
+        border: 1px dashed #cbd5e1;
+        overflow: hidden;
+        width: min(1100px, 100%);
+        display: flex;
+        justify-content: center;
+      }
 
     .turn-dock {
       position: fixed;
@@ -1039,15 +1108,15 @@ $aiSetupNotes = [
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 8px 14px 10px;
+      padding: 8px 12px 10px;
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
 
     .dock-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -1070,7 +1139,7 @@ $aiSetupNotes = [
       box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
       font-weight: 800;
       letter-spacing: 0.2px;
-      padding-inline: 14px 16px;
+      padding-inline: 12px 14px;
       border-radius: 12px;
       margin-left: auto;
       flex-shrink: 0;
@@ -1096,8 +1165,8 @@ $aiSetupNotes = [
     .turn-toggle {
       position: relative;
       overflow: hidden;
-      min-width: clamp(260px, 52vw, 420px);
-      padding: 14px 22px;
+      min-width: clamp(240px, 52vw, 420px);
+      padding: 12px 20px;
       border-radius: 14px;
       font-size: 19px;
       letter-spacing: 0.3px;
@@ -1178,7 +1247,7 @@ $aiSetupNotes = [
     }
 
     @media (min-width: 900px) {
-      body { padding: calc(var(--top-dock-height) + 22px) 32px calc(var(--bottom-dock-height) + 22px); }
+      body { padding: calc(var(--top-dock-height) + 22px) 32px calc(var(--bottom-dock-height) + 18px); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -1222,65 +1291,69 @@ $aiSetupNotes = [
   </header>
 
   <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="board-chrome">
-      <div class="board-preview" aria-label="Game board">
-        <div class="board-grid" role="presentation">
-          <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-            <?php foreach ($row as $colIndex => $cellType):
-              $rowLabel = $rowLabels[$rowIndex];
-              $colLabel = $columnLabels[$colIndex];
-              $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-              $isCenter = $rowIndex === 7 && $colIndex === 7;
-              $classes = 'cell';
+    <div class="board-viewport" id="boardViewport">
+      <div class="board-scale" id="boardScale">
+        <div class="board-chrome" id="boardChrome">
+          <div class="board-preview" aria-label="Game board">
+            <div class="board-grid" role="presentation">
+              <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+                <?php foreach ($row as $colIndex => $cellType):
+                  $rowLabel = $rowLabels[$rowIndex];
+                  $colLabel = $columnLabels[$colIndex];
+                  $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
+                  $isCenter = $rowIndex === 7 && $colIndex === 7;
+                  $classes = 'cell';
 
-              if ($cellType === 'TW') { $classes .= ' triple-word'; }
-              if ($cellType === 'DW') { $classes .= ' double-word'; }
-              if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-              if ($cellType === 'DL') { $classes .= ' double-letter'; }
-              if ($isCenter) { $classes .= ' center-star'; }
+                  if ($cellType === 'TW') { $classes .= ' triple-word'; }
+                  if ($cellType === 'DW') { $classes .= ' double-word'; }
+                  if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+                  if ($cellType === 'DL') { $classes .= ' double-letter'; }
+                  if ($isCenter) { $classes .= ' center-star'; }
 
-              $cellName = match ($cellType) {
-                'TW' => 'triple word',
-                'DW' => 'double word',
-                'TL' => 'triple letter',
-                'DL' => 'double letter',
-                default => 'regular'
-              };
+                  $cellName = match ($cellType) {
+                    'TW' => 'triple word',
+                    'DW' => 'double word',
+                    'TL' => 'triple letter',
+                    'DL' => 'double letter',
+                    default => 'regular'
+                  };
 
-              $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-              if ($isCenter) { $ariaParts[] = 'start star'; }
-              if ($tile) {
-                if ($tile->isBlank()) {
-                  $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                } else {
-                  $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                }
-              }
-              $ariaLabel = implode(' · ', $ariaParts);
-            ?>
-            <div
-              class="<?php echo $classes; ?>"
-              aria-label="<?php echo $ariaLabel; ?>"
-              data-row="<?php echo $rowIndex; ?>"
-              data-col="<?php echo $colIndex; ?>"
-              data-premium="<?php echo $cellType; ?>"
-              data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-            >
-              <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
-              <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
+                  $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+                  if ($isCenter) { $ariaParts[] = 'start star'; }
+                  if ($tile) {
+                    if ($tile->isBlank()) {
+                      $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                    } else {
+                      $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
+                    }
+                  }
+                  $ariaLabel = implode(' · ', $ariaParts);
+                ?>
+                <div
+                  class="<?php echo $classes; ?>"
+                  aria-label="<?php echo $ariaLabel; ?>"
+                  data-row="<?php echo $rowIndex; ?>"
+                  data-col="<?php echo $colIndex; ?>"
+                  data-premium="<?php echo $cellType; ?>"
+                  data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+                >
+                  <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+                  <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
-              <?php if ($isCenter): ?>
-                <span class="cell-label">★ DW</span>
-              <?php elseif ($cellType !== ''): ?>
-                <span class="cell-label"><?php echo $cellType; ?></span>
-              <?php endif; ?>
+                  <?php if ($isCenter): ?>
+                    <span class="cell-label">★ DW</span>
+                  <?php elseif ($cellType !== ''): ?>
+                    <span class="cell-label"><?php echo $cellType; ?></span>
+                  <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+              <?php endforeach; ?>
             </div>
-            <?php endforeach; ?>
-          <?php endforeach; ?>
+          </div>
+
+          <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
         </div>
       </div>
-
-      <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
     </div>
   </main>
 
@@ -1300,11 +1373,15 @@ $aiSetupNotes = [
           <span class="ai-text">AI suggested moves</span>
         </button>
       </div>
-      <div class="rack-bar" aria-label="Rack" id="rack"></div>
-      <p class="rack-note">
-        <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-        <span class="note-secondary">Drag tiles onto the board. Double-click a placed tile to send it back.</span>
-      </p>
+      <div class="rack-wrap">
+        <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+        <div class="rack-bar" aria-label="Rack" id="rack"></div>
+        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+          <strong>Rack tips</strong>
+          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+          <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+        </div>
+      </div>
     </div>
   </footer>
 
@@ -1351,6 +1428,11 @@ $aiSetupNotes = [
       const menuToggle = document.getElementById('menuToggle');
       const menuPanel = document.getElementById('menuPanel');
       const hudMenu = document.getElementById('hudMenu');
+      const boardViewport = document.getElementById('boardViewport');
+      const boardScaleEl = document.getElementById('boardScale');
+      const boardChromeEl = document.getElementById('boardChrome');
+      const rackHelpBtn = document.getElementById('rackHelp');
+      const rackHelpTip = document.getElementById('rackHelpTip');
 
       let tileId = 0;
       let bag = [];
@@ -1364,6 +1446,9 @@ $aiSetupNotes = [
       let aiStepInterval;
       let aiRevealTimeout;
       let audioCtx;
+      let baseScale = 1;
+      let userZoom = 1;
+      let pinchDistance = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1395,6 +1480,82 @@ $aiSetupNotes = [
         frequencies.forEach((freq, index) => {
           setTimeout(() => playTone(freq, 0.22, 'triangle', 0.045), index * 50);
         });
+      };
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const applyBoardScale = () => {
+        if (!boardScaleEl) return;
+        const MIN_ZOOM = 0.6;
+        const MAX_ZOOM = 1.4;
+        const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+        boardScaleEl.style.transform = `scale(${finalScale})`;
+      };
+
+      const resizeBoardToViewport = () => {
+        if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
+        const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
+        const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 24);
+        const availableWidth = document.documentElement.clientWidth - 24;
+
+        boardViewport.style.height = `${availableHeight}px`;
+
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+
+        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
+        const widthScale = boardRect.width ? Math.min(1, availableWidth / boardRect.width) : 1;
+        baseScale = Math.min(heightScale, widthScale, 1);
+        applyBoardScale();
+      };
+
+      const adjustZoom = (factor) => {
+        const minFactor = 0.6 / (baseScale || 1);
+        const maxFactor = 1.4 / (baseScale || 1);
+        userZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        applyBoardScale();
+      };
+
+      const handleWheelZoom = (event) => {
+        if (!boardScaleEl || !boardViewport) return;
+        if (event.ctrlKey || event.metaKey) return;
+        event.preventDefault();
+        const direction = Math.sign(event.deltaY);
+        adjustZoom(direction > 0 ? 0.92 : 1.08);
+      };
+
+      const touchDistance = (touches) => {
+        if (touches.length < 2) return 0;
+        const [t1, t2] = touches;
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.hypot(dx, dy);
+      };
+
+      const handleTouchStart = (event) => {
+        if (event.touches.length === 2) {
+          pinchDistance = touchDistance(event.touches);
+        }
+      };
+
+      const handleTouchMove = (event) => {
+        if (!boardScaleEl || event.touches.length < 2 || pinchDistance === null) return;
+        event.preventDefault();
+        const newDistance = touchDistance(event.touches);
+        if (newDistance > 0) {
+          const factor = newDistance / (pinchDistance || newDistance);
+          adjustZoom(factor);
+          pinchDistance = newDistance;
+        }
+      };
+
+      const handleTouchEnd = () => {
+        if (pinchDistance !== null) {
+          pinchDistance = null;
+        }
       };
 
       const buildBag = () => {
@@ -1447,6 +1608,29 @@ $aiSetupNotes = [
         if (!hudMenu || !menuToggle) return;
         const isOpen = hudMenu.classList.toggle('open');
         menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      const closeRackHelp = () => {
+        if (!rackHelpTip || !rackHelpBtn) return;
+        rackHelpTip.classList.remove('show');
+        rackHelpBtn.setAttribute('aria-expanded', 'false');
+      };
+
+      const toggleRackHelp = () => {
+        if (!rackHelpTip || !rackHelpBtn) return;
+        const shouldShow = rackHelpTip.classList.toggle('show');
+        rackHelpBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+
+        if (shouldShow) {
+          rackHelpTip.style.left = '0';
+          rackHelpTip.style.right = 'auto';
+          const tipRect = rackHelpTip.getBoundingClientRect();
+          const viewportWidth = document.documentElement.clientWidth;
+          if (tipRect.right > viewportWidth - 12) {
+            rackHelpTip.style.left = 'auto';
+            rackHelpTip.style.right = '0';
+          }
+        }
       };
 
       const updateTurnButton = () => {
@@ -2301,6 +2485,7 @@ $aiSetupNotes = [
               closeAiModal();
             }
             closeHudMenu();
+            closeRackHelp();
           }
         });
       }
@@ -2312,23 +2497,43 @@ $aiSetupNotes = [
         });
       }
 
-      if (hudMenu) {
-        document.addEventListener('click', (event) => {
-          if (!hudMenu.contains(event.target)) {
-            closeHudMenu();
-          }
+      if (rackHelpBtn) {
+        rackHelpBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleRackHelp();
         });
       }
+
+      document.addEventListener('click', (event) => {
+        if (hudMenu && !hudMenu.contains(event.target) && event.target !== menuToggle) {
+          closeHudMenu();
+        }
+        if (rackHelpTip && rackHelpTip.classList.contains('show') && !rackHelpTip.contains(event.target) && event.target !== rackHelpBtn) {
+          closeRackHelp();
+        }
+      });
 
       if (rulesBtn) {
         rulesBtn.addEventListener('click', () => closeHudMenu());
       }
+
+      if (boardViewport) {
+        boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
+        boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
+        boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
+        boardViewport.addEventListener('touchend', handleTouchEnd);
+        boardViewport.addEventListener('touchcancel', handleTouchEnd);
+      }
+
+      window.addEventListener('resize', resizeBoardToViewport);
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
       updateTurnButton();
+      resizeBoardToViewport();
+      setTimeout(resizeBoardToViewport, 120);
       setupDragAndDrop();
       loadDictionary();
     });
