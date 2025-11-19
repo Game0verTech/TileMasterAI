@@ -1824,6 +1824,9 @@ $aiSetupNotes = [
         if (!tile || tile.locked) return;
         removeTileFromCurrentPosition(tile);
         tile.justPlaced = false;
+        if (tile.isBlank) {
+          tile.assignedLetter = '';
+        }
         tile.position = { type: 'rack' };
         rack.push(tile);
         renderRack();
