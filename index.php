@@ -211,11 +211,12 @@ $aiSetupNotes = [
       --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
-      --cell-size: 56px;
-      --cell-gap: 6px;
+      --cell-size: clamp(42px, 4.5vw + 12px, 56px);
+      --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
       --top-dock-height: 82px;
       --bottom-dock-height: 116px;
+      --board-toolbar: rgba(15, 23, 42, 0.86);
     }
 
     * {
@@ -233,6 +234,7 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       gap: 0;
+      overflow: hidden;
     }
 
     header {
@@ -332,6 +334,7 @@ $aiSetupNotes = [
       width: min(1100px, 100%);
       display: flex;
       justify-content: center;
+      max-width: 100%;
     }
 
     .board-grid {
@@ -343,7 +346,7 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      min-width: min(100%, 880px);
+      max-width: min(100%, 880px);
       margin: 0 auto;
     }
 
@@ -464,6 +467,8 @@ $aiSetupNotes = [
       align-items: center;
       gap: 10px;
       position: relative;
+      width: 100%;
+      min-width: 0;
     }
 
     .dock-help {
@@ -525,7 +530,7 @@ $aiSetupNotes = [
       display: flex;
       gap: 6px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       padding: 5px 8px;
       background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
         linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
@@ -534,6 +539,8 @@ $aiSetupNotes = [
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
       min-height: 60px;
+      overflow-x: auto;
+      scrollbar-width: thin;
     }
 
     .rack-actions {
@@ -774,15 +781,14 @@ $aiSetupNotes = [
 
     .modal-backdrop {
       position: fixed;
-      inset: var(--top-dock-height) 0 var(--bottom-dock-height);
+      inset: 0;
       background: rgba(15, 23, 42, 0.36);
       backdrop-filter: blur(2px);
       display: none;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      padding: 14px 18px;
+      padding: 18px;
       z-index: 10;
-      overflow-y: auto;
     }
 
     .modal-backdrop.active { display: flex; }
@@ -791,14 +797,12 @@ $aiSetupNotes = [
       background: #fff;
       max-width: 720px;
       width: min(720px, 100%);
-      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) - 28px);
       border-radius: 16px;
       box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
       border: 1px solid #e2e8f0;
       padding: 18px 18px 20px;
       display: grid;
       gap: 10px;
-      overflow-y: auto;
     }
 
     .modal-header {
@@ -843,149 +847,35 @@ $aiSetupNotes = [
 
     .ai-status {
       display: grid;
-      gap: 10px;
-      padding: 14px 14px 16px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.12));
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
       border: 1px solid #cbd5e1;
       font-weight: 600;
       color: #0f172a;
-      text-align: center;
-      justify-items: center;
     }
 
-    .ai-anim {
-      position: relative;
-      width: min(360px, 100%);
-      height: 150px;
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-      transition: opacity 220ms ease, transform 220ms ease;
+    .ai-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
     }
 
-    .ai-anim.hidden {
-      opacity: 0;
-      transform: scale(0.96);
-      pointer-events: none;
-      height: 0;
-    }
-
-    .ai-anim.hidden .ai-track,
-    .ai-anim.hidden .ai-node,
-    .ai-anim.hidden .ai-tile,
-    .ai-anim.hidden .ai-wave {
-      animation-play-state: paused;
-    }
-
-    .ai-orbit {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      filter: drop-shadow(0 10px 16px rgba(14, 165, 233, 0.16));
-    }
-
-    .ai-tile {
-      position: absolute;
-      min-width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, #0ea5e9, #6366f1);
-      border-radius: 12px;
-      color: #fff;
-      font-weight: 700;
-      font-size: 18px;
-      padding: 0 12px;
-      display: grid;
-      place-items: center;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
-      animation: float 2.8s ease-in-out infinite;
-      white-space: nowrap;
-    }
-
-    .ai-tile:nth-child(1) { animation-delay: 0s; }
-    .ai-tile:nth-child(2) { animation-delay: 0.2s; }
-    .ai-tile:nth-child(3) { animation-delay: 0.35s; }
-    .ai-tile:nth-child(4) { animation-delay: 0.5s; }
-
-    .ai-tile.word {
-      width: 92px;
-      background: linear-gradient(135deg, #0ea5e9, #22c55e);
-      transform: rotate(-4deg);
-    }
-
-    .ai-track {
-      position: absolute;
-      inset: 0;
-      animation: rotate var(--orbit-speed, 7s) linear infinite;
-      transform-origin: center;
-    }
-
-    .ai-track:nth-child(2) { animation-direction: reverse; }
-
-    .ai-node {
-      position: absolute;
-      animation: drift var(--drift-speed, 5.6s) ease-in-out infinite;
-      transform-origin: center;
-    }
-
-    .ai-trail {
-      position: absolute;
-      inset: 18px;
-      background: conic-gradient(from 45deg, rgba(14, 165, 233, 0.15), transparent 40%, rgba(99, 102, 241, 0.12));
-      filter: blur(12px);
+    .ai-dots span {
+      width: 8px;
+      height: 8px;
+      background: #0ea5e9;
       border-radius: 50%;
-      animation: pulseRing 3.6s ease-in-out infinite;
+      animation: pulse 1.2s infinite ease-in-out;
     }
 
-    .ai-wave {
-      position: absolute;
-      bottom: 6px;
-      display: flex;
-      gap: 8px;
-      font-weight: 700;
-      color: #0f172a;
-      letter-spacing: 1px;
-      animation: wave 2.6s ease-in-out infinite;
-    }
+    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    .ai-wave span {
-      background: rgba(255, 255, 255, 0.76);
-      padding: 6px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      box-shadow: 0 10px 16px rgba(15, 23, 42, 0.08);
-    }
-
-    .ai-step { font-size: 16px; }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0) scale(1); }
-      25% { transform: translateY(-16px) scale(1.03) rotate(-2deg); }
-      50% { transform: translateY(8px) scale(0.98) rotate(2deg); }
-      75% { transform: translateY(-10px) scale(1.02) rotate(-3deg); }
-    }
-
-    @keyframes rotate {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @keyframes drift {
-      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-      25% { transform: translate(6px, -12px) rotate(-3deg) scale(1.02); }
-      50% { transform: translate(-8px, 10px) rotate(4deg) scale(0.98); }
-      75% { transform: translate(12px, 4px) rotate(-2deg) scale(1.04); }
-    }
-
-    @keyframes pulseRing {
-      0%, 100% { opacity: 0.45; transform: scale(0.92); }
-      50% { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes wave {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
     }
 
     @keyframes shimmer {
@@ -1043,18 +933,29 @@ $aiSetupNotes = [
       display: grid;
       gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      justify-items: center;
+      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      grid-template-rows: 1fr;
+      justify-items: stretch;
+      align-items: stretch;
     }
 
     .board-viewport {
-      width: min(1200px, 100%);
+      position: relative;
+      width: 100%;
       margin: 0 auto;
-      display: grid;
-      align-items: start;
-      justify-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
       touch-action: none;
       cursor: grab;
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
+      border-radius: 16px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      padding: 8px;
+      min-height: 320px;
+      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
     }
 
     .board-viewport.dragging { cursor: grabbing; }
@@ -1064,8 +965,17 @@ $aiSetupNotes = [
       transition: transform 180ms ease;
       will-change: transform;
       display: grid;
-      align-items: start;
+      align-items: center;
       justify-items: center;
+    }
+
+    .board-frame {
+      display: grid;
+      place-items: center;
+      width: max-content;
+      height: max-content;
+      max-width: 100%;
+      max-height: 100%;
     }
 
     .board-chrome {
@@ -1073,10 +983,13 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
-      padding: 16px;
+      padding: 12px 12px 10px;
       display: grid;
       gap: 12px;
       justify-items: center;
+      width: max-content;
+      max-width: 100%;
+      max-height: 100%;
     }
 
     .hud-dock {
@@ -1287,12 +1200,12 @@ $aiSetupNotes = [
       margin: 0 auto;
       padding: 8px 12px 10px;
       display: grid;
-      gap: 6px;
+      gap: 8px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: auto auto 1fr;
       align-items: center;
       gap: 8px;
     }
@@ -1301,8 +1214,7 @@ $aiSetupNotes = [
       display: flex;
       justify-content: center;
       align-items: center;
-      grid-column: 1 / span 2;
-      min-width: 240px;
+      min-width: 200px;
     }
 
     .ai-cta {
@@ -1319,7 +1231,7 @@ $aiSetupNotes = [
       border-radius: 12px;
       margin-left: 0;
       flex-shrink: 0;
-      justify-self: end;
+      justify-self: start;
     }
 
     .ai-cta.disabled,
@@ -1430,7 +1342,85 @@ $aiSetupNotes = [
       background: #f8fafc;
       color: var(--muted);
       font-weight: 600;
+      width: 100%;
     }
+
+    .board-controls {
+      position: absolute;
+      right: 10px;
+      bottom: 12px;
+      display: grid;
+      gap: 6px;
+      background: var(--board-toolbar);
+      color: #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+      padding: 8px;
+      z-index: 4;
+      width: 130px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .board-viewport.controls-open .board-controls {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .board-controls-toggle {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(255, 255, 255, 0.82);
+      color: #0f172a;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    .board-controls h3 {
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #c7d2fe;
+    }
+
+    .board-controls .controls-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .board-controls button {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.12));
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 9px;
+      padding: 8px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .board-controls button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 10px 22px rgba(14, 165, 233, 0.2);
+    }
+
+    .board-controls button:active { transform: translateY(0); }
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1441,13 +1431,12 @@ $aiSetupNotes = [
     @media (max-width: 720px) {
       :root {
         --top-dock-height: 74px;
-        --bottom-dock-height: 110px;
-        --cell-size: 48px;
-        --cell-gap: 4px;
+        --bottom-dock-height: 104px;
+        --cell-size: clamp(34px, 7vw + 6px, 44px);
+        --cell-gap: 3px;
       }
 
       body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
-      .modal-backdrop { inset: var(--top-dock-height) 0 var(--bottom-dock-height); }
       .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
       .hud-menu { order: 1; }
       .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
@@ -1458,23 +1447,23 @@ $aiSetupNotes = [
       .app-title { font-size: clamp(18px, 5vw, 22px); }
       .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
 
-      .tile .value,
-      .rack-tile .value {
-        bottom: 3px;
-        right: 4px;
-        font-size: 10px;
-      }
-
-      .dock-inner { padding: 8px 10px 9px; gap: 8px; }
-      .dock-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-      .dock-cta { min-width: 0; }
+      .dock-inner { padding: 8px 10px 9px; gap: 10px; }
+      .dock-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+      .dock-cta { min-width: 0; grid-column: 1 / -1; }
       .turn-toggle { width: 100%; min-width: 0; }
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
+      .rack-wrap { grid-column: 1 / -1; }
+
+      .board-chrome { padding: 10px 10px 8px; }
+      .board-preview { padding: 6px; }
+      .board-controls { right: 8px; bottom: 8px; width: min(100%, 240px); }
+      .board-viewport { padding: 6px; }
     }
 
     @media (max-width: 599px) {
       .board-preview { padding: 10px; }
-      .board-grid { min-width: 320px; }
+      .board-controls { left: 8px; right: 8px; width: auto; grid-template-columns: 1fr; }
+      .board-controls-toggle { left: 12px; right: auto; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -1511,9 +1500,10 @@ $aiSetupNotes = [
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
       <div class="board-scale" id="boardScale">
-        <div class="board-chrome" id="boardChrome">
-          <div class="board-preview" aria-label="Game board">
-            <div class="board-grid" role="presentation">
+        <div class="board-frame" id="boardFrame">
+          <div class="board-chrome" id="boardChrome">
+            <div class="board-preview" aria-label="Game board">
+              <div class="board-grid" role="presentation">
               <?php foreach ($premiumBoard as $rowIndex => $row): ?>
                 <?php foreach ($row as $colIndex => $cellType):
                   $rowLabel = $rowLabels[$rowIndex];
@@ -1566,11 +1556,22 @@ $aiSetupNotes = [
                 </div>
                 <?php endforeach; ?>
               <?php endforeach; ?>
+              </div>
             </div>
-          </div>
 
-          <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+          </div>
         </div>
+      </div>
+      <button class="board-controls-toggle" id="boardControlsToggle" type="button" aria-label="Show board controls" aria-expanded="false">🧭 Board tools</button>
+      <div class="board-controls" aria-label="Board view controls">
+        <h3>View</h3>
+        <div class="controls-row">
+          <button type="button" id="fitBoard" aria-label="Fit board to screen">Fit</button>
+          <button type="button" id="zoomOut" aria-label="Zoom out">–</button>
+          <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+        </div>
+        <button type="button" id="resetBoardView" aria-label="Recenter board">Center board</button>
       </div>
     </div>
   </main>
@@ -1590,17 +1591,17 @@ $aiSetupNotes = [
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
         </button>
-      </div>
-      <div class="rack-wrap">
-        <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-        <div class="rack-bar" aria-label="Rack" id="rack"></div>
-        <div class="rack-actions">
-          <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-        </div>
-        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
-          <strong>Rack tips</strong>
-          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-          <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+        <div class="rack-wrap">
+          <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+          <div class="rack-bar" aria-label="Rack" id="rack"></div>
+          <div class="rack-actions">
+            <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
+          </div>
+          <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+            <strong>Rack tips</strong>
+            <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+            <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1633,7 +1634,6 @@ $aiSetupNotes = [
       const aiStatusEl = document.getElementById('aiStatus');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
-      const aiAnimEl = document.querySelector('.ai-anim');
       const rulesBtn = document.getElementById('openRules');
       const menuToggle = document.getElementById('menuToggle');
       const menuPanel = document.getElementById('menuPanel');
@@ -1641,6 +1641,11 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardScaleEl = document.getElementById('boardScale');
       const boardChromeEl = document.getElementById('boardChrome');
+      const boardControlsToggle = document.getElementById('boardControlsToggle');
+      const fitBoardBtn = document.getElementById('fitBoard');
+      const zoomInBtn = document.getElementById('zoomIn');
+      const zoomOutBtn = document.getElementById('zoomOut');
+      const resetBoardViewBtn = document.getElementById('resetBoardView');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
 
@@ -1663,6 +1668,7 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
+      let boardControlsOpen = false;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1698,23 +1704,61 @@ $aiSetupNotes = [
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-      const applyBoardTransform = () => {
-        if (!boardScaleEl) return;
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
+        const centerCell = document.querySelector('.cell[data-center="true"]');
+        if (!centerCell) return;
+
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const cellRect = centerCell.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+
+        const viewportCenterX = viewportRect.width / 2;
+        const viewportCenterY = viewportRect.height / 2;
+        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
+        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
+        const finalScale = getFinalScale();
+
+        panX = (viewportCenterX - cellCenterX) / finalScale;
+        panY = (viewportCenterY - cellCenterY) / finalScale;
+        applyBoardTransform();
+      };
+
+      const setBoardControlsOpen = (open) => {
+        boardControlsOpen = !!open;
+        if (boardViewport) {
+          boardViewport.classList.toggle('controls-open', boardControlsOpen);
+        }
+        if (boardControlsToggle) {
+          boardControlsToggle.setAttribute('aria-expanded', boardControlsOpen ? 'true' : 'false');
+          boardControlsToggle.textContent = boardControlsOpen ? 'Hide board tools' : '🧭 Board tools';
+        }
+      };
+
+      const getFinalScale = () => {
         const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
         const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
-        const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+        return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+      };
+
+      const applyBoardTransform = () => {
+        if (!boardScaleEl) return;
+        const finalScale = getFinalScale();
         boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
 
-      const resizeBoardToViewport = () => {
+      const resizeBoardToViewport = ({ resetView = false } = {}) => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
 
         boardViewport.style.height = `${availableHeight}px`;
 
-        const viewportWidth = boardViewport.getBoundingClientRect().width || document.documentElement.clientWidth;
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
         const boardRect = boardChromeEl.getBoundingClientRect();
@@ -1723,9 +1767,14 @@ $aiSetupNotes = [
         const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
         const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
         baseScale = Math.min(heightScale, widthScale, 1);
-        panX = 0;
-        panY = 0;
-        applyBoardTransform();
+        if (resetView) {
+          panX = 0;
+          panY = 0;
+          userZoom = 1;
+          centerBoard();
+        } else {
+          applyBoardTransform();
+        }
       };
 
       const adjustZoom = (factor) => {
@@ -1735,6 +1784,17 @@ $aiSetupNotes = [
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
         applyBoardTransform();
+      };
+
+      const resetBoardView = () => {
+        panX = 0;
+        panY = 0;
+        userZoom = 1;
+        centerBoard();
+      };
+
+      const fitBoard = () => {
+        resizeBoardToViewport({ resetView: true });
       };
 
       const handleWheelZoom = (event) => {
@@ -2377,52 +2437,6 @@ $aiSetupNotes = [
         aiRevealTimeout = null;
       };
 
-      const showAiAnimation = () => {
-        if (aiAnimEl) {
-          aiAnimEl.classList.remove('hidden');
-        }
-      };
-
-      const hideAiAnimation = () => {
-        if (aiAnimEl) {
-          aiAnimEl.classList.add('hidden');
-        }
-      };
-
-      const randomizeAiAnimation = () => {
-        if (!aiAnimEl) return;
-
-        const tracks = Array.from(aiAnimEl.querySelectorAll('.ai-track'));
-        const nodes = Array.from(aiAnimEl.querySelectorAll('.ai-node'));
-        const faces = ['AI', 'TILES', 'WORDS', 'PLAY', 'SCORE', 'RACK', 'MOVE', '+', '?!', 'BINGO'];
-
-        tracks.forEach((track) => {
-          const speed = 6 + Math.random() * 4.5;
-          track.style.setProperty('--orbit-speed', `${speed.toFixed(2)}s`);
-          track.style.animationDirection = Math.random() > 0.5 ? 'normal' : 'reverse';
-        });
-
-        nodes.forEach((node) => {
-          const radius = 46 + Math.random() * 90;
-          const angle = Math.random() * Math.PI * 2;
-          const wobble = -12 + Math.random() * 24;
-          const drift = 4.6 + Math.random() * 3.4;
-          const tile = node.querySelector('.ai-tile');
-          const face = faces.splice(Math.floor(Math.random() * faces.length), 1)[0] || 'AI';
-          if (tile) {
-            tile.textContent = face;
-            tile.classList.toggle('word', face.length > 3);
-          }
-          node.style.transform = `translate(${Math.cos(angle) * radius}px, ${Math.sin(angle) * radius}px) rotate(${wobble}deg)`;
-          node.style.setProperty('--drift-speed', `${drift.toFixed(2)}s`);
-        });
-
-        const wave = aiAnimEl.querySelector('.ai-wave');
-        if (wave) {
-          wave.style.animationDelay = `${Math.random() * 1.8}s`;
-        }
-      };
-
       const openAiModal = () => {
         if (!aiModal) return;
         aiModal.classList.add('active');
@@ -2448,7 +2462,7 @@ $aiSetupNotes = [
         if (!aiListEl) return;
         aiListEl.innerHTML = '';
 
-        list.slice(0, 5).forEach((move, index) => {
+        list.forEach((move, index) => {
           const li = document.createElement('li');
           li.className = 'ai-card';
           li.dataset.word = move.word;
@@ -2482,8 +2496,6 @@ $aiSetupNotes = [
           aiListEl.innerHTML = '';
         }
 
-        showAiAnimation();
-        randomizeAiAnimation();
         aiStepEl.textContent = steps[0];
         if (aiSubtextEl) {
           aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
@@ -2493,13 +2505,9 @@ $aiSetupNotes = [
         aiRevealTimeout = setTimeout(async () => {
           await fetchAiSuggestions();
           const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
-          const topFive = playable.slice(0, 5);
-          renderAiSuggestions(topFive);
-          if (topFive.length > 0) {
-            hideAiAnimation();
-          }
+          renderAiSuggestions(playable);
           if (aiSubtextEl) {
-            aiSubtextEl.textContent = topFive.length
+            aiSubtextEl.textContent = playable.length
               ? 'Suggestions ready! Tap a move to load it and keep playing.'
               : 'No playable suggestions with your current rack—draw or adjust tiles and try again.';
           }
@@ -2902,6 +2910,12 @@ $aiSetupNotes = [
       }
 
       if (boardViewport) {
+        boardViewport.addEventListener('click', (event) => {
+          if (event.target.closest('.board-controls') || event.target === boardControlsToggle) return;
+          if (!boardControlsOpen) {
+            setBoardControlsOpen(true);
+          }
+        });
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
         boardViewport.addEventListener('mousedown', startBoardPan);
         boardViewport.addEventListener('mouseleave', endBoardPan);
@@ -2911,18 +2925,46 @@ $aiSetupNotes = [
         boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
         boardViewport.addEventListener('touchend', handleTouchEnd);
         boardViewport.addEventListener('touchcancel', handleTouchEnd);
+        boardViewport.addEventListener('dblclick', (event) => {
+          event.preventDefault();
+          centerBoard();
+        });
       }
 
-      window.addEventListener('resize', resizeBoardToViewport);
+      if (boardControlsToggle) {
+        boardControlsToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          setBoardControlsOpen(!boardControlsOpen);
+        });
+      }
+
+      if (fitBoardBtn) {
+        fitBoardBtn.addEventListener('click', fitBoard);
+      }
+
+      if (resetBoardViewBtn) {
+        resetBoardViewBtn.addEventListener('click', resetBoardView);
+      }
+
+      if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => adjustZoom(1.12));
+      }
+
+      if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => adjustZoom(0.9));
+      }
+
+      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
+      setBoardControlsOpen(false);
       updateTurnButton();
       updateAiButton();
-      resizeBoardToViewport();
-      setTimeout(resizeBoardToViewport, 120);
+      resizeBoardToViewport({ resetView: true });
+      setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
       setupDragAndDrop();
       loadDictionary();
     });
@@ -2935,21 +2977,8 @@ $aiSetupNotes = [
         <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
       </div>
       <div class="ai-status" id="aiStatus">
-        <div class="ai-anim" aria-hidden="true">
-          <div class="ai-trail"></div>
-          <div class="ai-track">
-            <div class="ai-node" style="transform: translate(120px, -8px);"><span class="ai-tile">A</span></div>
-            <div class="ai-node" style="transform: translate(-118px, -18px);"><span class="ai-tile word">WORDS</span></div>
-            <div class="ai-node" style="transform: translate(14px, -104px);"><span class="ai-tile">AI</span></div>
-            <div class="ai-node" style="transform: translate(96px, 86px);"><span class="ai-tile">+</span></div>
-          </div>
-          <div class="ai-track">
-            <div class="ai-node" style="transform: translate(-18px, 104px);"><span class="ai-tile">PLAY</span></div>
-            <div class="ai-node" style="transform: translate(-124px, 66px);"><span class="ai-tile">?!</span></div>
-          </div>
-          <div class="ai-wave"><span>thinking</span><span>shuffling</span><span>spelling</span></div>
-        </div>
-        <span class="ai-step" id="aiStep">Warming up the move engine…</span>
+        <span id="aiStep">Warming up the move engine…</span>
+        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
         <p class="ai-meta" id="aiSubtext">Returning tiles to your rack and dreaming up moves.</p>
       </div>
       <ul class="ai-list" id="aiList" aria-live="polite"></ul>
