@@ -190,6 +190,8 @@ $aiSetupNotes = [
       --cell-size: 56px;
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
+      --top-dock-height: 82px;
+      --bottom-dock-height: 116px;
     }
 
     * {
@@ -203,10 +205,10 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: 32px 18px 200px;
+      padding: calc(var(--top-dock-height) + 12px) 18px calc(var(--bottom-dock-height) + 12px);
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 14px;
     }
 
     header {
@@ -302,7 +304,10 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       padding: 12px;
       border: 1px dashed #cbd5e1;
-      overflow-x: auto;
+      overflow: hidden;
+      width: min(1100px, 100%);
+      display: flex;
+      justify-content: center;
     }
 
     .board-grid {
@@ -314,8 +319,8 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      min-width: 100%;
-      margin: 0;
+      min-width: min(100%, 880px);
+      margin: 0 auto;
     }
 
     .cell {
@@ -429,16 +434,82 @@ $aiSetupNotes = [
       box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
     }
 
+    .rack-wrap {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .dock-help {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      border: 1px solid rgba(226, 232, 240, 0.6);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(148, 163, 184, 0.14));
+      color: #e2e8f0;
+      box-shadow: 0 10px 24px rgba(14, 165, 233, 0.22);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .dock-help:hover { transform: translateY(-1px); border-color: rgba(125, 211, 252, 0.9); }
+
+    .dock-tooltip {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 10px);
+      width: min(320px, 90vw);
+      background: rgba(15, 23, 42, 0.96);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 14px 32px rgba(79, 70, 229, 0.25);
+      display: grid;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity 150ms ease, transform 150ms ease;
+      z-index: 20;
+    }
+
+    .dock-tooltip::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      bottom: -8px;
+      border-width: 8px 8px 0;
+      border-style: solid;
+      border-color: rgba(148, 163, 184, 0.5) transparent transparent transparent;
+      filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.3));
+    }
+
+    .dock-tooltip strong { font-size: 14px; letter-spacing: 0.2px; }
+
+    .dock-tooltip.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
     .rack-bar {
       display: flex;
-      gap: 10px;
+      gap: 6px;
       align-items: center;
       flex-wrap: wrap;
-      padding: 10px;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
+      padding: 5px 8px;
+      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
+        linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
+      border: 1px solid rgba(148, 163, 184, 0.5);
       border-radius: 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
+      min-height: 60px;
     }
 
     .rack-tile {
@@ -469,13 +540,6 @@ $aiSetupNotes = [
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
-    }
-
-    .rack-note {
-      text-align: center;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 13px;
     }
 
     .message {
@@ -750,6 +814,17 @@ $aiSetupNotes = [
       50% { opacity: 1; transform: translateY(-2px); }
     }
 
+    @keyframes shimmer {
+      0% { transform: translateX(-140%); }
+      50% { transform: translateX(20%); }
+      100% { transform: translateX(140%); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
     .ai-list {
       display: grid;
       gap: 8px;
@@ -792,7 +867,26 @@ $aiSetupNotes = [
       width: min(1200px, 100%);
       margin: 0 auto;
       display: grid;
-      gap: 16px;
+      gap: 12px;
+      min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      justify-items: center;
+    }
+
+    .board-viewport {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .board-scale {
+      transform-origin: center;
+      transition: transform 180ms ease;
+      will-change: transform;
+      display: grid;
+      place-items: center;
     }
 
     .board-chrome {
@@ -800,28 +894,55 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
-      padding: 18px;
+      padding: 16px;
       display: grid;
-      gap: 14px;
+      gap: 12px;
+      justify-items: center;
     }
 
-    .top-bar {
+    .hud-dock {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 900;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.9));
+      border-bottom: 1px solid #0ea5e9;
+      box-shadow: 0 14px 30px rgba(14, 165, 233, 0.18);
+      backdrop-filter: blur(12px);
+    }
+
+    .hud-inner {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      padding: 10px 16px 10px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .hud-right {
+      display: flex;
+      align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-left: auto;
     }
+
+    .hud-menu { flex-shrink: 0; order: 3; }
+    .brand { order: 1; }
+    .hud-right { order: 2; }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-mark {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
       background: linear-gradient(135deg, #4f46e5, #22c55e);
       display: grid;
@@ -829,78 +950,181 @@ $aiSetupNotes = [
       color: #fff;
       font-weight: 900;
       letter-spacing: 0.4px;
-      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.16);
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.2);
     }
 
-    .pill-group {
-      display: inline-flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
-    }
+    .hud-text { display: grid; gap: 3px; }
 
     .app-title {
       margin: 0;
-      font-size: clamp(24px, 4vw, 32px);
+      font-size: clamp(22px, 4vw, 30px);
+      color: #e2e8f0;
     }
 
-    .board-preview {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
-      border-radius: var(--radius);
-      padding: 12px;
-      border: 1px dashed #cbd5e1;
-      overflow-x: auto;
+    .hud-eyebrow {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #c7d2fe;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+      width: fit-content;
     }
+
+    .hud-meta {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .hud-menu {
+      position: relative;
+    }
+
+    .menu-toggle {
+      padding: 9px 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.08));
+      color: #e2e8f0;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(14, 165, 233, 0.18);
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .menu-toggle:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 14px 36px rgba(14, 165, 233, 0.24);
+    }
+
+    .menu-toggle .chevron {
+      display: inline-block;
+      transition: transform 150ms ease;
+    }
+
+    .hud-menu.open .menu-toggle .chevron { transform: rotate(180deg); }
+
+    .menu-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 10px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+      padding: 10px;
+      min-width: 190px;
+      display: grid;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 150ms ease, transform 150ms ease;
+      z-index: 2;
+    }
+
+    .hud-menu.open .menu-panel {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .menu-item {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.18));
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 12px;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .menu-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 12px 28px rgba(14, 165, 233, 0.28);
+    }
+
+    .menu-item.danger {
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.2), rgba(239, 68, 68, 0.18));
+      border-color: rgba(248, 113, 113, 0.8);
+      color: #fee2e2;
+    }
+
+    .hud-pill {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2));
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 7px 11px;
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      font-weight: 700;
+      box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
+    }
+
+      .board-preview {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+        border-radius: var(--radius);
+        padding: 12px;
+        border: 1px dashed #cbd5e1;
+        overflow: hidden;
+        width: min(1100px, 100%);
+        display: flex;
+        justify-content: center;
+      }
 
     .turn-dock {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(248, 250, 252, 0.94);
-      backdrop-filter: blur(10px);
-      border-top: 1px solid var(--border);
-      box-shadow: 0 -18px 38px rgba(15, 23, 42, 0.16);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(79, 70, 229, 0.9));
+      backdrop-filter: blur(12px);
+      border-top: 1px solid #0ea5e9;
+      box-shadow: 0 -18px 38px rgba(79, 70, 229, 0.24);
+      z-index: 800;
     }
 
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 14px 18px 18px;
+      padding: 8px 12px 10px;
       display: grid;
-      gap: 12px;
+      gap: 6px;
     }
 
     .dock-row {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .dock-main {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      flex: 1;
-      min-width: 260px;
-    }
-
-    .dock-label {
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 800;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .dock-actions {
-      display: flex;
-      align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .dock-cta {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+      min-width: 240px;
     }
 
     .ai-cta {
@@ -913,8 +1137,8 @@ $aiSetupNotes = [
       box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
       font-weight: 800;
       letter-spacing: 0.2px;
-      padding-inline: 16px 18px;
-      border-radius: 14px;
+      padding-inline: 12px 14px;
+      border-radius: 12px;
       margin-left: auto;
       flex-shrink: 0;
     }
@@ -936,16 +1160,74 @@ $aiSetupNotes = [
       line-height: 1;
     }
 
+    .turn-toggle {
+      position: relative;
+      overflow: hidden;
+      min-width: clamp(240px, 52vw, 420px);
+      padding: 12px 20px;
+      border-radius: 14px;
+      font-size: 19px;
+      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      isolation: isolate;
+    }
+
+    .turn-toggle::before,
+    .turn-toggle::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .turn-toggle::before {
+      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.32), transparent 45%),
+        radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.18), transparent 45%);
+      opacity: 0.75;
+      animation: breathe 3s ease-in-out infinite;
+    }
+
+    .turn-toggle::after {
+      background: linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.6) 40%, transparent 70%);
+      transform: translateX(-120%);
+      animation: shimmer 2.6s ease-in-out infinite;
+      mix-blend-mode: screen;
+      opacity: 0.7;
+    }
+
+    .turn-toggle:hover { transform: translateY(-2px); }
+
+    .turn-label {
+      display: grid;
+      gap: 4px;
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .turn-title { font-size: clamp(18px, 3vw, 20px); }
+
+    .turn-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      letter-spacing: 0;
+    }
+
     .turn-toggle.start {
       background: #16a34a;
       border-color: #15803d;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.35);
     }
 
     .turn-toggle.stop {
       background: #dc2626;
       border-color: #b91c1c;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.35);
     }
 
     .btn.ghost {
@@ -963,9 +1245,33 @@ $aiSetupNotes = [
     }
 
     @media (min-width: 900px) {
-      body { padding: 42px 32px 220px; }
+      body { padding: calc(var(--top-dock-height) + 22px) 32px calc(var(--bottom-dock-height) + 18px); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --top-dock-height: 74px;
+        --bottom-dock-height: 110px;
+      }
+
+      body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
+      .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+      .hud-menu { order: 1; }
+      .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
+      .hud-right { order: 3; margin-left: 0; flex: 1; justify-content: flex-end; justify-self: end; }
+      .hud-menu { justify-self: start; }
+      .hud-meta { gap: 6px; }
+      .hud-pill { padding: 6px 9px; font-size: 13px; }
+      .app-title { font-size: clamp(18px, 5vw, 22px); }
+      .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
+
+      .dock-inner { padding: 8px 10px 9px; gap: 8px; }
+      .dock-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+      .dock-cta { min-width: 0; }
+      .turn-toggle { width: 100%; min-width: 0; }
+      .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
     }
 
     @media (max-width: 599px) {
@@ -977,101 +1283,125 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
+  <header class="hud-dock" aria-label="Game status dock">
+    <div class="hud-inner">
+      <div class="hud-menu" id="hudMenu">
+        <button class="menu-toggle" type="button" id="menuToggle" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
+          Menu <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="menu-panel" id="menuPanel" role="menu">
+          <button class="menu-item" type="button" id="openRules" role="menuitem">Rules</button>
+          <button class="menu-item danger" type="button" id="resetBoardBtn" role="menuitem">Reset board</button>
+        </div>
+      </div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">TM</span>
+        <div class="hud-text">
+          <p class="hud-eyebrow">Live play</p>
+          <h1 class="app-title">TileMasterAI</h1>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-meta">
+          <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+          <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
   <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="board-chrome">
-      <div class="top-bar">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">TM</span>
-          <div>
-            <p class="eyebrow" style="margin:0;">Live play</p>
-            <h1 class="app-title">TileMasterAI</h1>
-          </div>
-        </div>
-        <div class="pill-group" aria-label="Game status">
-          <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
-        </div>
-      </div>
+    <div class="board-viewport" id="boardViewport">
+      <div class="board-scale" id="boardScale">
+        <div class="board-chrome" id="boardChrome">
+          <div class="board-preview" aria-label="Game board">
+            <div class="board-grid" role="presentation">
+              <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+                <?php foreach ($row as $colIndex => $cellType):
+                  $rowLabel = $rowLabels[$rowIndex];
+                  $colLabel = $columnLabels[$colIndex];
+                  $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
+                  $isCenter = $rowIndex === 7 && $colIndex === 7;
+                  $classes = 'cell';
 
-      <div class="board-preview" aria-label="Game board">
-        <div class="board-grid" role="presentation">
-          <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-            <?php foreach ($row as $colIndex => $cellType):
-              $rowLabel = $rowLabels[$rowIndex];
-              $colLabel = $columnLabels[$colIndex];
-              $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-              $isCenter = $rowIndex === 7 && $colIndex === 7;
-              $classes = 'cell';
+                  if ($cellType === 'TW') { $classes .= ' triple-word'; }
+                  if ($cellType === 'DW') { $classes .= ' double-word'; }
+                  if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+                  if ($cellType === 'DL') { $classes .= ' double-letter'; }
+                  if ($isCenter) { $classes .= ' center-star'; }
 
-              if ($cellType === 'TW') { $classes .= ' triple-word'; }
-              if ($cellType === 'DW') { $classes .= ' double-word'; }
-              if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-              if ($cellType === 'DL') { $classes .= ' double-letter'; }
-              if ($isCenter) { $classes .= ' center-star'; }
+                  $cellName = match ($cellType) {
+                    'TW' => 'triple word',
+                    'DW' => 'double word',
+                    'TL' => 'triple letter',
+                    'DL' => 'double letter',
+                    default => 'regular'
+                  };
 
-              $cellName = match ($cellType) {
-                'TW' => 'triple word',
-                'DW' => 'double word',
-                'TL' => 'triple letter',
-                'DL' => 'double letter',
-                default => 'regular'
-              };
+                  $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+                  if ($isCenter) { $ariaParts[] = 'start star'; }
+                  if ($tile) {
+                    if ($tile->isBlank()) {
+                      $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                    } else {
+                      $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
+                    }
+                  }
+                  $ariaLabel = implode(' · ', $ariaParts);
+                ?>
+                <div
+                  class="<?php echo $classes; ?>"
+                  aria-label="<?php echo $ariaLabel; ?>"
+                  data-row="<?php echo $rowIndex; ?>"
+                  data-col="<?php echo $colIndex; ?>"
+                  data-premium="<?php echo $cellType; ?>"
+                  data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+                >
+                  <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+                  <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
-              $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-              if ($isCenter) { $ariaParts[] = 'start star'; }
-              if ($tile) {
-                if ($tile->isBlank()) {
-                  $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                } else {
-                  $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                }
-              }
-              $ariaLabel = implode(' · ', $ariaParts);
-            ?>
-            <div
-              class="<?php echo $classes; ?>"
-              aria-label="<?php echo $ariaLabel; ?>"
-              data-row="<?php echo $rowIndex; ?>"
-              data-col="<?php echo $colIndex; ?>"
-              data-premium="<?php echo $cellType; ?>"
-              data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-            >
-              <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
-              <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
-
-              <?php if ($isCenter): ?>
-                <span class="cell-label">★ DW</span>
-              <?php elseif ($cellType !== ''): ?>
-                <span class="cell-label"><?php echo $cellType; ?></span>
-              <?php endif; ?>
+                  <?php if ($isCenter): ?>
+                    <span class="cell-label">★ DW</span>
+                  <?php elseif ($cellType !== ''): ?>
+                    <span class="cell-label"><?php echo $cellType; ?></span>
+                  <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+              <?php endforeach; ?>
             </div>
-            <?php endforeach; ?>
-          <?php endforeach; ?>
+          </div>
+
+          <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
         </div>
       </div>
-
-      <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
     </div>
   </main>
 
   <footer class="turn-dock" aria-label="Turn controls">
     <div class="dock-inner">
       <div class="dock-row">
-        <div class="dock-main">
-          <span class="dock-label">Rack</span>
-          <div class="dock-actions">
-            <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
-            <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
-            <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
-          </div>
+        <div class="dock-cta">
+          <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
+            <span class="turn-label">
+              <span class="turn-title">Start turn</span>
+              <span class="turn-subtitle">Draw tiles and place your word</span>
+            </span>
+          </button>
         </div>
         <button class="btn ai-cta" type="button" id="aiMovesBtn">
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
         </button>
       </div>
-      <div class="rack-bar" aria-label="Rack" id="rack"></div>
-      <p class="rack-note">Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</p>
+      <div class="rack-wrap">
+        <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+        <div class="rack-bar" aria-label="Rack" id="rack"></div>
+        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+          <strong>Rack tips</strong>
+          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+          <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+        </div>
+      </div>
     </div>
   </footer>
 
@@ -1103,6 +1433,8 @@ $aiSetupNotes = [
       const bagCountEl = document.getElementById('bagCount');
       const scoreEl = document.getElementById('scoreTotal');
       const toggleBtn = document.getElementById('turnToggleBtn');
+      const turnTitleEl = toggleBtn ? toggleBtn.querySelector('.turn-title') : null;
+      const turnSubtitleEl = toggleBtn ? toggleBtn.querySelector('.turn-subtitle') : null;
       const resetBtn = document.getElementById('resetBoardBtn');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
       const aiBtn = document.getElementById('aiMovesBtn');
@@ -1112,6 +1444,15 @@ $aiSetupNotes = [
       const aiStatusEl = document.getElementById('aiStatus');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
+      const rulesBtn = document.getElementById('openRules');
+      const menuToggle = document.getElementById('menuToggle');
+      const menuPanel = document.getElementById('menuPanel');
+      const hudMenu = document.getElementById('hudMenu');
+      const boardViewport = document.getElementById('boardViewport');
+      const boardScaleEl = document.getElementById('boardScale');
+      const boardChromeEl = document.getElementById('boardChrome');
+      const rackHelpBtn = document.getElementById('rackHelp');
+      const rackHelpTip = document.getElementById('rackHelpTip');
 
       let tileId = 0;
       let bag = [];
@@ -1124,6 +1465,118 @@ $aiSetupNotes = [
       let dictionary = new Set();
       let aiStepInterval;
       let aiRevealTimeout;
+      let audioCtx;
+      let baseScale = 1;
+      let userZoom = 1;
+      let pinchDistance = null;
+
+      const initAudio = () => {
+        if (audioCtx) return audioCtx;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        audioCtx = new AudioContextClass();
+        return audioCtx;
+      };
+
+      const playTone = (frequency, duration = 0.2, type = 'sine', gainValue = 0.06) => {
+        const ctx = initAudio();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        gain.gain.value = gainValue;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        oscillator.stop(ctx.currentTime + duration + 0.05);
+      };
+
+      const playChord = (frequencies = []) => {
+        frequencies.forEach((freq, index) => {
+          setTimeout(() => playTone(freq, 0.22, 'triangle', 0.045), index * 50);
+        });
+      };
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const applyBoardScale = () => {
+        if (!boardScaleEl) return;
+        const MIN_ZOOM = 0.6;
+        const MAX_ZOOM = 1.4;
+        const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+        boardScaleEl.style.transform = `scale(${finalScale})`;
+      };
+
+      const resizeBoardToViewport = () => {
+        if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
+        const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
+        const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 24);
+        const availableWidth = document.documentElement.clientWidth - 24;
+
+        boardViewport.style.height = `${availableHeight}px`;
+
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+
+        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
+        const widthScale = boardRect.width ? Math.min(1, availableWidth / boardRect.width) : 1;
+        baseScale = Math.min(heightScale, widthScale, 1);
+        applyBoardScale();
+      };
+
+      const adjustZoom = (factor) => {
+        const minFactor = 0.6 / (baseScale || 1);
+        const maxFactor = 1.4 / (baseScale || 1);
+        userZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        applyBoardScale();
+      };
+
+      const handleWheelZoom = (event) => {
+        if (!boardScaleEl || !boardViewport) return;
+        if (event.ctrlKey || event.metaKey) return;
+        event.preventDefault();
+        const direction = Math.sign(event.deltaY);
+        adjustZoom(direction > 0 ? 0.92 : 1.08);
+      };
+
+      const touchDistance = (touches) => {
+        if (touches.length < 2) return 0;
+        const [t1, t2] = touches;
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.hypot(dx, dy);
+      };
+
+      const handleTouchStart = (event) => {
+        if (event.touches.length === 2) {
+          pinchDistance = touchDistance(event.touches);
+        }
+      };
+
+      const handleTouchMove = (event) => {
+        if (!boardScaleEl || event.touches.length < 2 || pinchDistance === null) return;
+        event.preventDefault();
+        const newDistance = touchDistance(event.touches);
+        if (newDistance > 0) {
+          const factor = newDistance / (pinchDistance || newDistance);
+          adjustZoom(factor);
+          pinchDistance = newDistance;
+        }
+      };
+
+      const handleTouchEnd = () => {
+        if (pinchDistance !== null) {
+          pinchDistance = null;
+        }
+      };
 
       const buildBag = () => {
         bag = [];
@@ -1165,10 +1618,51 @@ $aiSetupNotes = [
         }
       };
 
+      const closeHudMenu = () => {
+        if (!hudMenu || !menuToggle) return;
+        hudMenu.classList.remove('open');
+        menuToggle.setAttribute('aria-expanded', 'false');
+      };
+
+      const toggleHudMenu = () => {
+        if (!hudMenu || !menuToggle) return;
+        const isOpen = hudMenu.classList.toggle('open');
+        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      const closeRackHelp = () => {
+        if (!rackHelpTip || !rackHelpBtn) return;
+        rackHelpTip.classList.remove('show');
+        rackHelpBtn.setAttribute('aria-expanded', 'false');
+      };
+
+      const toggleRackHelp = () => {
+        if (!rackHelpTip || !rackHelpBtn) return;
+        const shouldShow = rackHelpTip.classList.toggle('show');
+        rackHelpBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+
+        if (shouldShow) {
+          rackHelpTip.style.left = '0';
+          rackHelpTip.style.right = 'auto';
+          const tipRect = rackHelpTip.getBoundingClientRect();
+          const viewportWidth = document.documentElement.clientWidth;
+          if (tipRect.right > viewportWidth - 12) {
+            rackHelpTip.style.left = 'auto';
+            rackHelpTip.style.right = '0';
+          }
+        }
+      };
+
       const updateTurnButton = () => {
+        if (!toggleBtn) return;
         toggleBtn.classList.toggle('start', !turnActive);
         toggleBtn.classList.toggle('stop', turnActive);
-        toggleBtn.textContent = turnActive ? 'Submit move' : 'Start turn';
+        if (turnTitleEl) {
+          turnTitleEl.textContent = turnActive ? 'Submit move' : 'Start turn';
+        }
+        if (turnSubtitleEl) {
+          turnSubtitleEl.textContent = turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word';
+        }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
 
@@ -1288,6 +1782,7 @@ $aiSetupNotes = [
         tile.position = { type: 'board', row, col };
         renderBoard();
         renderRack();
+        playTone(360, 0.14, 'triangle', 0.05);
       };
 
       const moveTileToRack = (tileId) => {
@@ -1699,6 +2194,7 @@ $aiSetupNotes = [
         updateBagCount();
         renderRack();
         setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
+        playChord([480, 640]);
         return true;
       };
 
@@ -1890,6 +2386,7 @@ $aiSetupNotes = [
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
+        playChord([392, 523, 659]);
       };
 
       const resetBoard = () => {
@@ -1906,6 +2403,7 @@ $aiSetupNotes = [
         scoreEl.textContent = '0';
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
         updateTurnButton();
+        playTone(196, 0.28, 'sawtooth', 0.07);
       };
 
       const setupDragAndDrop = () => {
@@ -1991,8 +2489,8 @@ $aiSetupNotes = [
         closeAiModal();
       };
 
-      toggleBtn.addEventListener('click', handleToggleClick);
-      resetBtn.addEventListener('click', resetBoard);
+      if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
+      if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
       if (aiModal) {
@@ -2002,17 +2500,60 @@ $aiSetupNotes = [
           }
         });
         document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape' && aiModal.classList.contains('active')) {
-            closeAiModal();
+          if (event.key === 'Escape') {
+            if (aiModal.classList.contains('active')) {
+              closeAiModal();
+            }
+            closeHudMenu();
+            closeRackHelp();
           }
         });
       }
+
+      if (menuToggle) {
+        menuToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleHudMenu();
+        });
+      }
+
+      if (rackHelpBtn) {
+        rackHelpBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleRackHelp();
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        if (hudMenu && !hudMenu.contains(event.target) && event.target !== menuToggle) {
+          closeHudMenu();
+        }
+        if (rackHelpTip && rackHelpTip.classList.contains('show') && !rackHelpTip.contains(event.target) && event.target !== rackHelpBtn) {
+          closeRackHelp();
+        }
+      });
+
+      if (rulesBtn) {
+        rulesBtn.addEventListener('click', () => closeHudMenu());
+      }
+
+      if (boardViewport) {
+        boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
+        boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
+        boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
+        boardViewport.addEventListener('touchend', handleTouchEnd);
+        boardViewport.addEventListener('touchcancel', handleTouchEnd);
+      }
+
+      window.addEventListener('resize', resizeBoardToViewport);
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
       updateTurnButton();
+      resizeBoardToViewport();
+      setTimeout(resizeBoardToViewport, 120);
       setupDragAndDrop();
       loadDictionary();
     });
