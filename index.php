@@ -407,9 +407,10 @@ $aiSetupNotes = [
       border: 1px solid var(--tile-wood-border);
       box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
       position: relative;
-      display: flex;
+      display: grid;
       align-items: center;
-      justify-content: center;
+      justify-items: center;
+      grid-template-areas: "stack";
       padding: 6px 8px;
       color: #0f172a;
     }
@@ -420,6 +421,11 @@ $aiSetupNotes = [
       border-color: var(--tile-wood-border);
     }
 
+    .tile .letter,
+    .tile .value {
+      grid-area: stack;
+    }
+
     .tile .letter {
       font-size: 22px;
       font-weight: 800;
@@ -428,9 +434,9 @@ $aiSetupNotes = [
     }
 
     .tile .value {
-      position: absolute;
-      bottom: 6px;
-      right: 6px;
+      align-self: end;
+      justify-self: end;
+      margin: 0 4px 4px 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
@@ -557,15 +563,21 @@ $aiSetupNotes = [
       width: var(--tile-size);
       height: var(--tile-size);
       position: relative;
-      display: flex;
+      display: grid;
       align-items: center;
-      justify-content: center;
+      justify-items: center;
+      grid-template-areas: "stack";
       background: var(--tile-wood);
       border-radius: 5px;
       border: 1px solid var(--tile-wood-border);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       color: #0f172a;
       font-weight: 800;
+    }
+
+    .rack-tile .letter,
+    .rack-tile .value {
+      grid-area: stack;
     }
 
     .rack-tile .letter {
@@ -575,9 +587,9 @@ $aiSetupNotes = [
     }
 
     .rack-tile .value {
-      position: absolute;
-      bottom: 6px;
-      right: 6px;
+      align-self: end;
+      justify-self: end;
+      margin: 0 4px 4px 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
@@ -863,6 +875,8 @@ $aiSetupNotes = [
       color: #0f172a;
       align-items: center;
     }
+
+    .ai-status.hidden { display: none; }
 
     .ai-status.ai-complete {
       background: #f8fafc;
@@ -1446,82 +1460,6 @@ $aiSetupNotes = [
       width: 100%;
     }
 
-    .board-controls {
-      position: absolute;
-      right: 10px;
-      bottom: 12px;
-      display: grid;
-      gap: 6px;
-      background: var(--board-toolbar);
-      color: #e2e8f0;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
-      padding: 8px;
-      z-index: 4;
-      width: 130px;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(12px);
-      transition: opacity 150ms ease, transform 150ms ease;
-    }
-
-    .board-viewport.controls-open .board-controls {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .board-controls-toggle {
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      background: rgba(255, 255, 255, 0.82);
-      color: #0f172a;
-      font-weight: 800;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
-      cursor: pointer;
-      z-index: 5;
-    }
-
-    .board-controls h3 {
-      margin: 0;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #c7d2fe;
-    }
-
-    .board-controls .controls-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-
-    .board-controls button {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.12));
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 9px;
-      padding: 8px 10px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-    }
-
-    .board-controls button:hover {
-      transform: translateY(-1px);
-      border-color: rgba(125, 211, 252, 0.8);
-      box-shadow: 0 10px 22px rgba(14, 165, 233, 0.2);
-    }
-
-    .board-controls button:active { transform: translateY(0); }
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1555,16 +1493,19 @@ $aiSetupNotes = [
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
       .rack-wrap { grid-column: 1 / -1; }
 
+      .tile .letter,
+      .rack-tile .letter { font-size: 18px; }
+
+      .tile .value,
+      .rack-tile .value { font-size: 10px; margin: 0 3px 3px 0; }
+
       .board-chrome { padding: 10px 10px 8px; }
       .board-preview { padding: 6px; }
-      .board-controls { right: 8px; bottom: 8px; width: min(100%, 240px); }
       .board-viewport { padding: 6px; }
     }
 
     @media (max-width: 599px) {
       .board-preview { padding: 10px; }
-      .board-controls { left: 8px; right: 8px; width: auto; grid-template-columns: 1fr; }
-      .board-controls-toggle { left: 12px; right: auto; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -1661,16 +1602,6 @@ $aiSetupNotes = [
           </div>
         </div>
       </div>
-      <button class="board-controls-toggle" id="boardControlsToggle" type="button" aria-label="Show board controls" aria-expanded="false">🧭 Board tools</button>
-      <div class="board-controls" aria-label="Board view controls">
-        <h3>View</h3>
-        <div class="controls-row">
-          <button type="button" id="fitBoard" aria-label="Fit board to screen">Fit</button>
-          <button type="button" id="zoomOut" aria-label="Zoom out">–</button>
-          <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
-        </div>
-        <button type="button" id="resetBoardView" aria-label="Recenter board">Center board</button>
-      </div>
     </div>
   </main>
 
@@ -1740,11 +1671,6 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardScaleEl = document.getElementById('boardScale');
       const boardChromeEl = document.getElementById('boardChrome');
-      const boardControlsToggle = document.getElementById('boardControlsToggle');
-      const fitBoardBtn = document.getElementById('fitBoard');
-      const zoomInBtn = document.getElementById('zoomIn');
-      const zoomOutBtn = document.getElementById('zoomOut');
-      const resetBoardViewBtn = document.getElementById('resetBoardView');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
 
@@ -1768,7 +1694,6 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
-      let boardControlsOpen = false;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1911,17 +1836,6 @@ $aiSetupNotes = [
         panX = (viewportCenterX - cellCenterX) / finalScale;
         panY = (viewportCenterY - cellCenterY) / finalScale;
         applyBoardTransform();
-      };
-
-      const setBoardControlsOpen = (open) => {
-        boardControlsOpen = !!open;
-        if (boardViewport) {
-          boardViewport.classList.toggle('controls-open', boardControlsOpen);
-        }
-        if (boardControlsToggle) {
-          boardControlsToggle.setAttribute('aria-expanded', boardControlsOpen ? 'true' : 'false');
-          boardControlsToggle.textContent = boardControlsOpen ? 'Hide board tools' : '🧭 Board tools';
-        }
       };
 
       const getFinalScale = () => {
@@ -2629,8 +2543,13 @@ $aiSetupNotes = [
       };
 
       const setAiAnimationActive = (active) => {
+        const hasResults = aiListEl && aiListEl.children.length > 0;
         if (aiStatusEl) {
           aiStatusEl.classList.toggle('ai-complete', !active);
+          aiStatusEl.classList.toggle('hidden', !active && hasResults);
+          if (active) {
+            aiStatusEl.classList.remove('hidden');
+          }
         }
         if (aiAnimationEl) {
           aiAnimationEl.classList.toggle('hidden', !active);
@@ -3120,12 +3039,6 @@ $aiSetupNotes = [
       }
 
       if (boardViewport) {
-        boardViewport.addEventListener('click', (event) => {
-          if (event.target.closest('.board-controls') || event.target === boardControlsToggle) return;
-          if (!boardControlsOpen) {
-            setBoardControlsOpen(true);
-          }
-        });
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
         boardViewport.addEventListener('mousedown', startBoardPan);
         boardViewport.addEventListener('mouseleave', endBoardPan);
@@ -3141,36 +3054,12 @@ $aiSetupNotes = [
         });
       }
 
-      if (boardControlsToggle) {
-        boardControlsToggle.addEventListener('click', (event) => {
-          event.stopPropagation();
-          setBoardControlsOpen(!boardControlsOpen);
-        });
-      }
-
-      if (fitBoardBtn) {
-        fitBoardBtn.addEventListener('click', fitBoard);
-      }
-
-      if (resetBoardViewBtn) {
-        resetBoardViewBtn.addEventListener('click', resetBoardView);
-      }
-
-      if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', () => adjustZoom(1.12));
-      }
-
-      if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', () => adjustZoom(0.9));
-      }
-
       window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
-      setBoardControlsOpen(false);
       updateTurnButton();
       updateAiButton();
       resizeBoardToViewport({ resetView: true });
