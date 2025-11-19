@@ -10,6 +10,13 @@ Bootstrap PHP landing page for TileMasterAI.
   ```
 - Access values using `getenv('OPENAI_API_KEY');` and never echo or commit secret values.
 
+### Database configuration
+- The app now ships with a lightweight PDO wrapper that defaults to SQLite at `data/tilemaster.sqlite`.
+- To switch to MySQL without code changes, provide environment variables:
+  - `DB_CONNECTION=mysql`
+  - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (or a full `DB_DSN` override)
+- Apply schema migrations with `php scripts/migrate.php` and seed local data with `php scripts/seed.php`.
+
 ## Local usage
 Serve the repository with PHP (e.g., `php -S localhost:8000`) and visit the root to confirm the welcome page and environment status indicator.
 

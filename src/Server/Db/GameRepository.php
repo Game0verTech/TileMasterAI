@@ -1,0 +1,192 @@
+<?php
+
+declare(strict_types=1);
+
+namespace TileMasterAI\Server\Db;
+
+use PDO;
+
+class GameRepository
+{
+    private PDO $pdo;
+    private string $driver;
+
+    public function __construct(?PDO $pdo = null)
+    {
+        $this->pdo = $pdo ?? Connection::getPdo();
+        $this->driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    }
+
+    public function createSession(string $code, string $status = 'pending'): int
+    {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO sessions (code, status) VALUES (:code, :status)'
+        );
+        $statement->execute([
+            ':code' => $code,
+            ':status' => $status,
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function getSessionByCode(string $code): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM sessions WHERE code = :code LIMIT 1');
+        $statement->execute([':code' => $code]);
+        $session = $statement->fetch();
+
+        return $session !== false ? $session : null;
+    }
+
+    public function createPlayer(string $name): int
+    {
+        $statement = $this->pdo->prepare('INSERT INTO players (name) VALUES (:name)');
+        $statement->execute([':name' => $name]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function addPlayerToSession(int $sessionId, int $playerId, int $joinOrder, bool $isHost = false): void
+    {
+        $sql = $this->driver === 'mysql'
+            ? 'INSERT INTO session_players (session_id, player_id, join_order, is_host) '
+                . 'VALUES (:session_id, :player_id, :join_order, :is_host) '
+                . 'ON DUPLICATE KEY UPDATE join_order = VALUES(join_order), is_host = VALUES(is_host)'
+            : 'INSERT OR REPLACE INTO session_players (session_id, player_id, join_order, is_host) '
+                . 'VALUES (:session_id, :player_id, :join_order, :is_host)';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+            ':join_order' => $joinOrder,
+            ':is_host' => $isHost ? 1 : 0,
+        ]);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $placements
+     */
+    public function recordTurn(
+        int $sessionId,
+        int $playerId,
+        int $turnNumber,
+        array $placements,
+        int $score,
+        string $action = 'play'
+    ): int {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO turns (session_id, player_id, turn_number, placements, score, action) '
+            . 'VALUES (:session_id, :player_id, :turn_number, :placements, :score, :action)'
+        );
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+            ':turn_number' => $turnNumber,
+            ':placements' => json_encode($placements, JSON_THROW_ON_ERROR),
+            ':score' => $score,
+            ':action' => $action,
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function saveSnapshot(
+        int $sessionId,
+        ?int $turnId,
+        string $boardState,
+        string $rackState,
+        string $bagState,
+        ?string $notes = null
+    ): int {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO game_state_snapshots (session_id, turn_id, board_state, rack_state, bag_state, notes) '
+            . 'VALUES (:session_id, :turn_id, :board_state, :rack_state, :bag_state, :notes)'
+        );
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':turn_id' => $turnId,
+            ':board_state' => $boardState,
+            ':rack_state' => $rackState,
+            ':bag_state' => $bagState,
+            ':notes' => $notes,
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function clearTileBag(int $sessionId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM tile_bag WHERE session_id = :session_id');
+        $statement->execute([':session_id' => $sessionId]);
+    }
+
+    /**
+     * @param array<int, array{letter: string, value: int, count: int}> $tileSet
+     */
+    public function seedTileBag(int $sessionId, array $tileSet): void
+    {
+        $this->clearTileBag($sessionId);
+
+        $statement = $this->pdo->prepare(
+            'INSERT INTO tile_bag (session_id, letter, value, state) VALUES (:session_id, :letter, :value, :state)'
+        );
+
+        foreach ($tileSet as $tile) {
+            if ($tile['count'] < 1) {
+                continue;
+            }
+
+            for ($i = 0; $i < $tile['count']; $i++) {
+                $statement->execute([
+                    ':session_id' => $sessionId,
+                    ':letter' => strtoupper($tile['letter']),
+                    ':value' => $tile['value'],
+                    ':state' => 'bag',
+                ]);
+            }
+        }
+    }
+
+    public function drawTileFromBag(int $sessionId): ?array
+    {
+        $this->pdo->beginTransaction();
+        $select = $this->pdo->prepare(
+            'SELECT id, letter, value FROM tile_bag WHERE session_id = :session_id AND state = "bag" LIMIT 1'
+        );
+        $select->execute([':session_id' => $sessionId]);
+        $tile = $select->fetch();
+
+        if ($tile === false) {
+            $this->pdo->commit();
+            return null;
+        }
+
+        $update = $this->pdo->prepare('UPDATE tile_bag SET state = "drawn" WHERE id = :id');
+        $update->execute([':id' => $tile['id']]);
+        $this->pdo->commit();
+
+        return $tile;
+    }
+
+    public function recordTileReturn(int $tileId): void
+    {
+        $statement = $this->pdo->prepare('UPDATE tile_bag SET state = "bag", drawn_by = NULL, drawn_at = NULL WHERE id = :id');
+        $statement->execute([':id' => $tileId]);
+    }
+
+    public function updateSessionStatus(int $sessionId, string $status): void
+    {
+        $statement = $this->pdo->prepare('UPDATE sessions SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $statement->execute([
+            ':status' => $status,
+            ':id' => $sessionId,
+        ]);
+    }
+
+    public function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+}
