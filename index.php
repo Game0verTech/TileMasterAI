@@ -1694,6 +1694,8 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
+      let touchDragTileId = null;
+      let touchDragLastPosition = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1839,14 +1841,33 @@ $aiSetupNotes = [
       };
 
       const getFinalScale = () => {
-        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MIN_ZOOM = baseScale || 1;
         const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
         return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+      };
+
+      const clampPanToViewport = (finalScale) => {
+        if (!boardViewport || !boardChromeEl || !boardScaleEl) return;
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const scaledWidth = boardRect.width * finalScale;
+        const scaledHeight = boardRect.height * finalScale;
+
+        const minPanX = Math.min(0, viewportRect.width - scaledWidth);
+        const minPanY = Math.min(0, viewportRect.height - scaledHeight);
+
+        panX = clamp(panX, minPanX, 0);
+        panY = clamp(panY, minPanY, 0);
       };
 
       const applyBoardTransform = () => {
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
+        clampPanToViewport(finalScale);
         boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
 
@@ -1879,7 +1900,7 @@ $aiSetupNotes = [
       };
 
       const adjustZoom = (factor) => {
-        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MIN_ZOOM = baseScale || 1;
         const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
@@ -2101,6 +2122,10 @@ $aiSetupNotes = [
           tileEl.dataset.tileId = tile.id;
           tileEl.dataset.location = 'rack';
           tileEl.addEventListener('dragstart', handleTileDragStart);
+          tileEl.addEventListener('touchstart', handleTileTouchStart, { passive: false });
+          tileEl.addEventListener('touchmove', handleTileTouchMove, { passive: false });
+          tileEl.addEventListener('touchend', handleTileTouchEnd);
+          tileEl.addEventListener('touchcancel', handleTileTouchEnd);
 
           const letterEl = document.createElement('span');
           letterEl.className = `letter${tile.isBlank && tile.assignedLetter === '' ? ' blank-empty' : tile.isBlank ? ' blank-assigned' : ''}`;
@@ -2150,6 +2175,10 @@ $aiSetupNotes = [
           tileEl.dataset.tileId = tile.id;
           tileEl.dataset.location = 'board';
           tileEl.addEventListener('dragstart', handleTileDragStart);
+          tileEl.addEventListener('touchstart', handleTileTouchStart, { passive: false });
+          tileEl.addEventListener('touchmove', handleTileTouchMove, { passive: false });
+          tileEl.addEventListener('touchend', handleTileTouchEnd);
+          tileEl.addEventListener('touchcancel', handleTileTouchEnd);
           tileEl.addEventListener('dblclick', () => moveTileToRack(tile.id));
 
           const letterEl = document.createElement('span');
@@ -2177,6 +2206,50 @@ $aiSetupNotes = [
         const tileId = event.target.dataset.tileId;
         event.dataTransfer.setData('text/plain', tileId);
         event.dataTransfer.effectAllowed = 'move';
+      };
+
+      const handleTileTouchStart = (event) => {
+        const touch = event.touches[0];
+        if (!touch) return;
+        touchDragTileId = event.currentTarget.dataset.tileId;
+        touchDragLastPosition = { x: touch.clientX, y: touch.clientY };
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      const handleTileTouchMove = (event) => {
+        if (!touchDragTileId) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        touchDragLastPosition = { x: touch.clientX, y: touch.clientY };
+        event.preventDefault();
+      };
+
+      const handleTileTouchEnd = (event) => {
+        if (!touchDragTileId || !touchDragLastPosition) {
+          touchDragTileId = null;
+          touchDragLastPosition = null;
+          return;
+        }
+
+        const touch = event.changedTouches?.[0];
+        const point = touch ? { x: touch.clientX, y: touch.clientY } : touchDragLastPosition;
+        const dropTarget = document.elementFromPoint(point.x, point.y);
+
+        if (dropTarget) {
+          const cell = dropTarget.closest('.cell');
+          const rackTarget = dropTarget.closest('.rack');
+          if (cell) {
+            const row = Number(cell.dataset.row);
+            const col = Number(cell.dataset.col);
+            moveTileToBoard(touchDragTileId, row, col);
+          } else if (rackTarget) {
+            moveTileToRack(touchDragTileId);
+          }
+        }
+
+        touchDragTileId = null;
+        touchDragLastPosition = null;
       };
 
       const moveTileToBoard = (tileId, row, col) => {
