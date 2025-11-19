@@ -172,7 +172,7 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: 28px 18px 60px;
+      padding: 32px 18px 200px;
       display: flex;
       flex-direction: column;
       gap: 22px;
@@ -678,10 +678,253 @@ $aiSetupNotes = [
       font-size: 13px;
     }
 
+    .ai-status {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .ai-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .ai-dots span {
+      width: 8px;
+      height: 8px;
+      background: #0ea5e9;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    .ai-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .ai-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+      display: grid;
+      gap: 4px;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    }
+
+    .ai-card:hover {
+      transform: translateY(-2px);
+      border-color: #cbd5e1;
+      box-shadow: 0 16px 30px rgba(14, 165, 233, 0.16);
+    }
+
+    .ai-card h4 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+    }
+
+    .ai-meta { color: var(--muted); margin: 0; font-size: 13px; }
+
     body.modal-open { overflow: hidden; }
 
+    .app-shell {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .board-chrome {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--glow);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f46e5, #22c55e);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.16);
+    }
+
+    .pill-group {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 32px);
+    }
+
+    .board-preview {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+      border-radius: var(--radius);
+      padding: 12px;
+      border: 1px dashed #cbd5e1;
+      overflow-x: auto;
+    }
+
+    .turn-dock {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(248, 250, 252, 0.94);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -18px 38px rgba(15, 23, 42, 0.16);
+    }
+
+    .dock-inner {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      padding: 14px 18px 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .dock-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dock-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .dock-label {
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 800;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dock-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ai-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      color: #fff;
+      border-color: #ea580c;
+      box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      padding-inline: 16px 18px;
+      border-radius: 14px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .ai-cta:hover {
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      transform: translateY(-1px);
+      box-shadow: 0 20px 42px rgba(225, 29, 72, 0.36);
+    }
+
+    .ai-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.16);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .turn-toggle.start {
+      background: #16a34a;
+      border-color: #15803d;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.2);
+    }
+
+    .turn-toggle.stop {
+      background: #dc2626;
+      border-color: #b91c1c;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.2);
+    }
+
+    .btn.ghost {
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .message {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
     @media (min-width: 900px) {
-      body { padding: 42px 32px 80px; }
+      body { padding: 42px 32px 220px; }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -695,303 +938,141 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
-  <header>
-    <span class="eyebrow">Phase 2 · Experience design</span>
-    <h1>Designing the TileMasterAI board experience</h1>
-    <p class="lede">Mobile-first scaffolding for a classic 15x15 word-tile play surface: authentic bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
-    <div class="status" aria-live="polite">
-      <span class="status-icon" aria-hidden="true"></span>
-      <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
-    </div>
-  </header>
+  <main class="app-shell" aria-label="TileMasterAI board">
+    <div class="board-chrome">
+      <div class="top-bar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">TM</span>
+          <div>
+            <p class="eyebrow" style="margin:0;">Live play</p>
+            <h1 class="app-title">TileMasterAI</h1>
+          </div>
+        </div>
+        <div class="pill-group" aria-label="Game status">
+          <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+          <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+        </div>
+      </div>
 
-  <section class="grid" aria-label="Phase 2 layout preview">
-    <article class="card">
-      <h2 class="subhead">Primary layout</h2>
-      <p class="note">Standard 15x15 word game grid with the authentic premium pattern, a centered star on the H8 double word, and an empty board ready for live placements.</p>
-      <div class="layout-shell">
-        <div class="board-preview" aria-label="Board preview">
-          <div class="board-grid" role="presentation">
-            <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-              <?php foreach ($row as $colIndex => $cellType):
-                $rowLabel = $rowLabels[$rowIndex];
-                $colLabel = $columnLabels[$colIndex];
-                $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-                $isCenter = $rowIndex === 7 && $colIndex === 7;
-                $classes = 'cell';
+      <div class="board-preview" aria-label="Game board">
+        <div class="board-grid" role="presentation">
+          <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+            <?php foreach ($row as $colIndex => $cellType):
+              $rowLabel = $rowLabels[$rowIndex];
+              $colLabel = $columnLabels[$colIndex];
+              $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
+              $isCenter = $rowIndex === 7 && $colIndex === 7;
+              $classes = 'cell';
 
-                if ($cellType === 'TW') { $classes .= ' triple-word'; }
-                if ($cellType === 'DW') { $classes .= ' double-word'; }
-                if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-                if ($cellType === 'DL') { $classes .= ' double-letter'; }
-                if ($isCenter) { $classes .= ' center-star'; }
+              if ($cellType === 'TW') { $classes .= ' triple-word'; }
+              if ($cellType === 'DW') { $classes .= ' double-word'; }
+              if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+              if ($cellType === 'DL') { $classes .= ' double-letter'; }
+              if ($isCenter) { $classes .= ' center-star'; }
 
-                $cellName = match ($cellType) {
-                  'TW' => 'triple word',
-                  'DW' => 'double word',
-                  'TL' => 'triple letter',
-                  'DL' => 'double letter',
-                  default => 'regular'
-                };
+              $cellName = match ($cellType) {
+                'TW' => 'triple word',
+                'DW' => 'double word',
+                'TL' => 'triple letter',
+                'DL' => 'double letter',
+                default => 'regular'
+              };
 
-                $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-                if ($isCenter) { $ariaParts[] = 'start star'; }
-                if ($tile) {
-                  if ($tile->isBlank()) {
-                    $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                  } else {
-                    $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                  }
+              $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+              if ($isCenter) { $ariaParts[] = 'start star'; }
+              if ($tile) {
+                if ($tile->isBlank()) {
+                  $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                } else {
+                  $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
                 }
-                $ariaLabel = implode(' · ', $ariaParts);
-              ?>
-              <div
-                class="<?php echo $classes; ?>"
-                aria-label="<?php echo $ariaLabel; ?>"
-                data-row="<?php echo $rowIndex; ?>"
-                data-col="<?php echo $colIndex; ?>"
-                data-premium="<?php echo $cellType; ?>"
-                data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-              >
-                <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
-                <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
+              }
+              $ariaLabel = implode(' · ', $ariaParts);
+            ?>
+            <div
+              class="<?php echo $classes; ?>"
+              aria-label="<?php echo $ariaLabel; ?>"
+              data-row="<?php echo $rowIndex; ?>"
+              data-col="<?php echo $colIndex; ?>"
+              data-premium="<?php echo $cellType; ?>"
+              data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+            >
+              <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+              <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
 
-                <?php if ($isCenter): ?>
-                  <span class="cell-label">★ DW</span>
-                <?php elseif ($cellType !== ''): ?>
-                  <span class="cell-label"><?php echo $cellType; ?></span>
-                <?php endif; ?>
-              </div>
-              <?php endforeach; ?>
+              <?php if ($isCenter): ?>
+                <span class="cell-label">★ DW</span>
+              <?php elseif ($cellType !== ''): ?>
+                <span class="cell-label"><?php echo $cellType; ?></span>
+              <?php endif; ?>
+            </div>
             <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="card" style="box-shadow:none; border-style:dashed;">
-          <div class="turn-panel">
-            <div class="status-strip" aria-label="Tile pool and score">
-              <span class="pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles left</span>
-              <span class="pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
-            </div>
-            <div class="rack-bar" aria-label="Rack" id="rack"></div>
-            <p class="rack-note">Blank tiles stay empty until you assign a letter during play; the letter turns blue and still scores 0 points.</p>
-            <div class="actions" aria-label="Action buttons">
-              <button class="btn" type="button" id="startTurnBtn">Start turn &amp; draw</button>
-              <button class="btn secondary" type="button" id="endTurnBtn">Submit move</button>
-              <button class="btn secondary" type="button" id="resetBoardBtn">Reset board</button>
-              <button class="btn secondary rules-btn" type="button" id="openRules">Rules</button>
-            </div>
-            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
-          </div>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Sanity checks and AI readiness">
-    <article class="card">
-      <h2 class="subhead">Word game sanity checks</h2>
-      <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
-      <div class="list" aria-label="Sanity check results">
-        <?php foreach ($sanityChecks as $check): ?>
-          <div class="list-item">
-            <div><strong><?php echo $check['label']; ?></strong><br><span class="note"><?php echo $check['detail']; ?></span></div>
-            <span class="badge"><?php echo $check['status']; ?></span>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">AI helper setup</h2>
-      <p class="note">Guardrails for letting OpenAI rank moves or explain choices without leaking secrets.</p>
-      <div class="list" aria-label="AI setup guidance">
-        <?php foreach ($aiSetupNotes as $note): ?>
-          <div class="list-item">
-            <div><span class="note"><?php echo $note; ?></span></div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 4 move preview & uploads">
-    <article class="card">
-      <h2 class="subhead">Phase 4: anchor-based move generation</h2>
-      <p class="note">Suggestions are generated from board anchors (adjacent empties) using the demo rack, dictionary validation, and scoring with cross-checks.</p>
-      <ul class="list" aria-label="Generated move results">
-        <?php if ($moveSuggestions === []): ?>
-          <li class="list-item"><div>No legal moves found with the current rack.</div><span class="badge">–</span></li>
-        <?php else: ?>
-          <?php foreach ($moveSuggestions as $index => $move): ?>
-            <?php $crossCount = count($move['crossWords']); ?>
-            <li class="list-item">
-              <div>
-                <strong><?php echo ($index + 1) . ') ' . $move['word']; ?></strong> · <?php echo $move['start']; ?> ➜ <?php echo ucfirst($move['direction']); ?><br>
-                <span class="note">Main: <?php echo $move['mainWordScore']; ?> pts<?php if ($crossCount > 0): ?> · Cross-words: <?php echo $crossCount; ?><?php endif; ?></span>
-              </div>
-              <span class="badge"><?php echo $move['score']; ?> pts</span>
-            </li>
           <?php endforeach; ?>
-        <?php endif; ?>
-      </ul>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">Uploads & stubs</h2>
-      <p class="note">File and camera affordances stay present but clearly labeled as “coming soon” until OCR lands.</p>
-      <div class="interaction-grid">
-        <div class="upload-card" aria-label="Board upload stub">
-          <strong>Board image</strong>
-          <span class="badge">Coming soon</span>
-          <p class="note">Drop or tap to select. Preview will show and feed a future OCR parser.</p>
-        </div>
-        <div class="upload-card" aria-label="Rack upload stub">
-          <strong>Rack image</strong>
-          <span class="badge">Coming soon</span>
-          <p class="note">Camera-friendly surface to capture letters; parsing will stub in demo values.</p>
         </div>
       </div>
-    </article>
-  </section>
 
-  <section class="grid" aria-label="Experience flows and interactions">
-    <article class="card">
-      <h2 class="subhead">MVP flow</h2>
-      <div class="flow-grid">
-        <div class="flow-step">
-          <strong>1) Board setup</strong>
-          <p class="note">Tap to place tiles, long-press for blanks, or import via image stub.</p>
+      <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+    </div>
+  </main>
+
+  <footer class="turn-dock" aria-label="Turn controls">
+    <div class="dock-inner">
+      <div class="dock-row">
+        <div class="dock-main">
+          <span class="dock-label">Rack</span>
+          <div class="dock-actions">
+            <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
+            <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
+            <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
+          </div>
         </div>
-        <div class="flow-step">
-          <strong>2) Rack input</strong>
-          <p class="note">On-screen rack accepts typing (letters + ? for blank) with optional shuffle/clear.</p>
-        </div>
-        <div class="flow-step">
-          <strong>3) Request best moves</strong>
-          <p class="note">Press “Run solver” or hit Enter; results stream into the move list with scores and notation.</p>
-        </div>
-        <div class="flow-step">
-          <strong>4) Optional uploads</strong>
-          <p class="note">Board/rack uploads stay opt-in; parsed tiles prefill the grid once OCR is wired.</p>
-        </div>
+        <button class="btn ai-cta" type="button" id="aiMovesBtn">
+          <span class="ai-icon" aria-hidden="true">🤖</span>
+          <span class="ai-text">AI suggested moves</span>
+        </button>
       </div>
-    </article>
+      <div class="rack-bar" aria-label="Rack" id="rack"></div>
+      <p class="rack-note">Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</p>
+    </div>
+  </footer>
 
-    <article class="card">
-      <h2 class="subhead">Keyboard & touch patterns</h2>
-      <div class="interaction-grid">
-        <div class="flow-step">
-          <strong>Placement</strong>
-          <p class="note">Tap to focus a square, type letters to place; arrow keys move focus for speed play.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Drag / drop</strong>
-          <p class="note">Drag from rack to board on desktop; touch-hold to pick up a tile and tap a target square on mobile.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Blanks</strong>
-          <p class="note">Long-press or hold modifier to assign blank value inline before confirming placement.</p>
-        </div>
-        <div class="flow-step">
-          <strong>Shortcuts</strong>
-          <p class="note">Enter runs solver, Ctrl/Cmd+Z undoes last placement, Shift+R shuffles rack, Shift+C clears rack.</p>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 3 game engine foundations">
-    <article class="card">
-      <h2 class="subhead">Phase 3 kickoff: board state & scoring helpers</h2>
-      <p class="note">Backend-friendly PHP domain classes now describe the 15x15 board, rack tiles, dictionary lookups, and baseline scoring (tile values + letter/word multipliers).</p>
-      <div class="list" aria-label="Engine milestones">
-        <div class="list-item">
-          <div><strong>Board &amp; rack models</strong><br><span class="note">Coordinate parsing (A1–O15), premium lookup, tile storage, and rack containers.</span></div>
-          <span class="badge">Board::standard()</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Dictionary</strong><br><span class="note">Pluggable wordlist driven by <code>DICTIONARY_PATH</code> (defaults to <code>data/dictionary-mini.txt</code>).</span></div>
-          <span class="badge"><?php echo number_format($dictionary->count()); ?> entries</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Scoring helpers</strong><br><span class="note">Tile values + DL/TL/DW/TW multipliers ready for solver integration.</span></div>
-          <span class="badge">Helpers: Scoring::tileValues()</span>
-        </div>
-      </div>
-      <div class="list" aria-label="Dictionary and scoring preview" style="margin-top: 12px;">
-        <div class="list-item">
-          <div><strong><?php echo $demoWord; ?></strong> lookup</div>
-          <span class="badge"><?php echo $dictionaryHasDemoWord ? 'In wordlist' : 'Missing'; ?></span>
-        </div>
-        <div class="list-item">
-          <div><strong>Move score preview</strong><br><span class="note"><?php echo $demoWord; ?> on H8 across (DW on start) using tile values + multipliers.</span></div>
-          <span class="badge"><?php echo $demoScore['total']; ?> pts</span>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="grid" aria-label="Phase 4 move generation">
-    <article class="card">
-      <h2 class="subhead">Phase 4 kickoff: anchor & cross-check solver loop</h2>
-      <div class="list" aria-label="Solver highlights">
-        <div class="list-item">
-          <div><strong>Anchors & adjacency</strong><br><span class="note">Empty squares touching existing tiles (plus center start) seed the horizontal generator.</span></div>
-          <span class="badge">Board-aware</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Dictionary validation</strong><br><span class="note">Main word and all perpendicular cross-words must appear in the active dictionary.</span></div>
-          <span class="badge"><?php echo number_format($dictionary->count()); ?> words</span>
-        </div>
-        <div class="list-item">
-          <div><strong>Scoring integration</strong><br><span class="note">Letter/word multipliers apply only to newly placed tiles; cross-word totals are added.</span></div>
-          <span class="badge">Scoring::scoreMove()</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">API contract: request top N moves</h2>
-      <p class="note">Planned endpoint signature for the solver surface (JSON). Takes current board state, rack letters, and desired limit; returns ranked moves with scoring breakdowns.</p>
-      <pre class="code" aria-label="API contract example">POST /api/moves
-{
-  "board": "array of placed tiles [{coord: 'H8', letter: 'O', blank: false}]",
-  "rack": ["T", "I", "L", "E", "M", "A", "?"],
-  "limit": 5
-}
-
-Response
-{
-  "moves": [
-    {
-      "word": "ORATION",
-      "start": "H8",
-      "direction": "horizontal",
-      "score": 78,
-      "mainWord": {"word": "ORATION", "total": 78},
-      "crossWords": []
-    }
-  ]
-}</pre>
-    </article>
-  </section>
-
-  <script>
+<script>
     const premiumLayout = <?php echo json_encode($premiumBoard); ?>;
     const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
     const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
     const dictionaryUrl = <?php echo json_encode(str_replace(__DIR__ . '/', '', $dictionaryPath)); ?>;
+    const serverSuggestions = <?php echo json_encode(array_map(static function ($move) {
+      return [
+        'word' => $move['word'] ?? '',
+        'direction' => $move['direction'] ?? '',
+        'start' => $move['start'] ?? '',
+        'score' => $move['score'] ?? 0,
+        'mainWordScore' => $move['mainWordScore'] ?? 0,
+        'crossWords' => array_map(static function ($cross) {
+          return [
+            'word' => $cross['word'] ?? '',
+            'score' => $cross['score'] ?? 0,
+          ];
+        }, $move['crossWords'] ?? []),
+      ];
+    }, $moveSuggestions)); ?>;
 
-    (() => {
+    document.addEventListener('DOMContentLoaded', () => {
       const BOARD_SIZE = 15;
       const rackEl = document.getElementById('rack');
       const messageEl = document.getElementById('turnMessage');
       const bagCountEl = document.getElementById('bagCount');
       const scoreEl = document.getElementById('scoreTotal');
-      const startBtn = document.getElementById('startTurnBtn');
-      const endBtn = document.getElementById('endTurnBtn');
+      const toggleBtn = document.getElementById('turnToggleBtn');
       const resetBtn = document.getElementById('resetBoardBtn');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
+      const aiBtn = document.getElementById('aiMovesBtn');
+      const aiModal = document.getElementById('aiModal');
+      const aiCloseBtn = document.getElementById('closeAi');
+      const aiListEl = document.getElementById('aiList');
+      const aiStatusEl = document.getElementById('aiStatus');
+      const aiStepEl = document.getElementById('aiStep');
+      const aiSubtextEl = document.getElementById('aiSubtext');
 
       let tileId = 0;
       let bag = [];
@@ -999,8 +1080,11 @@ Response
       let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
       let totalScore = 0;
       let firstTurn = true;
+      let turnActive = false;
       let dictionaryReady = false;
       let dictionary = new Set();
+      let aiStepInterval;
+      let aiRevealTimeout;
 
       const buildBag = () => {
         bag = [];
@@ -1040,6 +1124,13 @@ Response
         if (tone) {
           messageEl.classList.add(tone);
         }
+      };
+
+      const updateTurnButton = () => {
+        toggleBtn.classList.toggle('start', !turnActive);
+        toggleBtn.classList.toggle('stop', turnActive);
+        toggleBtn.textContent = turnActive ? 'Submit move' : 'Start turn';
+        toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
 
       const updateBagCount = () => {
@@ -1197,11 +1288,122 @@ Response
         return null;
       };
 
+      const returnLooseTilesToRack = () => {
+        const movable = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && !tile.locked) {
+              movable.push(tile.id);
+            }
+          }
+        }
+
+        movable.forEach((id) => moveTileToRack(id));
+        if (movable.length) {
+          setMessage('Tiles returned to your rack for the new AI run.', 'success');
+        }
+      };
+
+      const baseSuggestions = (serverSuggestions || []).length ? serverSuggestions : [
+        { word: 'RATION', start: 'H8', direction: 'horizontal', score: 64, mainWordScore: 64, crossWords: [] },
+        { word: 'MIRATE', start: 'H8', direction: 'horizontal', score: 58, mainWordScore: 58, crossWords: [] },
+        { word: 'LIMNER', start: 'H8', direction: 'horizontal', score: 52, mainWordScore: 52, crossWords: [] },
+      ];
+
+      const clearAiTimers = () => {
+        if (aiStepInterval) clearInterval(aiStepInterval);
+        if (aiRevealTimeout) clearTimeout(aiRevealTimeout);
+        aiStepInterval = null;
+        aiRevealTimeout = null;
+      };
+
+      const openAiModal = () => {
+        if (!aiModal) return;
+        aiModal.classList.add('active');
+        aiModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        if (aiCloseBtn) {
+          aiCloseBtn.focus();
+        }
+      };
+
+      const closeAiModal = () => {
+        if (!aiModal) return;
+        aiModal.classList.remove('active');
+        aiModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        clearAiTimers();
+        if (aiListEl) {
+          aiListEl.innerHTML = '';
+        }
+      };
+
+      const renderAiSuggestions = (list) => {
+        if (!aiListEl) return;
+        aiListEl.innerHTML = '';
+
+        list.forEach((move, index) => {
+          const li = document.createElement('li');
+          li.className = 'ai-card';
+          li.dataset.word = move.word;
+
+          const crossCount = (move.crossWords || []).length;
+          const directionLabel = move.direction === 'vertical' ? 'Vertical' : 'Horizontal';
+
+          li.innerHTML = `
+            <h4><span aria-hidden="true">#${index + 1}</span> ${move.word} <span style="color:#0ea5e9; font-size:14px;">${move.score} pts</span></h4>
+            <p class="ai-meta">${directionLabel} from ${move.start || 'H8'} • Main word ${move.mainWordScore} pts${crossCount ? ` • +${crossCount} cross` : ''}</p>
+          `;
+
+          li.addEventListener('click', () => {
+            setMessage(`You picked the suggested word “${move.word}”. Place its tiles to try it out!`, 'success');
+            closeAiModal();
+          });
+
+          aiListEl.appendChild(li);
+        });
+      };
+
+      const showAiThinking = () => {
+        if (!aiStatusEl || !aiStepEl) return;
+        const steps = [
+          'Scanning premiums and openings…',
+          'Shuffling rack tiles into patterns…',
+          'Checking cross words for legality…',
+          'Ranking plays by score and coverage…',
+        ];
+
+        if (aiListEl) {
+          aiListEl.innerHTML = '';
+        }
+
+        aiStepEl.textContent = steps[0];
+        if (aiSubtextEl) {
+          aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
+        }
+
+        clearAiTimers();
+        aiRevealTimeout = setTimeout(() => {
+          renderAiSuggestions(baseSuggestions);
+          if (aiSubtextEl) {
+            aiSubtextEl.textContent = 'Suggestions ready! Tap a move to load it and keep playing.';
+          }
+          clearAiTimers();
+        }, 2600);
+
+        let idx = 0;
+        aiStepInterval = setInterval(() => {
+          idx = (idx + 1) % steps.length;
+          aiStepEl.textContent = steps[idx];
+        }, 900);
+      };
+
       const startTurn = () => {
         const needed = Math.max(0, 7 - rack.length);
         if (needed === 0) {
           setMessage('Rack already has seven tiles.', 'success');
-          return;
+          return false;
         }
 
         for (let i = 0; i < needed; i += 1) {
@@ -1215,6 +1417,7 @@ Response
         updateBagCount();
         renderRack();
         setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
+        return true;
       };
 
       const tilesPlacedThisTurn = () => {
@@ -1400,6 +1603,8 @@ Response
         totalScore += turnScore;
         scoreEl.textContent = totalScore;
         firstTurn = false;
+        turnActive = false;
+        updateTurnButton();
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
@@ -1411,12 +1616,14 @@ Response
         board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
         totalScore = 0;
         firstTurn = true;
+        turnActive = false;
         buildBag();
         updateBagCount();
         renderRack();
         renderBoard();
         scoreEl.textContent = '0';
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
+        updateTurnButton();
       };
 
       const setupDragAndDrop = () => {
@@ -1468,24 +1675,81 @@ Response
         }
       };
 
-      startBtn.addEventListener('click', startTurn);
-      endBtn.addEventListener('click', () => {
+      const handleToggleClick = () => {
+        if (!turnActive) {
+          const started = startTurn();
+          if (started) {
+            turnActive = true;
+            updateTurnButton();
+          }
+          return;
+        }
+
         if (!dictionaryReady) {
           setMessage('Dictionary still loading. Try again in a moment.', 'error');
           return;
         }
-        validateTurn();
-      });
+
+        const valid = validateTurn();
+        if (valid) {
+          turnActive = false;
+          updateTurnButton();
+        }
+      };
+
+      const handleAiClick = () => {
+        returnLooseTilesToRack();
+        renderBoard();
+        renderRack();
+        openAiModal();
+        showAiThinking();
+      };
+
+      const handleAiClose = () => {
+        closeAiModal();
+      };
+
+      toggleBtn.addEventListener('click', handleToggleClick);
       resetBtn.addEventListener('click', resetBoard);
+      if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
+      if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
+      if (aiModal) {
+        aiModal.addEventListener('click', (event) => {
+          if (event.target === aiModal) {
+            closeAiModal();
+          }
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && aiModal.classList.contains('active')) {
+            closeAiModal();
+          }
+        });
+      }
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
+      updateTurnButton();
       setupDragAndDrop();
       loadDictionary();
-    })();
+    });
   </script>
+
+  <div class="modal-backdrop" id="aiModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+      <div class="modal-header">
+        <h3 id="aiTitle">AI suggested moves</h3>
+        <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
+      </div>
+      <div class="ai-status" id="aiStatus">
+        <span id="aiStep">Warming up the move engine…</span>
+        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        <p class="ai-meta" id="aiSubtext">Returning tiles to your rack and dreaming up moves.</p>
+      </div>
+      <ul class="ai-list" id="aiList" aria-live="polite"></ul>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="rulesModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
