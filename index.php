@@ -2162,12 +2162,17 @@ $aiSetupNotes = [
         const availableIds = rack.map((tile) => tile.id);
         const placements = [];
         const placementLetters = new Map();
+        const blankPositions = new Set();
 
         if (Array.isArray(move.placements)) {
           move.placements.forEach((placement) => {
             const coord = parseCoordinate(placement.coord || '');
             if (!coord) return;
-            placementLetters.set(`${coord.row}-${coord.col}`, (placement.letter || '').toUpperCase());
+            const key = `${coord.row}-${coord.col}`;
+            placementLetters.set(key, (placement.letter || '').toUpperCase());
+            if (placement.isBlank) {
+              blankPositions.add(key);
+            }
           });
         }
 
@@ -2193,10 +2198,14 @@ $aiSetupNotes = [
             moveTileToRack(targetTile.id);
           }
 
-          const letterForPosition = placementLetters.get(`${row}-${col}`) || word[i];
+          const key = `${row}-${col}`;
+          const recordedLetter = placementLetters.get(key);
+          const letterForPosition = recordedLetter && recordedLetter !== '?' ? recordedLetter : word[i];
+          const needsBlank = blankPositions.has(key);
           const foundId = availableIds.find((id) => {
             const candidate = findTile(id);
             if (!candidate) return false;
+            if (needsBlank) return candidate.isBlank;
             if (!candidate.isBlank && candidate.letter.toUpperCase() === letterForPosition) return true;
             if (candidate.isBlank) return true;
             return false;
@@ -2208,7 +2217,7 @@ $aiSetupNotes = [
           }
 
           availableIds.splice(availableIds.indexOf(foundId), 1);
-          placements.push({ tileId: foundId, letter: letterForPosition, row, col });
+          placements.push({ tileId: foundId, letter: letterForPosition, row, col, needsBlank });
         }
 
         if (!placements.length) {
