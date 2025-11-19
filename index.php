@@ -190,8 +190,8 @@ $aiSetupNotes = [
       --cell-size: 56px;
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 86px;
-      --bottom-dock-height: 192px;
+      --top-dock-height: 92px;
+      --bottom-dock-height: 188px;
     }
 
     * {
@@ -305,6 +305,9 @@ $aiSetupNotes = [
       padding: 12px;
       border: 1px dashed #cbd5e1;
       overflow-x: auto;
+      width: min(1100px, 100%);
+      display: flex;
+      justify-content: center;
     }
 
     .board-grid {
@@ -316,8 +319,8 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      min-width: 100%;
-      margin: 0;
+      min-width: min(100%, 880px);
+      margin: 0 auto;
     }
 
     .cell {
@@ -754,6 +757,17 @@ $aiSetupNotes = [
       50% { opacity: 1; transform: translateY(-2px); }
     }
 
+    @keyframes shimmer {
+      0% { transform: translateX(-140%); }
+      50% { transform: translateX(20%); }
+      100% { transform: translateX(140%); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
     .ai-list {
       display: grid;
       gap: 8px;
@@ -798,6 +812,7 @@ $aiSetupNotes = [
       display: grid;
       gap: 16px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      justify-items: center;
     }
 
     .board-chrome {
@@ -808,6 +823,7 @@ $aiSetupNotes = [
       padding: 18px;
       display: grid;
       gap: 14px;
+      justify-items: center;
     }
 
     .hud-dock {
@@ -830,6 +846,14 @@ $aiSetupNotes = [
       align-items: center;
       gap: 12px;
       justify-content: space-between;
+    }
+
+    .hud-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .brand {
@@ -882,6 +906,95 @@ $aiSetupNotes = [
       flex-wrap: wrap;
     }
 
+    .hud-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hud-menu {
+      position: relative;
+    }
+
+    .menu-toggle {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.08));
+      color: #e2e8f0;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(14, 165, 233, 0.18);
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .menu-toggle:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 14px 36px rgba(14, 165, 233, 0.24);
+    }
+
+    .menu-toggle .chevron {
+      display: inline-block;
+      transition: transform 150ms ease;
+    }
+
+    .hud-menu.open .menu-toggle .chevron { transform: rotate(180deg); }
+
+    .menu-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 10px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+      padding: 10px;
+      min-width: 190px;
+      display: grid;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 150ms ease, transform 150ms ease;
+      z-index: 2;
+    }
+
+    .hud-menu.open .menu-panel {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .menu-item {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.18));
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 12px;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .menu-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 12px 28px rgba(14, 165, 233, 0.28);
+    }
+
+    .menu-item.danger {
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.2), rgba(239, 68, 68, 0.18));
+      border-color: rgba(248, 113, 113, 0.8);
+      color: #fee2e2;
+    }
+
     .hud-pill {
       background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2));
       border: 1px solid rgba(148, 163, 184, 0.35);
@@ -901,6 +1014,9 @@ $aiSetupNotes = [
       padding: 12px;
       border: 1px dashed #cbd5e1;
       overflow-x: auto;
+      width: min(1100px, 100%);
+      display: flex;
+      justify-content: center;
     }
 
     .turn-dock {
@@ -940,6 +1056,13 @@ $aiSetupNotes = [
       min-width: 260px;
     }
 
+    .dock-tip {
+      margin: 0;
+      color: #cbd5e1;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
     .dock-label {
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -956,6 +1079,12 @@ $aiSetupNotes = [
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .dock-cta {
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .ai-cta {
@@ -991,16 +1120,74 @@ $aiSetupNotes = [
       line-height: 1;
     }
 
+    .turn-toggle {
+      position: relative;
+      overflow: hidden;
+      min-width: clamp(240px, 50vw, 380px);
+      padding: 16px 22px;
+      border-radius: 16px;
+      font-size: 18px;
+      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      isolation: isolate;
+    }
+
+    .turn-toggle::before,
+    .turn-toggle::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .turn-toggle::before {
+      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.32), transparent 45%),
+        radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.18), transparent 45%);
+      opacity: 0.75;
+      animation: breathe 3s ease-in-out infinite;
+    }
+
+    .turn-toggle::after {
+      background: linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.6) 40%, transparent 70%);
+      transform: translateX(-120%);
+      animation: shimmer 2.6s ease-in-out infinite;
+      mix-blend-mode: screen;
+      opacity: 0.7;
+    }
+
+    .turn-toggle:hover { transform: translateY(-2px); }
+
+    .turn-label {
+      display: grid;
+      gap: 4px;
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .turn-title { font-size: clamp(18px, 3vw, 20px); }
+
+    .turn-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      letter-spacing: 0;
+    }
+
     .turn-toggle.start {
       background: #16a34a;
       border-color: #15803d;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.35);
     }
 
     .turn-toggle.stop {
       background: #dc2626;
       border-color: #b91c1c;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.35);
     }
 
     .btn.ghost {
@@ -1041,9 +1228,22 @@ $aiSetupNotes = [
           <h1 class="app-title">TileMasterAI</h1>
         </div>
       </div>
-      <div class="hud-meta">
-        <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-        <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+      <div class="hud-right">
+        <div class="hud-meta">
+          <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+          <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
+        </div>
+        <div class="hud-actions">
+          <div class="hud-menu" id="hudMenu">
+            <button class="menu-toggle" type="button" id="menuToggle" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
+              Menu <span class="chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="menu-panel" id="menuPanel" role="menu">
+              <button class="menu-item" type="button" id="openRules" role="menuitem">Rules</button>
+              <button class="menu-item danger" type="button" id="resetBoardBtn" role="menuitem">Reset board</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -1116,15 +1316,19 @@ $aiSetupNotes = [
       <div class="dock-row">
         <div class="dock-main">
           <span class="dock-label">Rack</span>
-          <div class="dock-actions">
-            <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
-            <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
-            <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
-          </div>
+          <p class="dock-tip">Drag tiles onto the board. Double-click a placed tile to send it back.</p>
         </div>
         <button class="btn ai-cta" type="button" id="aiMovesBtn">
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
+        </button>
+      </div>
+      <div class="dock-cta">
+        <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
+          <span class="turn-label">
+            <span class="turn-title">Start turn</span>
+            <span class="turn-subtitle">Draw tiles and place your word</span>
+          </span>
         </button>
       </div>
       <div class="rack-bar" aria-label="Rack" id="rack"></div>
@@ -1160,6 +1364,8 @@ $aiSetupNotes = [
       const bagCountEl = document.getElementById('bagCount');
       const scoreEl = document.getElementById('scoreTotal');
       const toggleBtn = document.getElementById('turnToggleBtn');
+      const turnTitleEl = toggleBtn ? toggleBtn.querySelector('.turn-title') : null;
+      const turnSubtitleEl = toggleBtn ? toggleBtn.querySelector('.turn-subtitle') : null;
       const resetBtn = document.getElementById('resetBoardBtn');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
       const aiBtn = document.getElementById('aiMovesBtn');
@@ -1169,6 +1375,10 @@ $aiSetupNotes = [
       const aiStatusEl = document.getElementById('aiStatus');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
+      const rulesBtn = document.getElementById('openRules');
+      const menuToggle = document.getElementById('menuToggle');
+      const menuPanel = document.getElementById('menuPanel');
+      const hudMenu = document.getElementById('hudMenu');
 
       let tileId = 0;
       let bag = [];
@@ -1181,6 +1391,39 @@ $aiSetupNotes = [
       let dictionary = new Set();
       let aiStepInterval;
       let aiRevealTimeout;
+      let audioCtx;
+
+      const initAudio = () => {
+        if (audioCtx) return audioCtx;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        audioCtx = new AudioContextClass();
+        return audioCtx;
+      };
+
+      const playTone = (frequency, duration = 0.2, type = 'sine', gainValue = 0.06) => {
+        const ctx = initAudio();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        gain.gain.value = gainValue;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        oscillator.stop(ctx.currentTime + duration + 0.05);
+      };
+
+      const playChord = (frequencies = []) => {
+        frequencies.forEach((freq, index) => {
+          setTimeout(() => playTone(freq, 0.22, 'triangle', 0.045), index * 50);
+        });
+      };
 
       const buildBag = () => {
         bag = [];
@@ -1222,10 +1465,28 @@ $aiSetupNotes = [
         }
       };
 
+      const closeHudMenu = () => {
+        if (!hudMenu || !menuToggle) return;
+        hudMenu.classList.remove('open');
+        menuToggle.setAttribute('aria-expanded', 'false');
+      };
+
+      const toggleHudMenu = () => {
+        if (!hudMenu || !menuToggle) return;
+        const isOpen = hudMenu.classList.toggle('open');
+        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
       const updateTurnButton = () => {
+        if (!toggleBtn) return;
         toggleBtn.classList.toggle('start', !turnActive);
         toggleBtn.classList.toggle('stop', turnActive);
-        toggleBtn.textContent = turnActive ? 'Submit move' : 'Start turn';
+        if (turnTitleEl) {
+          turnTitleEl.textContent = turnActive ? 'Submit move' : 'Start turn';
+        }
+        if (turnSubtitleEl) {
+          turnSubtitleEl.textContent = turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word';
+        }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
 
@@ -1345,6 +1606,7 @@ $aiSetupNotes = [
         tile.position = { type: 'board', row, col };
         renderBoard();
         renderRack();
+        playTone(360, 0.14, 'triangle', 0.05);
       };
 
       const moveTileToRack = (tileId) => {
@@ -1756,6 +2018,7 @@ $aiSetupNotes = [
         updateBagCount();
         renderRack();
         setMessage('Tiles drawn. Drag from rack to the board to form your word.', 'success');
+        playChord([480, 640]);
         return true;
       };
 
@@ -1947,6 +2210,7 @@ $aiSetupNotes = [
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
+        playChord([392, 523, 659]);
       };
 
       const resetBoard = () => {
@@ -1963,6 +2227,7 @@ $aiSetupNotes = [
         scoreEl.textContent = '0';
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
         updateTurnButton();
+        playTone(196, 0.28, 'sawtooth', 0.07);
       };
 
       const setupDragAndDrop = () => {
@@ -2048,8 +2313,8 @@ $aiSetupNotes = [
         closeAiModal();
       };
 
-      toggleBtn.addEventListener('click', handleToggleClick);
-      resetBtn.addEventListener('click', resetBoard);
+      if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
+      if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
       if (aiModal) {
@@ -2059,10 +2324,32 @@ $aiSetupNotes = [
           }
         });
         document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape' && aiModal.classList.contains('active')) {
-            closeAiModal();
+          if (event.key === 'Escape') {
+            if (aiModal.classList.contains('active')) {
+              closeAiModal();
+            }
+            closeHudMenu();
           }
         });
+      }
+
+      if (menuToggle) {
+        menuToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleHudMenu();
+        });
+      }
+
+      if (hudMenu) {
+        document.addEventListener('click', (event) => {
+          if (!hudMenu.contains(event.target)) {
+            closeHudMenu();
+          }
+        });
+      }
+
+      if (rulesBtn) {
+        rulesBtn.addEventListener('click', () => closeHudMenu());
       }
 
       buildBag();
