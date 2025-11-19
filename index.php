@@ -822,6 +822,20 @@ $aiSetupNotes = [
     .session-flash.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
     .session-flash.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
 
+    .session-debug {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid #0f172a;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 10px 0;
+    }
+
     .session-empty { margin: 0; color: var(--muted); font-weight: 700; }
 
     .lobby-card {
@@ -1765,6 +1779,7 @@ $aiSetupNotes = [
     </div>
 
     <div class="session-flash" id="sessionFlash" role="status" aria-live="polite"></div>
+    <pre class="session-debug" id="sessionDebug" hidden aria-live="polite"></pre>
     <div class="session-list" id="sessionList" role="list"></div>
     <p class="session-empty" id="sessionEmpty">No sessions yet — create one.</p>
     <div class="lobby-card" id="lobbyCard" hidden>
@@ -1923,6 +1938,7 @@ $aiSetupNotes = [
       const sessionListEl = document.getElementById('sessionList');
       const sessionEmptyEl = document.getElementById('sessionEmpty');
       const sessionFlashEl = document.getElementById('sessionFlash');
+      const sessionDebugEl = document.getElementById('sessionDebug');
       const createSessionForm = document.getElementById('createSessionForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
@@ -1957,6 +1973,14 @@ $aiSetupNotes = [
 
         sessionFlashEl.className = classes.join(' ');
         sessionFlashEl.textContent = message;
+      };
+
+      const setSessionDebug = (detail = '') => {
+        if (!sessionDebugEl) return;
+
+        const hasDetail = Boolean(detail && detail.trim());
+        sessionDebugEl.hidden = !hasDetail;
+        sessionDebugEl.textContent = hasDetail ? detail : '';
       };
 
       const openLobbySocket = () => {
@@ -2182,14 +2206,68 @@ $aiSetupNotes = [
       const fetchSessions = async () => {
         if (!sessionListEl || !sessionEmptyEl) return;
 
+        setSessionDebug('');
+
         try {
           const response = await fetch('/api/sessions');
-          const data = await response.json();
-          renderSessions(Array.isArray(data.sessions) ? data.sessions : []);
+          const contentType = response.headers.get('content-type') || '';
+          const bodyText = await response.text();
+          const isJson = contentType.toLowerCase().includes('application/json');
+
+          const diagnosticDetails = ({ reason }) =>
+            [
+              'Request: GET /api/sessions',
+              `Status: ${response.status} ${response.statusText || ''}`.trim(),
+              `Content-Type: ${contentType || 'none'}`,
+              reason ? `Reason: ${reason}` : null,
+              'Body preview:',
+              bodyText ? bodyText.slice(0, 1200) : '(empty response body)',
+            ]
+              .filter(Boolean)
+              .join('\n');
+
+          let payload = null;
+
+          if (isJson) {
+            try {
+              payload = JSON.parse(bodyText);
+            } catch (parseError) {
+              const error = new Error(
+                `Failed to parse sessions response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`
+              );
+              error.detail = diagnosticDetails({ reason: 'Invalid JSON received' });
+              throw error;
+            }
+          }
+
+          if (!response.ok || !isJson || !payload) {
+            const message =
+              isJson && payload && typeof payload.message === 'string'
+                ? payload.message
+                : `Unable to load sessions (HTTP ${response.status || 'network error'})`;
+            const error = new Error(message);
+            error.detail = diagnosticDetails({ reason: isJson ? 'Unexpected payload' : 'Non-JSON response' });
+            throw error;
+          }
+
+          renderSessions(Array.isArray(payload.sessions) ? payload.sessions : []);
+          setSessionDebug('');
         } catch (error) {
           sessionEmptyEl.hidden = false;
           sessionListEl.hidden = true;
-          setSessionFlash('Unable to load sessions right now.', 'error');
+          const message = error instanceof Error ? error.message : 'Unable to load sessions right now.';
+          const detail =
+            error instanceof Error && typeof error.detail === 'string'
+              ? error.detail
+              : [
+                  `Error: ${error instanceof Error ? error.message : String(error)}`,
+                  error instanceof Error && error.stack ? `Stack: ${error.stack}` : null,
+                ]
+                  .filter(Boolean)
+                  .join('\n');
+
+          setSessionFlash(`${message} See details below.`, 'error');
+          setSessionDebug(detail);
           console.error(error);
         }
       };
