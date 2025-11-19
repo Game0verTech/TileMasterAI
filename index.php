@@ -1,76 +1,136 @@
 <?php
-// Simple Hello World page for TileMasterAI
 require __DIR__ . '/config/env.php';
 
 $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
+
+$premiumBoard = [
+  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
+  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
+  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
+  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
+  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
+  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
+  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
+  ['TW', '', '', 'DL', '', '', '', 'DW', '', '', '', 'DL', '', '', 'TW'],
+  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
+  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
+  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
+  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
+  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
+  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
+  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
+];
+
+$rowLabels = range('A', 'O');
+$columnLabels = range(1, 15);
+
+$sampleTiles = [
+  'H8' => ['letter' => 'O', 'value' => 1],
+  'I8' => ['letter' => 'R', 'value' => 1],
+  'J8' => ['letter' => 'A', 'value' => 1],
+  'K8' => ['letter' => 'T', 'value' => 1],
+  'L8' => ['letter' => 'I', 'value' => 1],
+  'M8' => ['letter' => 'O', 'value' => 1],
+  'N8' => ['letter' => 'N', 'value' => 1],
+  'F7' => ['letter' => 'T', 'value' => 1],
+  'F8' => ['letter' => 'O', 'value' => 1],
+  'F9' => ['letter' => 'N', 'value' => 1],
+  'F10' => ['letter' => 'E', 'value' => 1],
+];
+
+$rackTiles = [
+  ['letter' => 'T', 'value' => 1],
+  ['letter' => 'I', 'value' => 1],
+  ['letter' => 'L', 'value' => 1],
+  ['letter' => 'E', 'value' => 1],
+  ['letter' => 'M', 'value' => 3],
+  ['letter' => 'A', 'value' => 1],
+  ['letter' => '?', 'value' => 0],
+];
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TileMasterAI | Hello World</title>
+  <title>TileMasterAI | Phase 2 Experience Design</title>
   <style>
     :root {
-      color-scheme: light dark;
+      color-scheme: light;
       font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --accent: #6366f1;
+      --accent-strong: #4f46e5;
+      --border: #e2e8f0;
+      --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: radial-gradient(circle at 20% 20%, #f2f2f7 0, #dfe7ff 35%, #cdd4ff 60%),
-                  radial-gradient(circle at 80% 30%, #fff4e6 0, #ffd6a5 35%, #ffc29e 60%),
-                  #0f172a;
-      color: #0f172a;
+      background: radial-gradient(circle at 18% 20%, #eef2ff 0, #eef2ff 35%, transparent 50%),
+                  radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
+                  var(--bg);
+      color: var(--ink);
+      padding: 28px 18px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
     }
 
-    .card {
-      background: rgba(255, 255, 255, 0.88);
-      border-radius: 16px;
-      box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25);
-      padding: 32px 40px;
-      text-align: center;
-      max-width: 480px;
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(15, 23, 42, 0.08);
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
-    h1 {
-      margin: 0 0 12px;
-      font-size: clamp(32px, 4vw, 40px);
-      letter-spacing: -0.5px;
-    }
-
-    p {
-      margin: 0 0 8px;
-      color: #334155;
-      font-size: 17px;
-      line-height: 1.5;
-    }
-
-    code {
-      display: inline-block;
-      background: #e2e8f0;
-      color: #0f172a;
-      padding: 4px 8px;
-      border-radius: 8px;
-      font-size: 15px;
-    }
-
-    .status {
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      font-weight: 600;
+    .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
       background: #eef2ff;
-      color: #1e293b;
-      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #312e81;
+      font-weight: 600;
+      width: fit-content;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 48px);
+      letter-spacing: -0.6px;
+    }
+
+    p.lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #ecfeff;
+      color: #0f172a;
+      border: 1px solid #67e8f9;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 600;
+      box-shadow: 0 14px 30px rgba(14, 165, 233, 0.12);
     }
 
     .status-icon {
@@ -78,19 +138,405 @@ $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !
       height: 12px;
       border-radius: 999px;
       background: <?php echo $hasOpenAiKey ? '#22c55e' : '#f59e0b'; ?>;
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.16);
+    }
+
+    .grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--glow);
+      padding: 18px 18px 16px;
+    }
+
+    .layout-shell {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .board-preview {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+      border-radius: var(--radius);
+      padding: 12px;
+      border: 1px dashed #cbd5e1;
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 5px;
+      background: #e2e8f0;
+      padding: 8px;
+      border-radius: 14px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .cell {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 12px;
+      text-transform: uppercase;
+      overflow: hidden;
+    }
+
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      pointer-events: none;
+    }
+
+    .cell.triple-word { background: #fecdd3; color: #7f1d1d; }
+    .cell.double-word { background: #ffe4e6; color: #9f1239; }
+    .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
+    .cell.double-letter { background: #e0f2fe; color: #075985; }
+    .cell.center-star { background: #ffe4e6; color: #9f1239; }
+
+    .cell-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .coordinate {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .coordinate.col { top: 6px; right: 8px; }
+    .coordinate.row { bottom: 6px; left: 8px; }
+
+    .tile {
+      width: calc(100% - 8px);
+      height: calc(100% - 8px);
+      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      border-radius: 6px;
+      border: 1px solid #d4a373;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      grid-template-rows: 1fr auto;
+      padding: 4px 6px;
+      color: #0f172a;
+    }
+
+    .tile .letter { font-size: 18px; font-weight: 800; }
+    .tile .value { font-size: 10px; font-weight: 700; justify-self: end; }
+
+    .rack-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 10px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+    }
+
+    .rack-tile {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      grid-template-rows: 1fr auto;
+      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      border-radius: 8px;
+      border: 1px solid #d4a373;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      color: #0f172a;
+      font-weight: 800;
+    }
+
+    .rack-tile .letter { font-size: 18px; }
+    .rack-tile .value { font-size: 11px; justify-self: end; font-weight: 700; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--ink);
+      color: #fff;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+    }
+
+    .btn.secondary {
+      background: #f8fafc;
+      color: var(--ink);
+      border-style: dashed;
+    }
+
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .list-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #312e81;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .subhead {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 4px 0 0;
+    }
+
+    .flow-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .flow-step {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      display: grid;
+      gap: 6px;
+    }
+
+    .interaction-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .upload-card {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px dashed #cbd5e1;
+      background: #f8fafc;
+      display: grid;
+      gap: 6px;
+    }
+
+    @media (min-width: 900px) {
+      body { padding: 42px 32px 80px; }
+      .grid { grid-template-columns: 2fr 1fr; }
+      .grid .card:first-child { grid-column: span 2; }
+    }
+
+    @media (max-width: 599px) {
+      .board-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .list-item { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <main class="card" role="main">
-    <h1>Hello, World! 👋</h1>
-    <p>Welcome to the TileMasterAI PHP app. Your server setup is working.</p>
-    <p>Next step: start shaping the experience in <code>index.php</code>.</p>
+  <header>
+    <span class="eyebrow">Phase 2 · Experience design</span>
+    <h1>Designing the TileMasterAI board experience</h1>
+    <p class="lede">Mobile-first scaffolding for a Scrabble-standard play surface: authentic 15x15 bonus layout, wooden tile styling, rack, action controls, move insights, and upload stubs. These artifacts guide the upcoming interactive build-out.</p>
     <div class="status" aria-live="polite">
       <span class="status-icon" aria-hidden="true"></span>
       <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
     </div>
-  </main>
+  </header>
+
+  <section class="grid" aria-label="Phase 2 layout preview">
+    <article class="card">
+      <h2 class="subhead">Primary layout</h2>
+      <p class="note">Standard 15x15 Scrabble grid with the authentic premium pattern, a centered star on the H8 double word, and sample tiles placed using real coordinates.</p>
+      <div class="layout-shell">
+        <div class="board-preview" aria-label="Board preview">
+          <div class="board-grid" role="presentation">
+            <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+              <?php foreach ($row as $colIndex => $cellType):
+                $rowLabel = $rowLabels[$rowIndex];
+                $colLabel = $columnLabels[$colIndex];
+                $coordKey = $rowLabel . $colLabel;
+                $tile = $sampleTiles[$coordKey] ?? null;
+                $isCenter = $rowIndex === 7 && $colIndex === 7;
+                $classes = 'cell';
+
+                if ($cellType === 'TW') { $classes .= ' triple-word'; }
+                if ($cellType === 'DW') { $classes .= ' double-word'; }
+                if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+                if ($cellType === 'DL') { $classes .= ' double-letter'; }
+                if ($isCenter) { $classes .= ' center-star'; }
+
+                $cellName = match ($cellType) {
+                  'TW' => 'triple word',
+                  'DW' => 'double word',
+                  'TL' => 'triple letter',
+                  'DL' => 'double letter',
+                  default => 'regular'
+                };
+
+                $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+                if ($isCenter) { $ariaParts[] = 'start star'; }
+                if ($tile) { $ariaParts[] = "tile {$tile['letter']} ({$tile['value']} pt)"; }
+                $ariaLabel = implode(' · ', $ariaParts);
+              ?>
+              <div class="<?php echo $classes; ?>" aria-label="<?php echo $ariaLabel; ?>">
+                <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
+                <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
+
+                <?php if ($tile): ?>
+                  <div class="tile" aria-hidden="true">
+                    <span class="letter"><?php echo $tile['letter']; ?></span>
+                    <span class="value"><?php echo $tile['value']; ?></span>
+                  </div>
+                <?php elseif ($isCenter): ?>
+                  <span class="cell-label">★ DW</span>
+                <?php elseif ($cellType !== ''): ?>
+                  <span class="cell-label"><?php echo $cellType; ?></span>
+                <?php endif; ?>
+              </div>
+              <?php endforeach; ?>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <div class="card" style="box-shadow:none; border-style:dashed;">
+          <div class="rack-bar" aria-label="Rack preview">
+            <?php foreach ($rackTiles as $rackTile): ?>
+              <div class="rack-tile" aria-label="Rack tile <?php echo $rackTile['letter']; ?>">
+                <span class="letter"><?php echo $rackTile['letter']; ?></span>
+                <span class="value"><?php echo $rackTile['value']; ?></span>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          <div class="actions" aria-label="Action buttons">
+            <div class="btn">Run solver</div>
+            <div class="btn secondary">Reset board</div>
+            <div class="btn secondary">Clear rack</div>
+            <div class="btn secondary">Shuffle rack</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">Top moves (mocked)</h2>
+      <p class="note">Placeholder output for the solver: score, notation, and rack consumption for the leading candidates.</p>
+      <ul class="list" aria-label="Mock move results">
+        <li class="list-item"><div><strong>1) ORATION</strong> · H8 ➜ Down</div><span class="badge">78 pts</span></li>
+        <li class="list-item"><div><strong>2) TONE</strong> · F7 ➜ Across</div><span class="badge">38 pts</span></li>
+        <li class="list-item"><div><strong>3) MATE</strong> · I5 ➜ Across</div><span class="badge">32 pts</span></li>
+        <li class="list-item"><div><strong>4) LATHE</strong> · D9 ➜ Down</div><span class="badge">29 pts</span></li>
+        <li class="list-item"><div><strong>5) RAIN</strong> · L4 ➜ Across</div><span class="badge">22 pts</span></li>
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">Uploads & stubs</h2>
+      <p class="note">File and camera affordances stay present but clearly labeled as “coming soon” until OCR lands.</p>
+      <div class="interaction-grid">
+        <div class="upload-card" aria-label="Board upload stub">
+          <strong>Board image</strong>
+          <span class="badge">Coming soon</span>
+          <p class="note">Drop or tap to select. Preview will show and feed a future OCR parser.</p>
+        </div>
+        <div class="upload-card" aria-label="Rack upload stub">
+          <strong>Rack image</strong>
+          <span class="badge">Coming soon</span>
+          <p class="note">Camera-friendly surface to capture letters; parsing will stub in demo values.</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Experience flows and interactions">
+    <article class="card">
+      <h2 class="subhead">MVP flow</h2>
+      <div class="flow-grid">
+        <div class="flow-step">
+          <strong>1) Board setup</strong>
+          <p class="note">Tap to place tiles, long-press for blanks, or import via image stub.</p>
+        </div>
+        <div class="flow-step">
+          <strong>2) Rack input</strong>
+          <p class="note">On-screen rack accepts typing (letters + ? for blank) with optional shuffle/clear.</p>
+        </div>
+        <div class="flow-step">
+          <strong>3) Request best moves</strong>
+          <p class="note">Press “Run solver” or hit Enter; results stream into the move list with scores and notation.</p>
+        </div>
+        <div class="flow-step">
+          <strong>4) Optional uploads</strong>
+          <p class="note">Board/rack uploads stay opt-in; parsed tiles prefill the grid once OCR is wired.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">Keyboard & touch patterns</h2>
+      <div class="interaction-grid">
+        <div class="flow-step">
+          <strong>Placement</strong>
+          <p class="note">Tap to focus a square, type letters to place; arrow keys move focus for speed play.</p>
+        </div>
+        <div class="flow-step">
+          <strong>Drag / drop</strong>
+          <p class="note">Drag from rack to board on desktop; touch-hold to pick up a tile and tap a target square on mobile.</p>
+        </div>
+        <div class="flow-step">
+          <strong>Blanks</strong>
+          <p class="note">Long-press or hold modifier to assign blank value inline before confirming placement.</p>
+        </div>
+        <div class="flow-step">
+          <strong>Shortcuts</strong>
+          <p class="note">Enter runs solver, Ctrl/Cmd+Z undoes last placement, Shift+R shuffles rack, Shift+C clears rack.</p>
+        </div>
+      </div>
+    </article>
+  </section>
 </body>
 </html>

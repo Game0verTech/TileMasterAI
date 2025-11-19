@@ -9,16 +9,16 @@ A living checklist to track progress while designing and building TileMasterAI.
 
 ## Phase 1 – Bootstrap & deployment
 - [x] PHP landing page loads `config/env.php` and shows basic status.
-- [ ] Finalize deployment pipeline (GitHub webhook, server pull/build hooks). *(planned when backend stack is finalized).* 
+- [x] Finalize deployment pipeline (GitHub webhook, server pull/build hooks). *(planned when backend stack is finalized).*
 
 ## Phase 2 – Experience design (current focus)
-- [~] Define UX flows for the MVP (board setup → rack input → best moves → optional uploads).
-- [ ] Produce layout structure for the main page (board grid, rack bar, action panel, move list).
-- [ ] Choose a cohesive visual system (colors/typography) and apply to the base page.
-- [ ] Create responsive breakpoints for mobile-first board interaction.
-- [ ] Plan keyboard/touch interactions (drag/drop or tap-to-place, long-press for blanks).
-- [ ] Draft mock content for move results (top 5), including placement notation.
-- [ ] Design upload affordances for board/rack images with clear “stub/coming soon” messaging.
+- [x] Define UX flows for the MVP (board setup → rack input → best moves → optional uploads).
+- [x] Produce layout structure for the main page (board grid, rack bar, action panel, move list).
+- [x] Choose a cohesive visual system (colors/typography) and apply to the base page.
+- [x] Create responsive breakpoints for mobile-first board interaction.
+- [x] Plan keyboard/touch interactions (drag/drop or tap-to-place, long-press for blanks).
+- [x] Draft mock content for move results (top 5), including placement notation.
+- [x] Design upload affordances for board/rack images with clear “stub/coming soon” messaging.
 
 ## Phase 3 – Game engine foundations
 - [ ] Model board (15x15 with bonuses) and rack structures in code.
