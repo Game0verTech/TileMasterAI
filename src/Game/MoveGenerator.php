@@ -39,10 +39,19 @@ class MoveGenerator
         $inventory = $this->rackInventory($rack);
         $candidates = [];
         $rackCount = count($rack->tiles());
+        $boardLetterCounts = $this->boardLetterCounts();
 
         foreach ($this->dictionary->words() as $word) {
             $wordLength = strlen($word);
             $letters = str_split($word);
+
+            if ($this->board->isEmpty() && $wordLength > $rackCount) {
+                continue;
+            }
+
+            if (!$this->wordFeasibleWithInventory($letters, $inventory, $boardLetterCounts)) {
+                continue;
+            }
 
             foreach ($anchors as [$row, $column]) {
                 foreach (['horizontal', 'vertical'] as $direction) {
@@ -87,6 +96,48 @@ class MoveGenerator
         usort($candidates, static fn ($a, $b) => $b['score'] <=> $a['score']);
 
         return array_slice($candidates, 0, $limit);
+    }
+
+    /**
+     * @param string[] $letters
+     * @param array{blanks:int, letters:array<string,int>} $inventory
+     * @param array<string,int> $boardLetterCounts
+     */
+    private function wordFeasibleWithInventory(array $letters, array $inventory, array $boardLetterCounts): bool
+    {
+        $need = [];
+        foreach ($letters as $letter) {
+            $need[$letter] = ($need[$letter] ?? 0) + 1;
+        }
+
+        $blanks = $inventory['blanks'];
+
+        foreach ($need as $letter => $count) {
+            $available = ($inventory['letters'][$letter] ?? 0) + ($boardLetterCounts[$letter] ?? 0);
+            if ($count <= $available) {
+                continue;
+            }
+
+            $deficit = $count - $available;
+            $blanks -= $deficit;
+            if ($blanks < 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return array<string, int> */
+    private function boardLetterCounts(): array
+    {
+        $counts = [];
+        foreach ($this->board->tiles() as $tile) {
+            $letter = $tile->letter();
+            $counts[$letter] = ($counts[$letter] ?? 0) + 1;
+        }
+
+        return $counts;
     }
 
     private function rackInventory(Rack $rack): array
