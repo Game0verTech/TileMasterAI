@@ -32,25 +32,6 @@ $premiumBoard = [
 $rowLabels = range('A', 'O');
 $columnLabels = range(1, 15);
 
-$sampleTiles = [
-  'H8' => ['letter' => 'O'],
-  'I8' => ['letter' => 'R'],
-  'J8' => ['letter' => 'A'],
-  'K8' => ['letter' => 'T'],
-  'L8' => ['letter' => 'I'],
-  'M8' => ['letter' => 'O'],
-  'N8' => ['letter' => 'N'],
-  'F7' => ['letter' => 'T'],
-  'F8' => ['letter' => 'O'],
-  'F9' => ['letter' => 'N'],
-  'F10' => ['letter' => 'E'],
-];
-
-foreach ($sampleTiles as $coordinate => &$tileData) {
-  $tileData['value'] = Scoring::tileValue($tileData['letter']);
-}
-unset($tileData);
-
 $rackLetters = ['T', 'I', 'L', 'E', 'M', 'A', '?'];
 $rackTiles = array_map(static fn ($letter) => [
   'letter' => $letter,
@@ -82,12 +63,6 @@ for ($r = 0; $r < Board::ROWS; $r++) {
 $centerPremium = $premiumLayout[7][7] ?? '';
 
 $boardModel = Board::standard();
-foreach ($sampleTiles as $coordinate => $tileData) {
-  $boardModel->placeTileByCoordinate(
-    $coordinate,
-    new Tile($tileData['letter'], $tileData['letter'] === '?', $tileData['value'])
-  );
-}
 
 $dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.txt';
 $dictionary = new Dictionary($dictionaryPath);
@@ -98,15 +73,15 @@ $moveGenerator = new MoveGenerator($boardModel, $dictionary);
 $moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
 
 $demoPlacements = [];
-foreach (['H8', 'I8', 'J8', 'K8', 'L8', 'M8', 'N8'] as $coordinate) {
-  $letter = $sampleTiles[$coordinate]['letter'] ?? '';
-  if ($letter === '') {
-    continue;
-  }
-  $demoPlacements[] = ['coord' => $coordinate, 'tile' => Tile::fromLetter($letter)];
+$demoBoard = Board::standard();
+$demoStartRow = 8;
+$demoStartColumn = 8;
+foreach (str_split($demoWord) as $index => $letter) {
+  $coord = Board::coordinateKey($demoStartRow, $demoStartColumn + $index);
+  $demoPlacements[] = ['coord' => $coord, 'tile' => Tile::fromLetter($letter)];
 }
 
-$demoScore = Scoring::scorePlacements($boardModel, $demoPlacements);
+$demoScore = Scoring::scorePlacements($demoBoard, $demoPlacements);
 $dictionaryHasDemoWord = $dictionary->has($demoWord);
 
 $sanityChecks = [
@@ -163,6 +138,9 @@ $aiSetupNotes = [
       --border: #e2e8f0;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
+      --cell-size: 56px;
+      --cell-gap: 6px;
+      --tile-size: calc(var(--cell-size) - 8px);
     }
 
     * {
@@ -265,7 +243,7 @@ $aiSetupNotes = [
 
     .layout-shell {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: 1fr;
       gap: 16px;
       align-items: start;
     }
@@ -280,20 +258,21 @@ $aiSetupNotes = [
 
     .board-grid {
       display: grid;
-      grid-template-columns: repeat(15, minmax(20px, 1fr));
-      gap: 5px;
+      grid-template-columns: repeat(15, var(--cell-size));
+      gap: var(--cell-gap);
       background: #e2e8f0;
       padding: 8px;
       border-radius: 14px;
       border: 1px solid #cbd5e1;
-      width: min(100%, 720px);
-      min-width: 420px;
-      margin: 0 auto;
+      width: max-content;
+      min-width: 100%;
+      margin: 0;
     }
 
     .cell {
       position: relative;
-      aspect-ratio: 1;
+      width: var(--cell-size);
+      height: var(--cell-size);
       border-radius: 8px;
       border: 1px solid #cbd5e1;
       background: #f8fafc;
@@ -339,8 +318,8 @@ $aiSetupNotes = [
     .coordinate.row { bottom: 6px; left: 8px; }
 
     .tile {
-      width: calc(100% - 8px);
-      height: calc(100% - 8px);
+      width: var(--tile-size);
+      height: var(--tile-size);
       background: linear-gradient(135deg, #f5e0c3, #e6c89f);
       border-radius: 6px;
       border: 1px solid #d4a373;
@@ -365,11 +344,12 @@ $aiSetupNotes = [
       background: #f8fafc;
       border: 1px dashed #cbd5e1;
       border-radius: 12px;
+      justify-content: center;
     }
 
     .rack-tile {
-      width: 56px;
-      height: 56px;
+      width: var(--tile-size);
+      height: var(--tile-size);
       display: grid;
       align-items: center;
       justify-items: center;
@@ -501,37 +481,10 @@ $aiSetupNotes = [
     </div>
   </header>
 
-  <section class="grid" aria-label="Sanity checks and AI readiness">
-    <article class="card">
-      <h2 class="subhead">Scrabble sanity checks</h2>
-      <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
-      <div class="list" aria-label="Sanity check results">
-        <?php foreach ($sanityChecks as $check): ?>
-          <div class="list-item">
-            <div><strong><?php echo $check['label']; ?></strong><br><span class="note"><?php echo $check['detail']; ?></span></div>
-            <span class="badge"><?php echo $check['status']; ?></span>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2 class="subhead">AI helper setup</h2>
-      <p class="note">Guardrails for letting OpenAI rank moves or explain choices without leaking secrets.</p>
-      <div class="list" aria-label="AI setup guidance">
-        <?php foreach ($aiSetupNotes as $note): ?>
-          <div class="list-item">
-            <div><span class="note"><?php echo $note; ?></span></div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </article>
-  </section>
-
   <section class="grid" aria-label="Phase 2 layout preview">
     <article class="card">
       <h2 class="subhead">Primary layout</h2>
-      <p class="note">Standard 15x15 Scrabble grid with the authentic premium pattern, a centered star on the H8 double word, and sample tiles placed using real coordinates.</p>
+      <p class="note">Standard 15x15 Scrabble grid with the authentic premium pattern, a centered star on the H8 double word, and an empty board ready for live placements.</p>
       <div class="layout-shell">
         <div class="board-preview" aria-label="Board preview">
           <div class="board-grid" role="presentation">
@@ -539,8 +492,7 @@ $aiSetupNotes = [
               <?php foreach ($row as $colIndex => $cellType):
                 $rowLabel = $rowLabels[$rowIndex];
                 $colLabel = $columnLabels[$colIndex];
-                $coordKey = $rowLabel . $colLabel;
-                $tile = $sampleTiles[$coordKey] ?? null;
+                $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
                 $isCenter = $rowIndex === 7 && $colIndex === 7;
                 $classes = 'cell';
 
@@ -560,7 +512,7 @@ $aiSetupNotes = [
 
                 $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
                 if ($isCenter) { $ariaParts[] = 'start star'; }
-                if ($tile) { $ariaParts[] = "tile {$tile['letter']} ({$tile['value']} pt)"; }
+                if ($tile) { $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)"; }
                 $ariaLabel = implode(' · ', $ariaParts);
               ?>
               <div class="<?php echo $classes; ?>" aria-label="<?php echo $ariaLabel; ?>">
@@ -569,8 +521,8 @@ $aiSetupNotes = [
 
                 <?php if ($tile): ?>
                   <div class="tile" aria-hidden="true">
-                    <span class="letter"><?php echo $tile['letter']; ?></span>
-                    <span class="value"><?php echo $tile['value']; ?></span>
+                    <span class="letter"><?php echo $tile->letter(); ?></span>
+                    <span class="value"><?php echo $tile->value(); ?></span>
                   </div>
                 <?php elseif ($isCenter): ?>
                   <span class="cell-label">★ DW</span>
@@ -600,7 +552,36 @@ $aiSetupNotes = [
         </div>
       </div>
     </article>
+  </section>
 
+  <section class="grid" aria-label="Sanity checks and AI readiness">
+    <article class="card">
+      <h2 class="subhead">Scrabble sanity checks</h2>
+      <p class="note">Quick validation passes keep the layout, tiles, and dictionary aligned to standard rules.</p>
+      <div class="list" aria-label="Sanity check results">
+        <?php foreach ($sanityChecks as $check): ?>
+          <div class="list-item">
+            <div><strong><?php echo $check['label']; ?></strong><br><span class="note"><?php echo $check['detail']; ?></span></div>
+            <span class="badge"><?php echo $check['status']; ?></span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">AI helper setup</h2>
+      <p class="note">Guardrails for letting OpenAI rank moves or explain choices without leaking secrets.</p>
+      <div class="list" aria-label="AI setup guidance">
+        <?php foreach ($aiSetupNotes as $note): ?>
+          <div class="list-item">
+            <div><span class="note"><?php echo $note; ?></span></div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Phase 4 move preview & uploads">
     <article class="card">
       <h2 class="subhead">Phase 4: anchor-based move generation</h2>
       <p class="note">Suggestions are generated from board anchors (adjacent empties) using the demo rack, dictionary validation, and scoring with cross-checks.</p>
