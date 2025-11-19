@@ -1,5 +1,8 @@
 <?php
 // Simple Hello World page for TileMasterAI
+require __DIR__ . '/config/env.php';
+
+$hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -30,7 +33,7 @@
       box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25);
       padding: 32px 40px;
       text-align: center;
-      max-width: 420px;
+      max-width: 480px;
       backdrop-filter: blur(8px);
       border: 1px solid rgba(15, 23, 42, 0.08);
     }
@@ -42,7 +45,7 @@
     }
 
     p {
-      margin: 0;
+      margin: 0 0 8px;
       color: #334155;
       font-size: 17px;
       line-height: 1.5;
@@ -56,6 +59,27 @@
       border-radius: 8px;
       font-size: 15px;
     }
+
+    .status {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #eef2ff;
+      color: #1e293b;
+      border: 1px solid rgba(59, 130, 246, 0.25);
+    }
+
+    .status-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: <?php echo $hasOpenAiKey ? '#22c55e' : '#f59e0b'; ?>;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+    }
   </style>
 </head>
 <body>
@@ -63,6 +87,10 @@
     <h1>Hello, World! 👋</h1>
     <p>Welcome to the TileMasterAI PHP app. Your server setup is working.</p>
     <p>Next step: start shaping the experience in <code>index.php</code>.</p>
+    <div class="status" aria-live="polite">
+      <span class="status-icon" aria-hidden="true"></span>
+      <span><?php echo $hasOpenAiKey ? 'OPENAI_API_KEY detected in environment.' : 'OPENAI_API_KEY not yet configured.'; ?></span>
+    </div>
   </main>
 </body>
 </html>
