@@ -234,6 +234,7 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       gap: 0;
+      overflow: hidden;
     }
 
     header {
@@ -933,7 +934,10 @@ $aiSetupNotes = [
       display: grid;
       gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      justify-items: center;
+      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      grid-template-rows: 1fr;
+      justify-items: stretch;
+      align-items: stretch;
     }
 
     .board-viewport {
@@ -941,16 +945,18 @@ $aiSetupNotes = [
       width: 100%;
       margin: 0 auto;
       display: grid;
-      align-items: stretch;
-      justify-items: stretch;
+      align-items: center;
+      justify-items: center;
       overflow: hidden;
       touch-action: none;
       cursor: grab;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 6px;
+      padding: 8px;
       min-height: 320px;
+      height: 100%;
+      max-height: 100%;
     }
 
     .board-viewport.dragging { cursor: grabbing; }
@@ -962,8 +968,8 @@ $aiSetupNotes = [
       display: grid;
       align-items: center;
       justify-items: center;
-      width: 100%;
-      height: 100%;
+      width: min(100%, 1100px);
+      height: min(100%, 1100px);
     }
 
     .board-frame {
@@ -978,7 +984,7 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
-      padding: 16px 16px 12px;
+      padding: 12px 12px 10px;
       display: grid;
       gap: 12px;
       justify-items: center;
@@ -1426,8 +1432,8 @@ $aiSetupNotes = [
       :root {
         --top-dock-height: 74px;
         --bottom-dock-height: 104px;
-        --cell-size: clamp(40px, 9vw, 48px);
-        --cell-gap: 4px;
+        --cell-size: clamp(34px, 7vw + 6px, 44px);
+        --cell-gap: 3px;
       }
 
       body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
@@ -1448,7 +1454,10 @@ $aiSetupNotes = [
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
       .rack-wrap { grid-column: 1 / -1; }
 
+      .board-chrome { padding: 10px 10px 8px; }
+      .board-preview { padding: 6px; }
       .board-controls { right: 8px; bottom: 8px; width: min(100%, 240px); }
+      .board-viewport { padding: 6px; }
     }
 
     @media (max-width: 599px) {
@@ -1697,23 +1706,23 @@ $aiSetupNotes = [
 
       const centerBoard = () => {
         if (!boardViewport || !boardScaleEl) return;
-        const boardGridEl = document.querySelector('.board-grid');
-        if (!boardGridEl) return;
+        const centerCell = document.querySelector('.cell[data-center="true"]');
+        if (!centerCell) return;
 
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
         const viewportRect = boardViewport.getBoundingClientRect();
-        const gridRect = boardGridEl.getBoundingClientRect();
+        const cellRect = centerCell.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
 
         const viewportCenterX = viewportRect.width / 2;
         const viewportCenterY = viewportRect.height / 2;
-        const gridCenterX = (gridRect.left - viewportRect.left) + gridRect.width / 2;
-        const gridCenterY = (gridRect.top - viewportRect.top) + gridRect.height / 2;
+        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
+        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
         const finalScale = getFinalScale();
 
-        panX = (viewportCenterX - gridCenterX) / finalScale;
-        panY = (viewportCenterY - gridCenterY) / finalScale;
+        panX = (viewportCenterX - cellCenterX) / finalScale;
+        panY = (viewportCenterY - cellCenterY) / finalScale;
         applyBoardTransform();
       };
 
@@ -1744,15 +1753,15 @@ $aiSetupNotes = [
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
 
         boardViewport.style.height = `${availableHeight}px`;
 
-        const viewportWidth = boardViewport.getBoundingClientRect().width || document.documentElement.clientWidth;
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
-        const boardGridEl = document.querySelector('.board-grid');
-        const boardRect = boardGridEl ? boardGridEl.getBoundingClientRect() : boardChromeEl.getBoundingClientRect();
+        const boardRect = boardChromeEl.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
 
         const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
