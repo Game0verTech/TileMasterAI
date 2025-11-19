@@ -399,17 +399,6 @@ $aiSetupNotes = [
       letter-spacing: 0.2px;
     }
 
-    .coordinate {
-      position: absolute;
-      font-size: 10px;
-      font-weight: 700;
-      color: #94a3b8;
-      pointer-events: none;
-    }
-
-    .coordinate.col { top: 6px; right: 8px; }
-    .coordinate.row { bottom: 6px; left: 8px; }
-
     .tile {
       width: var(--tile-size);
       height: var(--tile-size);
@@ -863,35 +852,119 @@ $aiSetupNotes = [
 
     .ai-status {
       display: grid;
-      gap: 6px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 20% 30%, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.08)),
+        linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
       border: 1px solid #cbd5e1;
       font-weight: 600;
       color: #0f172a;
+      align-items: center;
     }
+
+    .ai-status.ai-complete {
+      background: #f8fafc;
+    }
+
+    .ai-visual {
+      width: 140px;
+      height: 140px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .ai-visual.hidden { display: none; }
+
+    .ai-orbital {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px dashed rgba(99, 102, 241, 0.35);
+      animation: orbit 8s linear infinite;
+    }
+
+    .ai-orbital:nth-child(2) { inset: 10px; animation-duration: 6.5s; animation-direction: reverse; }
+    .ai-orbital:nth-child(3) { inset: 20px; animation-duration: 5.2s; filter: hue-rotate(40deg); }
+
+    .ai-orbital::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22d3ee, #6366f1);
+      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    .ai-core {
+      width: 78px;
+      height: 78px;
+      border-radius: 18px;
+      background: conic-gradient(from 45deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.38), rgba(14, 165, 233, 0.16));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+
+    .ai-core::before {
+      content: '';
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.6), transparent 46%),
+        radial-gradient(circle at 65% 65%, rgba(255, 255, 255, 0.45), transparent 40%);
+      filter: blur(12px);
+      animation: shimmer 2.1s infinite ease-in-out;
+    }
+
+    .ai-core span {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #0f172a;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ai-copy { display: grid; gap: 8px; }
+
+    .ai-step { font-size: 15px; }
 
     .ai-dots {
       display: inline-flex;
-      gap: 4px;
+      gap: 6px;
       align-items: center;
     }
 
     .ai-dots span {
-      width: 8px;
-      height: 8px;
-      background: #0ea5e9;
+      width: 10px;
+      height: 10px;
+      background: linear-gradient(135deg, #22d3ee, #6366f1);
       border-radius: 50%;
-      animation: pulse 1.2s infinite ease-in-out;
+      animation: pulse 1.1s infinite ease-in-out;
+      box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
     }
 
-    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+    .ai-dots span:nth-child(2) { animation-delay: 0.16s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.32s; }
 
     @keyframes pulse {
       0%, 100% { opacity: 0.2; transform: translateY(0); }
       50% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    @keyframes orbit {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     @keyframes shimmer {
@@ -1573,9 +1646,6 @@ $aiSetupNotes = [
                   data-premium="<?php echo $cellType; ?>"
                   data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
                 >
-                  <?php if ($rowIndex === 0): ?><span class="coordinate col"><?php echo $colLabel; ?></span><?php endif; ?>
-                  <?php if ($colIndex === 0): ?><span class="coordinate row"><?php echo $rowLabel; ?></span><?php endif; ?>
-
                   <?php if ($isCenter): ?>
                     <span class="cell-label">★ DW</span>
                   <?php elseif ($cellType !== ''): ?>
@@ -1660,6 +1730,7 @@ $aiSetupNotes = [
       const aiCloseBtn = document.getElementById('closeAi');
       const aiListEl = document.getElementById('aiList');
       const aiStatusEl = document.getElementById('aiStatus');
+      const aiAnimationEl = document.getElementById('aiAnimation');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
       const rulesBtn = document.getElementById('openRules');
@@ -1688,6 +1759,7 @@ $aiSetupNotes = [
       let dictionary = new Set();
       let aiStepInterval;
       let aiRevealTimeout;
+      let aiAudioInterval;
       let audioCtx;
       let baseScale = 1;
       let userZoom = 1;
@@ -1794,6 +1866,29 @@ $aiSetupNotes = [
         const effect = fx[name];
         if (!effect) return;
         effect({ rate });
+      };
+
+      const stopAiAudioLoop = () => {
+        if (aiAudioInterval) {
+          clearInterval(aiAudioInterval);
+          aiAudioInterval = null;
+        }
+      };
+
+      const startAiAudioLoop = () => {
+        const ctx = initAudio();
+        if (!ctx) return;
+        stopAiAudioLoop();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        aiAudioInterval = setInterval(() => {
+          const shimmer = 420 + Math.random() * 120;
+          const bass = 240 + Math.random() * 90;
+          scheduleTone(ctx, { frequency: shimmer, duration: 0.3, type: 'sine', gainValue: 0.04 });
+          scheduleTone(ctx, { frequency: bass, start: 0.14, duration: 0.32, type: 'triangle', gainValue: 0.035 });
+        }, 620);
       };
 
       const centerBoard = () => {
@@ -2530,6 +2625,21 @@ $aiSetupNotes = [
         if (aiRevealTimeout) clearTimeout(aiRevealTimeout);
         aiStepInterval = null;
         aiRevealTimeout = null;
+        stopAiAudioLoop();
+      };
+
+      const setAiAnimationActive = (active) => {
+        if (aiStatusEl) {
+          aiStatusEl.classList.toggle('ai-complete', !active);
+        }
+        if (aiAnimationEl) {
+          aiAnimationEl.classList.toggle('hidden', !active);
+        }
+        if (active) {
+          startAiAudioLoop();
+        } else {
+          stopAiAudioLoop();
+        }
       };
 
       const openAiModal = () => {
@@ -2548,6 +2658,7 @@ $aiSetupNotes = [
         aiModal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-open');
         clearAiTimers();
+        setAiAnimationActive(false);
         if (aiListEl) {
           aiListEl.innerHTML = '';
         }
@@ -2591,6 +2702,7 @@ $aiSetupNotes = [
           aiListEl.innerHTML = '';
         }
 
+        setAiAnimationActive(true);
         aiStepEl.textContent = steps[0];
         if (aiSubtextEl) {
           aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
@@ -2602,6 +2714,7 @@ $aiSetupNotes = [
           const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
           const topFive = playable.slice(0, 5);
           renderAiSuggestions(topFive);
+          setAiAnimationActive(false);
           if (aiSubtextEl) {
             aiSubtextEl.textContent = topFive.length
               ? 'Suggestions ready! Showing the top five playable moves—scroll and tap to load one.'
@@ -3074,9 +3187,17 @@ $aiSetupNotes = [
         <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
       </div>
       <div class="ai-status" id="aiStatus">
-        <span id="aiStep">Warming up the move engine…</span>
-        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-        <p class="ai-meta" id="aiSubtext">We’ll surface the top five playable words—scroll to review them once ready.</p>
+        <div class="ai-visual" id="aiAnimation" aria-hidden="true">
+          <div class="ai-orbital"></div>
+          <div class="ai-orbital"></div>
+          <div class="ai-orbital"></div>
+          <div class="ai-core"><span>thinking</span></div>
+        </div>
+        <div class="ai-copy">
+          <span class="ai-step" id="aiStep">Warming up the move engine…</span>
+          <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+          <p class="ai-meta" id="aiSubtext">We’ll surface the top five playable words—scroll to review them once ready.</p>
+        </div>
       </div>
       <ul class="ai-list" id="aiList" aria-live="polite"></ul>
     </div>
