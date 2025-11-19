@@ -1079,6 +1079,27 @@ $aiSetupNotes = [
       font-size: 13px;
     }
 
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .session-error-modal .session-error-body {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid #0f172a;
+      max-height: 360px;
+      overflow: auto;
+    }
+
     .ai-status {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -1939,6 +1960,11 @@ $aiSetupNotes = [
       const sessionEmptyEl = document.getElementById('sessionEmpty');
       const sessionFlashEl = document.getElementById('sessionFlash');
       const sessionDebugEl = document.getElementById('sessionDebug');
+      const sessionErrorModal = document.getElementById('sessionErrorModal');
+      const sessionErrorBody = document.getElementById('sessionErrorBody');
+      const sessionErrorTitle = document.getElementById('sessionErrorTitle');
+      const sessionErrorClose = document.getElementById('closeSessionError');
+      const sessionErrorAck = document.getElementById('ackSessionError');
       const createSessionForm = document.getElementById('createSessionForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
@@ -1982,6 +2008,121 @@ $aiSetupNotes = [
         sessionDebugEl.hidden = !hasDetail;
         sessionDebugEl.textContent = hasDetail ? detail : '';
       };
+
+      const closeSessionErrorModal = () => {
+        if (!sessionErrorModal) return;
+
+        sessionErrorModal.classList.remove('active');
+        sessionErrorModal.setAttribute('aria-hidden', 'true');
+
+        const aiOpen = aiModal?.classList.contains('active');
+        const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
+        if (!aiOpen && !rulesOpen) {
+          document.body.classList.remove('modal-open');
+        }
+      };
+
+      const clearSessionErrors = () => {
+        setSessionDebug('');
+
+        if (sessionErrorBody) {
+          sessionErrorBody.textContent = '';
+        }
+
+        if (sessionErrorTitle) {
+          sessionErrorTitle.textContent = '';
+        }
+
+        if (sessionErrorModal?.classList.contains('active')) {
+          closeSessionErrorModal();
+        }
+      };
+
+      const presentSessionError = (summary, detail) => {
+        clearSessionErrors();
+
+        const fallbackSummary = summary || 'Unable to load sessions.';
+        const fallbackDetail = detail || fallbackSummary;
+
+        setSessionFlash(fallbackSummary, 'error');
+        setSessionDebug(fallbackDetail);
+
+        if (sessionErrorTitle) {
+          sessionErrorTitle.textContent = fallbackSummary;
+        }
+
+        if (sessionErrorBody) {
+          sessionErrorBody.textContent = fallbackDetail;
+          sessionErrorBody.scrollTop = 0;
+        }
+
+        if (sessionErrorModal) {
+          sessionErrorModal.classList.add('active');
+          sessionErrorModal.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('modal-open');
+        }
+      };
+
+      const describeHttpResponse = ({ requestLabel, response, reason, bodyText, contentType }) =>
+        [
+          requestLabel,
+          `Status: ${response?.status ?? 'network error'} ${response?.statusText ?? ''}`.trim(),
+          `Content-Type: ${contentType || 'none'}`,
+          reason ? `Reason: ${reason}` : null,
+          'Body preview:',
+          bodyText ? bodyText.slice(0, 1200) : '(empty response body)',
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+      const parseJsonResponse = async (response, { requestLabel }) => {
+        const contentType = response.headers.get('content-type') || '';
+        const bodyText = await response.text();
+        const isJson = contentType.toLowerCase().includes('application/json');
+
+        if (!isJson) {
+          const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
+          error.detail = describeHttpResponse({
+            requestLabel,
+            response,
+            reason: 'Non-JSON response',
+            bodyText,
+            contentType,
+          });
+          throw error;
+        }
+
+        try {
+          const payload = JSON.parse(bodyText);
+          return { payload, bodyText, contentType, detail: describeHttpResponse({ requestLabel, response, bodyText, contentType }) };
+        } catch (parseError) {
+          const error = new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+          error.detail = describeHttpResponse({
+            requestLabel,
+            response,
+            reason: 'Invalid JSON received',
+            bodyText,
+            contentType,
+          });
+          throw error;
+        }
+      };
+
+      if (sessionErrorClose) {
+        sessionErrorClose.addEventListener('click', () => closeSessionErrorModal());
+      }
+
+      if (sessionErrorAck) {
+        sessionErrorAck.addEventListener('click', () => closeSessionErrorModal());
+      }
+
+      if (sessionErrorModal) {
+        sessionErrorModal.addEventListener('click', (event) => {
+          if (event.target === sessionErrorModal) {
+            closeSessionErrorModal();
+          }
+        });
+      }
 
       const openLobbySocket = () => {
         if (lobbySocket && lobbyConnected) {
@@ -2206,52 +2347,22 @@ $aiSetupNotes = [
       const fetchSessions = async () => {
         if (!sessionListEl || !sessionEmptyEl) return;
 
-        setSessionDebug('');
-
         try {
           const response = await fetch('/api/sessions');
-          const contentType = response.headers.get('content-type') || '';
-          const bodyText = await response.text();
-          const isJson = contentType.toLowerCase().includes('application/json');
+          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: GET /api/sessions' });
 
-          const diagnosticDetails = ({ reason }) =>
-            [
-              'Request: GET /api/sessions',
-              `Status: ${response.status} ${response.statusText || ''}`.trim(),
-              `Content-Type: ${contentType || 'none'}`,
-              reason ? `Reason: ${reason}` : null,
-              'Body preview:',
-              bodyText ? bodyText.slice(0, 1200) : '(empty response body)',
-            ]
-              .filter(Boolean)
-              .join('\n');
-
-          let payload = null;
-
-          if (isJson) {
-            try {
-              payload = JSON.parse(bodyText);
-            } catch (parseError) {
-              const error = new Error(
-                `Failed to parse sessions response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`
-              );
-              error.detail = diagnosticDetails({ reason: 'Invalid JSON received' });
-              throw error;
-            }
-          }
-
-          if (!response.ok || !isJson || !payload) {
+          if (!response.ok || !payload) {
             const message =
-              isJson && payload && typeof payload.message === 'string'
+              payload && typeof payload.message === 'string'
                 ? payload.message
                 : `Unable to load sessions (HTTP ${response.status || 'network error'})`;
             const error = new Error(message);
-            error.detail = diagnosticDetails({ reason: isJson ? 'Unexpected payload' : 'Non-JSON response' });
+            error.detail = payload?.detail || detail;
             throw error;
           }
 
           renderSessions(Array.isArray(payload.sessions) ? payload.sessions : []);
-          setSessionDebug('');
+          clearSessionErrors();
         } catch (error) {
           sessionEmptyEl.hidden = false;
           sessionListEl.hidden = true;
@@ -2266,8 +2377,7 @@ $aiSetupNotes = [
                   .filter(Boolean)
                   .join('\n');
 
-          setSessionFlash(`${message} See details below.`, 'error');
-          setSessionDebug(detail);
+          presentSessionError(`${message} See details below.`, detail);
           console.error(error);
         }
       };
@@ -2296,30 +2406,37 @@ $aiSetupNotes = [
             body: JSON.stringify({ code, playerName }),
           });
 
-          const data = await response.json();
+          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions' });
 
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to create session.');
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to create session.');
+            error.detail = payload?.detail || detail;
+            throw error;
           }
 
-          setSessionFlash(`Session ${data.session.code} created. You're the host.`, 'success');
+          clearSessionErrors();
+          setSessionFlash(`Session ${payload.session.code} created. You're the host.`, 'success');
           sessionCodeInput.value = '';
           playerNameInput.value = '';
           setActiveSession({
-            id: data.session.id,
-            code: data.session.code,
-            status: data.session.status,
-            max_players: data.session.max_players ?? MAX_PLAYERS,
+            id: payload.session.id,
+            code: payload.session.code,
+            status: payload.session.status,
+            max_players: payload.session.max_players ?? MAX_PLAYERS,
           }, {
-            id: data.session.host?.id,
-            name: data.session.host?.name || playerName,
+            id: payload.session.host?.id,
+            name: payload.session.host?.name || playerName,
             is_host: true,
           });
-          refreshLobby(data.session.code);
+          refreshLobby(payload.session.code);
           fetchSessions();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to create session.';
-          setSessionFlash(message, 'error');
+          const detail =
+            error instanceof Error && typeof error.detail === 'string'
+              ? error.detail
+              : `Error: ${error instanceof Error ? error.message : String(error)}`;
+          presentSessionError(message, detail);
         }
       };
 
@@ -2343,37 +2460,46 @@ $aiSetupNotes = [
             body: JSON.stringify({ code, playerName }),
           });
 
-          const data = await response.json();
+          const { payload, detail } = await parseJsonResponse(response, {
+            requestLabel: 'Request: POST /api/session_players.php',
+          });
 
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to join session.');
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to join session.');
+            error.detail = payload?.detail || detail;
+            throw error;
           }
 
-          setSessionFlash(`Joined ${data.session.code}.`, 'success');
+          clearSessionErrors();
+          setSessionFlash(`Joined ${payload.session.code}.`, 'success');
           setActiveSession({
-            id: data.session.id,
-            code: data.session.code,
-            status: data.session.status,
-            max_players: data.session.max_players ?? MAX_PLAYERS,
+            id: payload.session.id,
+            code: payload.session.code,
+            status: payload.session.status,
+            max_players: payload.session.max_players ?? MAX_PLAYERS,
           }, {
-            id: data.player.id,
-            name: data.player.name,
+            id: payload.player.id,
+            name: payload.player.name,
             is_host: false,
           });
           renderRoster({
-            sessionCode: data.session.code,
-            status: data.session.status,
-            maxPlayers: data.session.max_players ?? MAX_PLAYERS,
-            players: data.players,
-            canStart: data.players.length >= 2,
+            sessionCode: payload.session.code,
+            status: payload.session.status,
+            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
+            players: payload.players,
+            canStart: payload.players.length >= 2,
           });
           if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: data.session.code, tone: 'accept' }));
+            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: payload.session.code, tone: 'accept' }));
           }
           fetchSessions();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to join session.';
-          setSessionFlash(message, 'error');
+          const detail =
+            error instanceof Error && typeof error.detail === 'string'
+              ? error.detail
+              : `Error: ${error instanceof Error ? error.message : String(error)}`;
+          presentSessionError(message, detail);
         }
       };
 
@@ -2390,10 +2516,14 @@ $aiSetupNotes = [
             body: JSON.stringify({ code: activeSession.code, playerId: currentPlayer.id }),
           });
 
-          const data = await response.json();
+          const { payload, detail } = await parseJsonResponse(response, {
+            requestLabel: 'Request: DELETE /api/session_players.php',
+          });
 
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to leave session.');
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to leave session.');
+            error.detail = payload?.detail || detail;
+            throw error;
           }
 
           if (lobbySocket?.readyState === WebSocket.OPEN) {
@@ -2401,6 +2531,7 @@ $aiSetupNotes = [
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
           }
 
+          clearSessionErrors();
           activeSession = null;
           currentPlayer = null;
           if (lobbyCard) {
@@ -2413,7 +2544,11 @@ $aiSetupNotes = [
           fetchSessions();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to leave session.';
-          setSessionFlash(message, 'error');
+          const detail =
+            error instanceof Error && typeof error.detail === 'string'
+              ? error.detail
+              : `Error: ${error instanceof Error ? error.message : String(error)}`;
+          presentSessionError(message, detail);
         }
       };
 
@@ -2427,22 +2562,31 @@ $aiSetupNotes = [
             body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
           });
 
-          const data = await response.json();
+          const { payload, detail } = await parseJsonResponse(response, {
+            requestLabel: 'Request: POST /api/session_players.php (start)',
+          });
 
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to start game.');
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to start game.');
+            error.detail = payload?.detail || detail;
+            throw error;
           }
 
-          activeSession.status = data.session.status;
+          activeSession.status = payload.session.status;
           renderLobbyStatus('started');
           if (lobbySocket?.readyState === WebSocket.OPEN) {
             lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
             lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: activeSession.code, tone: 'accept' }));
           }
+          clearSessionErrors();
           setSessionFlash('Game started.', 'success');
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to start game.';
-          setSessionFlash(message, 'error');
+          const detail =
+            error instanceof Error && typeof error.detail === 'string'
+              ? error.detail
+              : `Error: ${error instanceof Error ? error.message : String(error)}`;
+          presentSessionError(message, detail);
         }
       };
 
@@ -3436,7 +3580,11 @@ $aiSetupNotes = [
         if (!aiModal) return;
         aiModal.classList.remove('active');
         aiModal.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('modal-open');
+        const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
+        const sessionErrorOpen = sessionErrorModal?.classList.contains('active');
+        if (!rulesOpen && !sessionErrorOpen) {
+          document.body.classList.remove('modal-open');
+        }
         clearAiTimers();
         setAiAnimationActive(false);
         if (aiListEl) {
@@ -3866,6 +4014,9 @@ $aiSetupNotes = [
             if (aiModal.classList.contains('active')) {
               closeAiModal();
             }
+            if (sessionErrorModal?.classList.contains('active')) {
+              closeSessionErrorModal();
+            }
             closeHudMenu();
             closeRackHelp();
           }
@@ -3931,6 +4082,19 @@ $aiSetupNotes = [
     });
   </script>
 
+  <div class="modal-backdrop" id="sessionErrorModal" aria-hidden="true">
+    <div class="modal session-error-modal" role="dialog" aria-modal="true" aria-labelledby="sessionErrorTitle">
+      <div class="modal-header">
+        <h3 id="sessionErrorTitle">Session error</h3>
+        <button class="modal-close" type="button" id="closeSessionError" aria-label="Close error dialog">×</button>
+      </div>
+      <div class="session-error-body" id="sessionErrorBody" tabindex="0">No additional details available.</div>
+      <div class="modal-actions">
+        <button class="btn small" type="button" id="ackSessionError">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="aiModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
       <div class="modal-header">
@@ -3991,7 +4155,15 @@ $aiSetupNotes = [
       const setModalState = (open) => {
         modal.classList.toggle('active', open);
         modal.setAttribute('aria-hidden', open ? 'false' : 'true');
-        document.body.classList.toggle('modal-open', open);
+        if (open) {
+          document.body.classList.add('modal-open');
+        } else {
+          const aiOpen = document.getElementById('aiModal')?.classList.contains('active');
+          const sessionErrorOpen = document.getElementById('sessionErrorModal')?.classList.contains('active');
+          if (!aiOpen && !sessionErrorOpen) {
+            document.body.classList.remove('modal-open');
+          }
+        }
 
         if (open) {
           closeBtn.focus();
