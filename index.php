@@ -1330,6 +1330,67 @@ $aiSetupNotes = [
         return { row, col };
       };
 
+      const rackInventory = () => {
+        const letters = {};
+        let blanks = 0;
+
+        rack.forEach((tile) => {
+          if (tile.isBlank) {
+            blanks += 1;
+            return;
+          }
+          const letter = (tile.assignedLetter || tile.letter || '').toUpperCase();
+          if (letter) {
+            letters[letter] = (letters[letter] || 0) + 1;
+          }
+        });
+
+        return { letters, blanks };
+      };
+
+      const suggestionPlayable = (move) => {
+        if (!move || !move.word) return false;
+
+        const start = parseCoordinate(move.start || 'H8');
+        if (!start) return false;
+
+        const direction = move.direction === 'vertical' ? 'vertical' : 'horizontal';
+        const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
+        const word = (move.word || '').toUpperCase();
+        const pool = rackInventory();
+
+        for (let i = 0; i < word.length; i += 1) {
+          const row = start.row + delta.dr * i;
+          const col = start.col + delta.dc * i;
+          if (row >= BOARD_SIZE || col >= BOARD_SIZE) {
+            return false;
+          }
+
+          const targetTile = board[row][col];
+          if (targetTile && targetTile.locked) {
+            const lockedLetter = targetTile.isBlank ? (targetTile.assignedLetter || targetTile.letter) : targetTile.letter;
+            if ((lockedLetter || '').toUpperCase() !== word[i]) {
+              return false;
+            }
+            continue;
+          }
+
+          if ((pool.letters[word[i]] || 0) > 0) {
+            pool.letters[word[i]] -= 1;
+            continue;
+          }
+
+          if (pool.blanks > 0) {
+            pool.blanks -= 1;
+            continue;
+          }
+
+          return false;
+        }
+
+        return true;
+      };
+
       const findCell = (row, col) => cells.find((cell) => Number(cell.dataset.row) === row && Number(cell.dataset.col) === col);
 
       const animateTileToCell = (tile, cell, row, col) => {
@@ -1524,9 +1585,12 @@ $aiSetupNotes = [
 
         clearAiTimers();
         aiRevealTimeout = setTimeout(() => {
-          renderAiSuggestions(baseSuggestions);
+          const playable = baseSuggestions.filter((move) => suggestionPlayable(move));
+          renderAiSuggestions(playable);
           if (aiSubtextEl) {
-            aiSubtextEl.textContent = 'Suggestions ready! Tap a move to load it and keep playing.';
+            aiSubtextEl.textContent = playable.length
+              ? 'Suggestions ready! Tap a move to load it and keep playing.'
+              : 'No playable suggestions with your current rack—draw or adjust tiles and try again.';
           }
           clearAiTimers();
         }, 2600);
