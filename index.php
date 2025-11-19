@@ -143,16 +143,17 @@ $aiSetupNotes = [
       --accent: #6366f1;
       --accent-strong: #4f46e5;
       --border: #e2e8f0;
-      --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)),
+      --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)),
+        linear-gradient(115deg, rgba(210, 167, 110, 0.35), rgba(210, 167, 110, 0)),
         repeating-linear-gradient(
-          25deg,
-          rgba(255, 255, 255, 0.22) 0px,
-          rgba(255, 255, 255, 0.22) 8px,
-          rgba(0, 0, 0, 0.04) 8px,
-          rgba(0, 0, 0, 0.04) 16px
+          22deg,
+          rgba(255, 255, 255, 0.28) 0px,
+          rgba(255, 255, 255, 0.28) 10px,
+          rgba(0, 0, 0, 0.035) 10px,
+          rgba(0, 0, 0, 0.035) 18px
         ),
-        linear-gradient(135deg, #f4debd 0%, #e4c69d 55%, #f1d8aa 100%);
-      --tile-wood-border: #c7965a;
+        linear-gradient(135deg, #f2d5a2 0%, #dfbd84 55%, #f3d8a2 100%);
+      --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
       --cell-size: 56px;
@@ -338,14 +339,14 @@ $aiSetupNotes = [
       width: var(--tile-size);
       height: var(--tile-size);
       background: var(--tile-wood);
-      border-radius: 6px;
+      border-radius: 5px;
       border: 1px solid var(--tile-wood-border);
-      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-      display: grid;
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      position: relative;
+      display: flex;
       align-items: center;
-      justify-items: center;
-      grid-template-rows: 1fr auto;
-      padding: 4px 6px;
+      justify-content: center;
+      padding: 6px 8px;
       color: #0f172a;
     }
 
@@ -355,8 +356,21 @@ $aiSetupNotes = [
       border-color: var(--tile-wood-border);
     }
 
-    .tile .letter { font-size: 18px; font-weight: 800; }
-    .tile .value { font-size: 10px; font-weight: 700; justify-self: end; }
+    .tile .letter {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      line-height: 1;
+    }
+
+    .tile .value {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
 
     .letter.blank-empty { color: transparent; }
     .letter.blank-assigned { color: #2563eb; }
@@ -379,20 +393,32 @@ $aiSetupNotes = [
     .rack-tile {
       width: var(--tile-size);
       height: var(--tile-size);
-      display: grid;
+      position: relative;
+      display: flex;
       align-items: center;
-      justify-items: center;
-      grid-template-rows: 1fr auto;
+      justify-content: center;
       background: var(--tile-wood);
-      border-radius: 8px;
+      border-radius: 5px;
       border: 1px solid var(--tile-wood-border);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       color: #0f172a;
       font-weight: 800;
     }
 
-    .rack-tile .letter { font-size: 18px; }
-    .rack-tile .value { font-size: 11px; justify-self: end; font-weight: 700; }
+    .rack-tile .letter {
+      font-size: 22px;
+      letter-spacing: 0.3px;
+      line-height: 1;
+    }
+
+    .rack-tile .value {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
 
     .rack-note {
       text-align: center;
