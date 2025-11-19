@@ -143,6 +143,17 @@ $aiSetupNotes = [
       --accent: #6366f1;
       --accent-strong: #4f46e5;
       --border: #e2e8f0;
+      --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)),
+        linear-gradient(115deg, rgba(210, 167, 110, 0.35), rgba(210, 167, 110, 0)),
+        repeating-linear-gradient(
+          22deg,
+          rgba(255, 255, 255, 0.28) 0px,
+          rgba(255, 255, 255, 0.28) 10px,
+          rgba(0, 0, 0, 0.035) 10px,
+          rgba(0, 0, 0, 0.035) 18px
+        ),
+        linear-gradient(135deg, #f2d5a2 0%, #dfbd84 55%, #f3d8a2 100%);
+      --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
       --cell-size: 56px;
@@ -327,26 +338,39 @@ $aiSetupNotes = [
     .tile {
       width: var(--tile-size);
       height: var(--tile-size);
-      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
-      border-radius: 6px;
-      border: 1px solid #d4a373;
-      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-      display: grid;
+      background: var(--tile-wood);
+      border-radius: 5px;
+      border: 1px solid var(--tile-wood-border);
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      position: relative;
+      display: flex;
       align-items: center;
-      justify-items: center;
-      grid-template-rows: 1fr auto;
-      padding: 4px 6px;
+      justify-content: center;
+      padding: 6px 8px;
       color: #0f172a;
     }
 
     .tile.blank,
     .rack-tile.blank {
-      background: linear-gradient(135deg, #ede9fe, #e0e7ff);
-      border-color: #a5b4fc;
+      background: var(--tile-wood);
+      border-color: var(--tile-wood-border);
     }
 
-    .tile .letter { font-size: 18px; font-weight: 800; }
-    .tile .value { font-size: 10px; font-weight: 700; justify-self: end; }
+    .tile .letter {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      line-height: 1;
+    }
+
+    .tile .value {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
 
     .letter.blank-empty { color: transparent; }
     .letter.blank-assigned { color: #2563eb; }
@@ -369,20 +393,32 @@ $aiSetupNotes = [
     .rack-tile {
       width: var(--tile-size);
       height: var(--tile-size);
-      display: grid;
+      position: relative;
+      display: flex;
       align-items: center;
-      justify-items: center;
-      grid-template-rows: 1fr auto;
-      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
-      border-radius: 8px;
-      border: 1px solid #d4a373;
+      justify-content: center;
+      background: var(--tile-wood);
+      border-radius: 5px;
+      border: 1px solid var(--tile-wood-border);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       color: #0f172a;
       font-weight: 800;
     }
 
-    .rack-tile .letter { font-size: 18px; }
-    .rack-tile .value { font-size: 11px; justify-self: end; font-weight: 700; }
+    .rack-tile .letter {
+      font-size: 22px;
+      letter-spacing: 0.3px;
+      line-height: 1;
+    }
+
+    .rack-tile .value {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
 
     .rack-note {
       text-align: center;
