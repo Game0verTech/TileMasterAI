@@ -523,7 +523,7 @@ $aiSetupNotes = [
 
     .rack-bar {
       display: flex;
-      gap: 6px;
+      gap: 10px;
       align-items: center;
       flex-wrap: wrap;
       padding: 5px 8px;
@@ -534,6 +534,8 @@ $aiSetupNotes = [
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
       min-height: 60px;
+      position: relative;
+      overflow: hidden;
     }
 
     .rack-actions {
@@ -557,9 +559,46 @@ $aiSetupNotes = [
 
     .rack-shuffle:hover { transform: translateY(-1px); }
 
-    .rack-tile {
+    .rack-slot {
       width: var(--tile-size);
       height: var(--tile-size);
+      display: grid;
+      place-items: center;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .rack-slot::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 6px;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.18), transparent 45%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease;
+    }
+
+    .rack-slot:hover::after { opacity: 1; }
+
+    .rack-slot.empty::after {
+      opacity: 1;
+      background: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.28) 0, rgba(148, 163, 184, 0.28) 8px, rgba(255, 255, 255, 0.4) 8px, rgba(255, 255, 255, 0.4) 16px);
+      border: 1px dashed rgba(148, 163, 184, 0.6);
+      animation: rackPlaceholderPulse 1.2s ease-in-out infinite;
+    }
+
+    .rack-placeholder {
+      font-weight: 700;
+      color: rgba(148, 163, 184, 0.9);
+      font-size: 13px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .rack-tile {
+      width: 100%;
+      height: 100%;
       position: relative;
       display: flex;
       align-items: center;
@@ -570,7 +609,25 @@ $aiSetupNotes = [
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       color: #0f172a;
       font-weight: 800;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      animation: rackPop 260ms ease;
     }
+
+    .rack-bar.shuffling .rack-slot {
+      animation: rackShuffleWave 520ms ease;
+      animation-delay: calc(var(--slot-index, 0) * 30ms);
+    }
+
+    .rack-bar.shuffling .rack-tile {
+      animation: rackShuffleTilt 520ms ease;
+    }
+
+    .rack-tile:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 26px rgba(79, 70, 229, 0.24); }
+    .rack-tile:active { transform: translateY(0) scale(0.99); }
+
+    .rack-tile.from-bag { animation: bagTravel 380ms ease, rackGlow 900ms ease; }
+    .rack-tile.entering { animation: rackPop 260ms ease, rackGlow 900ms ease; }
+    .rack-tile.returning { animation: rackReturn 320ms ease, rackGlow 900ms ease; }
 
     .rack-tile .letter {
       font-size: 22px;
@@ -880,6 +937,49 @@ $aiSetupNotes = [
     @keyframes breathe {
       0%, 100% { opacity: 0.6; }
       50% { opacity: 1; }
+    }
+
+    @keyframes rackPop {
+      0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+      60% { opacity: 1; transform: translateY(-2px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes rackReturn {
+      0% { transform: translateY(-8px) scale(0.94); }
+      70% { transform: translateY(4px) scale(1.02); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    @keyframes bagTravel {
+      0% { opacity: 0; transform: translate(-28px, -22px) scale(0.7) rotate(-6deg); }
+      70% { opacity: 1; transform: translate(6px, 6px) scale(1.05) rotate(2deg); }
+      100% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0); }
+    }
+
+    @keyframes rackGlow {
+      0% { box-shadow: 0 0 0 rgba(14, 165, 233, 0.4); }
+      40% { box-shadow: 0 16px 30px rgba(14, 165, 233, 0.32); }
+      100% { box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18); }
+    }
+
+    @keyframes rackShuffleWave {
+      0% { transform: translateY(0); }
+      40% { transform: translateY(-8px); }
+      70% { transform: translateY(4px); }
+      100% { transform: translateY(0); }
+    }
+
+    @keyframes rackShuffleTilt {
+      0% { transform: rotate(0); }
+      30% { transform: rotate(-4deg); }
+      60% { transform: rotate(3deg); }
+      100% { transform: rotate(0); }
+    }
+
+    @keyframes rackPlaceholderPulse {
+      0%, 100% { filter: brightness(1); opacity: 0.75; }
+      50% { filter: brightness(1.08); opacity: 1; }
     }
 
     .ai-list {
@@ -1729,7 +1829,10 @@ $aiSetupNotes = [
           value: isBlank ? 0 : (tileValues[letter] || 0),
           locked: false,
           justPlaced: false,
-          invalidReason: ''
+          invalidReason: '',
+          fromBag: false,
+          renderedOnce: false,
+          justReturned: false
         };
         return tile;
       };
@@ -1804,7 +1907,11 @@ $aiSetupNotes = [
 
       const renderRack = () => {
         rackEl.innerHTML = '';
-        rack.forEach((tile) => {
+        rack.forEach((tile, index) => {
+          const slotEl = document.createElement('div');
+          slotEl.className = 'rack-slot';
+          slotEl.style.setProperty('--slot-index', index);
+
           const tileEl = document.createElement('div');
           tileEl.className = `rack-tile${tile.isBlank ? ' blank' : ''}`;
           tileEl.draggable = true;
@@ -1820,10 +1927,44 @@ $aiSetupNotes = [
           valueEl.className = 'value';
           valueEl.textContent = tile.isBlank ? '' : tile.value;
 
+          if (tile.fromBag) {
+            tileEl.classList.add('from-bag');
+          }
+
+          if (!tile.renderedOnce) {
+            tileEl.classList.add('entering');
+          }
+
+          if (tile.justReturned) {
+            tileEl.classList.add('returning');
+          }
+
+          tileEl.addEventListener('animationend', (event) => {
+            if (['bagTravel', 'rackPop', 'rackReturn'].includes(event.animationName)) {
+              tileEl.classList.remove('from-bag', 'entering', 'returning');
+            }
+          });
+
           tileEl.appendChild(letterEl);
           tileEl.appendChild(valueEl);
-          rackEl.appendChild(tileEl);
+          slotEl.appendChild(tileEl);
+          rackEl.appendChild(slotEl);
+
+          tile.fromBag = false;
+          tile.justReturned = false;
+          tile.renderedOnce = true;
         });
+
+        const emptySlots = Math.max(0, RACK_SIZE - rack.length);
+        for (let i = 0; i < emptySlots; i += 1) {
+          const emptySlot = document.createElement('div');
+          emptySlot.className = 'rack-slot empty';
+          const placeholder = document.createElement('span');
+          placeholder.className = 'rack-placeholder';
+          placeholder.textContent = 'Empty';
+          emptySlot.appendChild(placeholder);
+          rackEl.appendChild(emptySlot);
+        }
       };
 
       const renderBoard = () => {
@@ -1930,6 +2071,8 @@ $aiSetupNotes = [
         if (tile.isBlank) {
           tile.assignedLetter = '';
         }
+        tile.justReturned = true;
+        tile.renderedOnce = false;
         tile.position = { type: 'rack' };
         rack.push(tile);
         renderRack();
@@ -2342,6 +2485,7 @@ $aiSetupNotes = [
           const letter = pickTileFromBag();
           if (!letter) break;
           const tile = createTile(letter);
+          tile.fromBag = true;
           tile.position = { type: 'rack' };
           rack.push(tile);
           drewTiles = true;
@@ -2667,6 +2811,10 @@ $aiSetupNotes = [
             [rack[i], rack[j]] = [rack[j], rack[i]];
           }
           renderRack();
+          rackEl.classList.remove('shuffling');
+          void rackEl.offsetWidth;
+          rackEl.classList.add('shuffling');
+          setTimeout(() => rackEl.classList.remove('shuffling'), 650);
           setMessage('Rack shuffled.', 'success');
         };
 
