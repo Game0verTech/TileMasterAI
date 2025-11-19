@@ -79,6 +79,29 @@ $demoWord = 'ORATION';
 $moveGenerator = new MoveGenerator($boardModel, $dictionary);
 $moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
 
+$normalizeMove = static function (array $move): array {
+  return [
+    'word' => $move['word'] ?? '',
+    'direction' => $move['direction'] ?? '',
+    'start' => $move['start'] ?? '',
+    'score' => $move['score'] ?? 0,
+    'mainWordScore' => $move['mainWordScore'] ?? 0,
+    'crossWords' => array_map(static function ($cross) {
+      return [
+        'word' => $cross['word'] ?? '',
+        'score' => $cross['score'] ?? 0,
+      ];
+    }, $move['crossWords'] ?? []),
+    'placements' => array_map(static function ($placement) {
+      return [
+        'coord' => $placement['coord'] ?? '',
+        'letter' => ($placement['tile']->letter() ?? ''),
+        'isBlank' => $placement['tile']->isBlank() ?? false,
+      ];
+    }, $move['placements'] ?? []),
+  ];
+};
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'suggestions') {
   $input = json_decode(file_get_contents('php://input'), true) ?? [];
   $rackLetters = array_map(static fn ($letter) => strtoupper((string) $letter), $input['rack'] ?? []);
@@ -104,9 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'sugges
   $rackForMoveGen = Rack::fromLetters($rackLetters);
   $generator = new MoveGenerator($boardForMoveGen, $dictionary);
   $suggestions = $generator->generateMoves($rackForMoveGen, 10);
+  $normalizedSuggestions = array_map($normalizeMove, $suggestions);
 
   header('Content-Type: application/json');
-  echo json_encode(['suggestions' => $suggestions]);
+  echo json_encode(['suggestions' => $normalizedSuggestions]);
   exit;
 }
 
@@ -1415,21 +1439,7 @@ $aiSetupNotes = [
     const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
     const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
     const dictionaryUrl = <?php echo json_encode(str_replace(__DIR__ . '/', '', $dictionaryPath)); ?>;
-    const serverSuggestions = <?php echo json_encode(array_map(static function ($move) {
-      return [
-        'word' => $move['word'] ?? '',
-        'direction' => $move['direction'] ?? '',
-        'start' => $move['start'] ?? '',
-        'score' => $move['score'] ?? 0,
-        'mainWordScore' => $move['mainWordScore'] ?? 0,
-        'crossWords' => array_map(static function ($cross) {
-          return [
-            'word' => $cross['word'] ?? '',
-            'score' => $cross['score'] ?? 0,
-          ];
-        }, $move['crossWords'] ?? []),
-      ];
-    }, $moveSuggestions)); ?>;
+    const serverSuggestions = <?php echo json_encode(array_map($normalizeMove, $moveSuggestions)); ?>;
 
     document.addEventListener('DOMContentLoaded', () => {
       const BOARD_SIZE = 15;
@@ -2058,6 +2068,15 @@ $aiSetupNotes = [
         const word = (move.word || '').toUpperCase();
         const availableIds = rack.map((tile) => tile.id);
         const placements = [];
+        const placementLetters = new Map();
+
+        if (Array.isArray(move.placements)) {
+          move.placements.forEach((placement) => {
+            const coord = parseCoordinate(placement.coord || '');
+            if (!coord) return;
+            placementLetters.set(`${coord.row}-${coord.col}`, (placement.letter || '').toUpperCase());
+          });
+        }
 
         for (let i = 0; i < word.length; i += 1) {
           const row = start.row + delta.dr * i;
@@ -2081,21 +2100,22 @@ $aiSetupNotes = [
             moveTileToRack(targetTile.id);
           }
 
+          const letterForPosition = placementLetters.get(`${row}-${col}`) || word[i];
           const foundId = availableIds.find((id) => {
             const candidate = findTile(id);
             if (!candidate) return false;
-            if (!candidate.isBlank && candidate.letter.toUpperCase() === word[i]) return true;
+            if (!candidate.isBlank && candidate.letter.toUpperCase() === letterForPosition) return true;
             if (candidate.isBlank) return true;
             return false;
           });
 
           if (!foundId) {
-            setMessage(`Missing the tile “${word[i]}” to build ${word}.`, 'error');
+            setMessage(`Missing the tile “${letterForPosition}” to build ${word}.`, 'error');
             return;
           }
 
           availableIds.splice(availableIds.indexOf(foundId), 1);
-          placements.push({ tileId: foundId, letter: word[i], row, col });
+          placements.push({ tileId: foundId, letter: letterForPosition, row, col });
         }
 
         if (!placements.length) {
