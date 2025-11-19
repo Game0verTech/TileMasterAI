@@ -301,7 +301,10 @@ $aiSetupNotes = [
       font-size: 12px;
       text-transform: uppercase;
       overflow: hidden;
+      grid-template-rows: 1fr;
     }
+
+    .cell > * { grid-area: 1 / 1 / 2 / 2; }
 
     .cell::after {
       content: "";
@@ -317,6 +320,15 @@ $aiSetupNotes = [
     .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
     .cell.double-letter { background: #e0f2fe; color: #075985; }
     .cell.center-star { background: #ffe4e6; color: #9f1239; }
+
+    .cell.show-premium {
+      grid-template-rows: auto 1fr;
+      align-items: start;
+    }
+
+    .cell.show-premium > .cell-label { align-self: start; }
+    .cell.show-premium > .tile { grid-area: 2 / 1 / 3 / 2; }
+    .cell.premium-used > .cell-label { display: none; }
 
     .cell-label {
       font-size: 11px;
@@ -1063,11 +1075,20 @@ Response
           const row = Number(cell.dataset.row);
           const col = Number(cell.dataset.col);
           const tile = board[row][col];
+          const premium = premiumLayout[row][col];
+          const labelEl = cell.querySelector('.cell-label');
           cell.classList.remove('invalid', 'drag-target');
+          cell.classList.toggle('show-premium', Boolean(tile && tile.justPlaced && premium));
+          cell.classList.toggle('premium-used', Boolean(tile && tile.locked && premium));
           cell.removeAttribute('data-tooltip');
           const existingTile = cell.querySelector('.tile');
           if (existingTile) {
             existingTile.remove();
+          }
+
+          if (labelEl) {
+            const hideLabel = Boolean(tile && tile.locked && premium);
+            labelEl.style.display = hideLabel ? 'none' : '';
           }
 
           if (!tile) return;
