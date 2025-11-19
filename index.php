@@ -1793,31 +1793,95 @@ $aiSetupNotes = [
         return audioCtx;
       };
 
-      const playTone = (frequency, duration = 0.2, type = 'sine', gainValue = 0.06) => {
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const scheduleTone = (ctx, {
+        frequency,
+        type = 'sine',
+        gainValue = 0.06,
+        start = 0,
+        duration = 0.18,
+        attack = 0.01,
+        decayEnd = 0.0001,
+      }) => {
+        if (!frequency || !ctx) return;
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(gainValue, ctx.currentTime + start + attack);
+        gain.gain.exponentialRampToValueAtTime(decayEnd, ctx.currentTime + start + duration);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(ctx.currentTime + start);
+        oscillator.stop(ctx.currentTime + start + duration + 0.05);
+      };
+
+      const createSynthFx = ({ steps = [], jitter = 0.05 }) => ({ rate = 1 } = {}) => {
         const ctx = initAudio();
         if (!ctx) return;
         if (ctx.state === 'suspended') {
           ctx.resume();
         }
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscillator.type = type;
-        oscillator.frequency.value = frequency;
-        gain.gain.value = gainValue;
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start();
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-        oscillator.stop(ctx.currentTime + duration + 0.05);
-      };
-
-      const playChord = (frequencies = []) => {
-        frequencies.forEach((freq, index) => {
-          setTimeout(() => playTone(freq, 0.22, 'triangle', 0.045), index * 50);
+        const pitchJitter = 1 + (Math.random() * jitter * 2 - jitter);
+        const baseRate = clamp(rate, 0.6, 1.6) * pitchJitter;
+        steps.forEach(step => {
+          scheduleTone(ctx, {
+            ...step,
+            frequency: step.frequency * baseRate,
+          });
         });
       };
 
-      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const fx = {
+        place: createSynthFx({
+          steps: [
+            { frequency: 620, duration: 0.12, type: 'triangle', gainValue: 0.07 },
+            { frequency: 760, start: 0.08, duration: 0.09, type: 'sine', gainValue: 0.05 },
+          ],
+          jitter: 0.04,
+        }),
+        accept: createSynthFx({
+          steps: [
+            { frequency: 480, duration: 0.22, type: 'sine', gainValue: 0.06 },
+            { frequency: 640, start: 0.05, duration: 0.22, type: 'triangle', gainValue: 0.05 },
+            { frequency: 800, start: 0.1, duration: 0.2, type: 'square', gainValue: 0.04 },
+            { frequency: 960, start: 0.24, duration: 0.12, type: 'triangle', gainValue: 0.045 },
+          ],
+          jitter: 0.03,
+        }),
+        reset: createSynthFx({
+          steps: [
+            { frequency: 360, duration: 0.22, type: 'sawtooth', gainValue: 0.06 },
+            { frequency: 240, start: 0.12, duration: 0.2, type: 'triangle', gainValue: 0.05 },
+          ],
+          jitter: 0.02,
+        }),
+        invalid: createSynthFx({
+          steps: [
+            { frequency: 180, duration: 0.16, type: 'square', gainValue: 0.07 },
+            { frequency: 320, start: 0.02, duration: 0.12, type: 'triangle', gainValue: 0.045 },
+            { frequency: 160, start: 0.1, duration: 0.18, type: 'sawtooth', gainValue: 0.05 },
+          ],
+          jitter: 0.06,
+        }),
+        shuffle: createSynthFx({
+          steps: [
+            { frequency: 380, duration: 0.14, type: 'triangle', gainValue: 0.05 },
+            { frequency: 520, start: 0.08, duration: 0.14, type: 'sine', gainValue: 0.05 },
+            { frequency: 660, start: 0.16, duration: 0.14, type: 'triangle', gainValue: 0.045 },
+            { frequency: 820, start: 0.24, duration: 0.12, type: 'square', gainValue: 0.04 },
+          ],
+          jitter: 0.05,
+        }),
+      };
+
+      const playFx = (name, { rate = 1 } = {}) => {
+        const effect = fx[name];
+        if (!effect) return;
+        effect({ rate });
+      };
 
       const centerBoard = () => {
         if (!boardViewport || !boardScaleEl) return;
@@ -2040,6 +2104,9 @@ $aiSetupNotes = [
         messageEl.classList.remove('error', 'success');
         if (tone) {
           messageEl.classList.add(tone);
+          if (tone === 'error') {
+            playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
+          }
         }
       };
 
@@ -2215,7 +2282,7 @@ $aiSetupNotes = [
         tile.position = { type: 'board', row, col };
         renderBoard();
         renderRack();
-        playTone(360, 0.14, 'triangle', 0.05);
+        playFx('place', { rate: 0.94 + Math.random() * 0.12 });
       };
 
       const moveTileToRack = (tileId) => {
@@ -2706,7 +2773,7 @@ $aiSetupNotes = [
         if (rack.length === RACK_SIZE) {
           setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
           if (drewTiles) {
-            playChord([480, 640]);
+            playFx('accept', { rate: 1.08 });
           }
         } else {
           setMessage('Bag is empty—continue with the tiles you have.', 'success');
@@ -2904,7 +2971,7 @@ $aiSetupNotes = [
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
-        playChord([392, 523, 659]);
+        playFx('accept', { rate: 1.02 });
       };
 
       const resetBoard = () => {
@@ -2922,7 +2989,7 @@ $aiSetupNotes = [
         setMessage('Board reset. Start a turn to draw tiles.', 'success');
         updateTurnButton();
         updateAiButton();
-        playTone(196, 0.28, 'sawtooth', 0.07);
+        playFx('reset', { rate: 0.96 });
       };
 
       const setupDragAndDrop = () => {
@@ -3021,6 +3088,7 @@ $aiSetupNotes = [
           }
           renderRack();
           setMessage('Rack shuffled.', 'success');
+          playFx('shuffle', { rate: 0.94 + Math.random() * 0.1 });
         };
 
         const handleAiClose = () => {
