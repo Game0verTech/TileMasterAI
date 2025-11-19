@@ -1021,7 +1021,7 @@ $aiSetupNotes = [
       background: #fff;
       max-width: 720px;
       width: min(720px, 100%);
-      max-height: min(720px, calc(100vh - 48px));
+      max-height: min(880px, calc(100vh - 32px));
       border-radius: 16px;
       box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
       border: 1px solid #e2e8f0;
@@ -1096,7 +1096,7 @@ $aiSetupNotes = [
       white-space: pre-wrap;
       word-break: break-word;
       border: 1px solid #0f172a;
-      max-height: 360px;
+      max-height: min(620px, calc(80vh - 160px));
       overflow: auto;
     }
 
@@ -1965,6 +1965,7 @@ $aiSetupNotes = [
       const sessionErrorTitle = document.getElementById('sessionErrorTitle');
       const sessionErrorClose = document.getElementById('closeSessionError');
       const sessionErrorAck = document.getElementById('ackSessionError');
+      const sessionErrorCopy = document.getElementById('copySessionError');
       const createSessionForm = document.getElementById('createSessionForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
@@ -1988,6 +1989,7 @@ $aiSetupNotes = [
       let lobbyConnected = false;
       let activeSession = null;
       let currentPlayer = null;
+      let sessionErrorDetail = '';
 
       const setSessionFlash = (message, tone = 'info') => {
         if (!sessionFlashEl) return;
@@ -2023,6 +2025,8 @@ $aiSetupNotes = [
       };
 
       const clearSessionErrors = () => {
+        sessionErrorDetail = '';
+        setSessionFlash('');
         setSessionDebug('');
 
         if (sessionErrorBody) {
@@ -2045,6 +2049,7 @@ $aiSetupNotes = [
         const fallbackDetail = detail || fallbackSummary;
 
         setSessionFlash(fallbackSummary, 'error');
+        sessionErrorDetail = fallbackDetail;
         setSessionDebug(fallbackDetail);
 
         if (sessionErrorTitle) {
@@ -2070,7 +2075,7 @@ $aiSetupNotes = [
           `Content-Type: ${contentType || 'none'}`,
           reason ? `Reason: ${reason}` : null,
           'Body preview:',
-          bodyText ? bodyText.slice(0, 1200) : '(empty response body)',
+          bodyText ? bodyText : '(empty response body)',
         ]
           .filter(Boolean)
           .join('\n');
@@ -2114,6 +2119,26 @@ $aiSetupNotes = [
 
       if (sessionErrorAck) {
         sessionErrorAck.addEventListener('click', () => closeSessionErrorModal());
+      }
+
+      if (sessionErrorCopy) {
+        sessionErrorCopy.addEventListener('click', async () => {
+          const text = (sessionErrorBody?.textContent || sessionErrorDetail || '').trim();
+          if (!text) return;
+
+          const original = sessionErrorCopy.textContent;
+          try {
+            await navigator.clipboard.writeText(text);
+            sessionErrorCopy.textContent = 'Copied!';
+          } catch (copyError) {
+            console.error(copyError);
+            sessionErrorCopy.textContent = 'Copy failed';
+          } finally {
+            setTimeout(() => {
+              sessionErrorCopy.textContent = original;
+            }, 1600);
+          }
+        });
       }
 
       if (sessionErrorModal) {
@@ -2349,7 +2374,41 @@ $aiSetupNotes = [
 
         try {
           const response = await fetch('/api/sessions');
-          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: GET /api/sessions' });
+          const contentType = response.headers.get('content-type') || '';
+          const bodyText = await response.text();
+          const isJson = contentType.toLowerCase().includes('application/json');
+          const describePayload = {
+            requestLabel: 'Request: GET /api/sessions',
+            response,
+            contentType,
+            bodyText,
+          };
+
+          if (!isJson) {
+            const detail = describeHttpResponse({ ...describePayload, reason: 'Non-JSON response' });
+            if (response.ok) {
+              renderSessions([]);
+              closeSessionErrorModal();
+              setSessionFlash('No sessions yet — start a session below to begin.', 'info');
+              setSessionDebug(detail);
+              return;
+            }
+
+            const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
+            error.detail = detail;
+            throw error;
+          }
+
+          let payload;
+          try {
+            payload = JSON.parse(bodyText);
+          } catch (parseError) {
+            const error = new Error(
+              `Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`,
+            );
+            error.detail = describeHttpResponse({ ...describePayload, reason: 'Invalid JSON received' });
+            throw error;
+          }
 
           if (!response.ok || !payload) {
             const message =
@@ -2357,12 +2416,22 @@ $aiSetupNotes = [
                 ? payload.message
                 : `Unable to load sessions (HTTP ${response.status || 'network error'})`;
             const error = new Error(message);
-            error.detail = payload?.detail || detail;
+            error.detail = payload?.detail || describeHttpResponse(describePayload);
             throw error;
           }
 
-          renderSessions(Array.isArray(payload.sessions) ? payload.sessions : []);
+          const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+          if (payload.success === false) {
+            const error = new Error(payload?.message || 'Unable to load sessions.');
+            error.detail = payload?.detail || describeHttpResponse(describePayload);
+            throw error;
+          }
+
+          renderSessions(sessions);
           clearSessionErrors();
+          if (!sessions.length) {
+            setSessionFlash('No sessions yet — start a session below to begin.', 'info');
+          }
         } catch (error) {
           sessionEmptyEl.hidden = false;
           sessionListEl.hidden = true;
@@ -4090,6 +4159,7 @@ $aiSetupNotes = [
       </div>
       <div class="session-error-body" id="sessionErrorBody" tabindex="0">No additional details available.</div>
       <div class="modal-actions">
+        <button class="btn small ghost" type="button" id="copySessionError">Copy details</button>
         <button class="btn small" type="button" id="ackSessionError">Got it</button>
       </div>
     </div>
