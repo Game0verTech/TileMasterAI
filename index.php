@@ -205,10 +205,10 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: calc(var(--top-dock-height) + 12px) 18px calc(var(--bottom-dock-height) + 12px);
+      padding: var(--top-dock-height) 18px var(--bottom-dock-height);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 0;
     }
 
     header {
@@ -876,17 +876,22 @@ $aiSetupNotes = [
       width: min(1200px, 100%);
       margin: 0 auto;
       display: grid;
-      place-items: center;
+      align-items: start;
+      justify-items: center;
       overflow: hidden;
       touch-action: none;
+      cursor: grab;
     }
+
+    .board-viewport.dragging { cursor: grabbing; }
 
     .board-scale {
       transform-origin: center;
       transition: transform 180ms ease;
       will-change: transform;
       display: grid;
-      place-items: center;
+      align-items: start;
+      justify-items: center;
     }
 
     .board-chrome {
@@ -1112,18 +1117,17 @@ $aiSetupNotes = [
     }
 
     .dock-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
     }
 
     .dock-cta {
       display: flex;
       justify-content: center;
       align-items: center;
-      flex: 1;
+      grid-column: 1 / span 2;
       min-width: 240px;
     }
 
@@ -1139,8 +1143,9 @@ $aiSetupNotes = [
       letter-spacing: 0.2px;
       padding-inline: 12px 14px;
       border-radius: 12px;
-      margin-left: auto;
+      margin-left: 0;
       flex-shrink: 0;
+      justify-self: end;
     }
 
     .ai-cta:hover {
@@ -1245,7 +1250,7 @@ $aiSetupNotes = [
     }
 
     @media (min-width: 900px) {
-      body { padding: calc(var(--top-dock-height) + 22px) 32px calc(var(--bottom-dock-height) + 18px); }
+      body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -1469,6 +1474,10 @@ $aiSetupNotes = [
       let baseScale = 1;
       let userZoom = 1;
       let pinchDistance = null;
+      let panX = 0;
+      let panY = 0;
+      let isPanning = false;
+      let panOrigin = { x: 0, y: 0 };
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1504,39 +1513,41 @@ $aiSetupNotes = [
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-      const applyBoardScale = () => {
+      const applyBoardTransform = () => {
         if (!boardScaleEl) return;
         const MIN_ZOOM = 0.6;
         const MAX_ZOOM = 1.4;
         const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
-        boardScaleEl.style.transform = `scale(${finalScale})`;
+        boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
 
       const resizeBoardToViewport = () => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 24);
-        const availableWidth = document.documentElement.clientWidth - 24;
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
         boardViewport.style.height = `${availableHeight}px`;
 
+        const viewportWidth = boardViewport.getBoundingClientRect().width || document.documentElement.clientWidth;
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
         const boardRect = boardChromeEl.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
 
         const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
-        const widthScale = boardRect.width ? Math.min(1, availableWidth / boardRect.width) : 1;
+        const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
         baseScale = Math.min(heightScale, widthScale, 1);
-        applyBoardScale();
+        panX = 0;
+        panY = 0;
+        applyBoardTransform();
       };
 
       const adjustZoom = (factor) => {
         const minFactor = 0.6 / (baseScale || 1);
         const maxFactor = 1.4 / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
-        applyBoardScale();
+        applyBoardTransform();
       };
 
       const handleWheelZoom = (event) => {
@@ -1576,6 +1587,29 @@ $aiSetupNotes = [
         if (pinchDistance !== null) {
           pinchDistance = null;
         }
+      };
+
+      const startBoardPan = (event) => {
+        if (!boardViewport || event.button !== 0) return;
+        const target = event.target;
+        if (target.closest('.tile') || target.closest('.rack-tile')) return;
+        event.preventDefault();
+        isPanning = true;
+        panOrigin = { x: event.clientX - panX, y: event.clientY - panY };
+        boardViewport.classList.add('dragging');
+      };
+
+      const continueBoardPan = (event) => {
+        if (!isPanning) return;
+        panX = event.clientX - panOrigin.x;
+        panY = event.clientY - panOrigin.y;
+        applyBoardTransform();
+      };
+
+      const endBoardPan = () => {
+        if (!isPanning) return;
+        isPanning = false;
+        boardViewport.classList.remove('dragging');
       };
 
       const buildBag = () => {
@@ -2539,6 +2573,10 @@ $aiSetupNotes = [
 
       if (boardViewport) {
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
+        boardViewport.addEventListener('mousedown', startBoardPan);
+        boardViewport.addEventListener('mouseleave', endBoardPan);
+        window.addEventListener('mousemove', continueBoardPan);
+        window.addEventListener('mouseup', endBoardPan);
         boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
         boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
         boardViewport.addEventListener('touchend', handleTouchEnd);
