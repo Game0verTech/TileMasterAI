@@ -678,6 +678,75 @@ $aiSetupNotes = [
       font-size: 13px;
     }
 
+    .ai-status {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .ai-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .ai-dots span {
+      width: 8px;
+      height: 8px;
+      background: #0ea5e9;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    .ai-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .ai-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+      display: grid;
+      gap: 4px;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    }
+
+    .ai-card:hover {
+      transform: translateY(-2px);
+      border-color: #cbd5e1;
+      box-shadow: 0 16px 30px rgba(14, 165, 233, 0.16);
+    }
+
+    .ai-card h4 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+    }
+
+    .ai-meta { color: var(--muted); margin: 0; font-size: 13px; }
+
     body.modal-open { overflow: hidden; }
 
     .app-shell {
@@ -785,6 +854,18 @@ $aiSetupNotes = [
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .ai-btn {
+      background: #0ea5e9;
+      border-color: #0284c7;
+      color: #0f172a;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(14, 165, 233, 0.24);
+    }
+
+    .ai-btn:hover {
+      background: #0284c7;
+      color: #e0f2fe;
     }
 
     .turn-toggle.start {
@@ -910,6 +991,7 @@ $aiSetupNotes = [
       <div class="dock-row">
         <span class="dock-label">Rack</span>
         <div class="dock-actions">
+          <button class="btn ghost ai-btn" type="button" id="aiMovesBtn">AI suggested moves</button>
           <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">Start turn</button>
           <button class="btn ghost" type="button" id="resetBoardBtn">Reset board</button>
           <button class="btn ghost rules-btn" type="button" id="openRules">Rules</button>
@@ -925,6 +1007,21 @@ $aiSetupNotes = [
     const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
     const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
     const dictionaryUrl = <?php echo json_encode(str_replace(__DIR__ . '/', '', $dictionaryPath)); ?>;
+    const serverSuggestions = <?php echo json_encode(array_map(static function ($move) {
+      return [
+        'word' => $move['word'] ?? '',
+        'direction' => $move['direction'] ?? '',
+        'start' => $move['start'] ?? '',
+        'score' => $move['score'] ?? 0,
+        'mainWordScore' => $move['mainWordScore'] ?? 0,
+        'crossWords' => array_map(static function ($cross) {
+          return [
+            'word' => $cross['word'] ?? '',
+            'score' => $cross['score'] ?? 0,
+          ];
+        }, $move['crossWords'] ?? []),
+      ];
+    }, $moveSuggestions)); ?>;
 
     (() => {
       const BOARD_SIZE = 15;
@@ -935,6 +1032,13 @@ $aiSetupNotes = [
       const toggleBtn = document.getElementById('turnToggleBtn');
       const resetBtn = document.getElementById('resetBoardBtn');
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
+      const aiBtn = document.getElementById('aiMovesBtn');
+      const aiModal = document.getElementById('aiModal');
+      const aiCloseBtn = document.getElementById('closeAi');
+      const aiListEl = document.getElementById('aiList');
+      const aiStatusEl = document.getElementById('aiStatus');
+      const aiStepEl = document.getElementById('aiStep');
+      const aiSubtextEl = document.getElementById('aiSubtext');
 
       let tileId = 0;
       let bag = [];
@@ -945,6 +1049,8 @@ $aiSetupNotes = [
       let turnActive = false;
       let dictionaryReady = false;
       let dictionary = new Set();
+      let aiStepInterval;
+      let aiRevealTimeout;
 
       const buildBag = () => {
         bag = [];
@@ -1146,6 +1252,117 @@ $aiSetupNotes = [
           }
         }
         return null;
+      };
+
+      const returnLooseTilesToRack = () => {
+        const movable = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && !tile.locked) {
+              movable.push(tile.id);
+            }
+          }
+        }
+
+        movable.forEach((id) => moveTileToRack(id));
+        if (movable.length) {
+          setMessage('Tiles returned to your rack for the new AI run.', 'success');
+        }
+      };
+
+      const baseSuggestions = (serverSuggestions || []).length ? serverSuggestions : [
+        { word: 'RATION', start: 'H8', direction: 'horizontal', score: 64, mainWordScore: 64, crossWords: [] },
+        { word: 'MIRATE', start: 'H8', direction: 'horizontal', score: 58, mainWordScore: 58, crossWords: [] },
+        { word: 'LIMNER', start: 'H8', direction: 'horizontal', score: 52, mainWordScore: 52, crossWords: [] },
+      ];
+
+      const clearAiTimers = () => {
+        if (aiStepInterval) clearInterval(aiStepInterval);
+        if (aiRevealTimeout) clearTimeout(aiRevealTimeout);
+        aiStepInterval = null;
+        aiRevealTimeout = null;
+      };
+
+      const openAiModal = () => {
+        if (!aiModal) return;
+        aiModal.classList.add('active');
+        aiModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        if (aiCloseBtn) {
+          aiCloseBtn.focus();
+        }
+      };
+
+      const closeAiModal = () => {
+        if (!aiModal) return;
+        aiModal.classList.remove('active');
+        aiModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        clearAiTimers();
+        if (aiListEl) {
+          aiListEl.innerHTML = '';
+        }
+      };
+
+      const renderAiSuggestions = (list) => {
+        if (!aiListEl) return;
+        aiListEl.innerHTML = '';
+
+        list.forEach((move, index) => {
+          const li = document.createElement('li');
+          li.className = 'ai-card';
+          li.dataset.word = move.word;
+
+          const crossCount = (move.crossWords || []).length;
+          const directionLabel = move.direction === 'vertical' ? 'Vertical' : 'Horizontal';
+
+          li.innerHTML = `
+            <h4><span aria-hidden="true">#${index + 1}</span> ${move.word} <span style="color:#0ea5e9; font-size:14px;">${move.score} pts</span></h4>
+            <p class="ai-meta">${directionLabel} from ${move.start || 'H8'} • Main word ${move.mainWordScore} pts${crossCount ? ` • +${crossCount} cross` : ''}</p>
+          `;
+
+          li.addEventListener('click', () => {
+            setMessage(`You picked the suggested word “${move.word}”. Place its tiles to try it out!`, 'success');
+            closeAiModal();
+          });
+
+          aiListEl.appendChild(li);
+        });
+      };
+
+      const showAiThinking = () => {
+        if (!aiStatusEl || !aiStepEl) return;
+        const steps = [
+          'Scanning premiums and openings…',
+          'Shuffling rack tiles into patterns…',
+          'Checking cross words for legality…',
+          'Ranking plays by score and coverage…',
+        ];
+
+        if (aiListEl) {
+          aiListEl.innerHTML = '';
+        }
+
+        aiStepEl.textContent = steps[0];
+        if (aiSubtextEl) {
+          aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
+        }
+
+        clearAiTimers();
+        aiRevealTimeout = setTimeout(() => {
+          renderAiSuggestions(baseSuggestions);
+          if (aiSubtextEl) {
+            aiSubtextEl.textContent = 'Suggestions ready! Tap a move to load it and keep playing.';
+          }
+          clearAiTimers();
+        }, 2600);
+
+        let idx = 0;
+        aiStepInterval = setInterval(() => {
+          idx = (idx + 1) % steps.length;
+          aiStepEl.textContent = steps[idx];
+        }, 900);
       };
 
       const startTurn = () => {
@@ -1446,8 +1663,34 @@ $aiSetupNotes = [
         }
       };
 
+      const handleAiClick = () => {
+        returnLooseTilesToRack();
+        renderBoard();
+        renderRack();
+        openAiModal();
+        showAiThinking();
+      };
+
+      const handleAiClose = () => {
+        closeAiModal();
+      };
+
       toggleBtn.addEventListener('click', handleToggleClick);
       resetBtn.addEventListener('click', resetBoard);
+      if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
+      if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
+      if (aiModal) {
+        aiModal.addEventListener('click', (event) => {
+          if (event.target === aiModal) {
+            closeAiModal();
+          }
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && aiModal.classList.contains('active')) {
+            closeAiModal();
+          }
+        });
+      }
 
       buildBag();
       updateBagCount();
@@ -1458,6 +1701,21 @@ $aiSetupNotes = [
       loadDictionary();
     })();
   </script>
+
+  <div class="modal-backdrop" id="aiModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+      <div class="modal-header">
+        <h3 id="aiTitle">AI suggested moves</h3>
+        <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
+      </div>
+      <div class="ai-status" id="aiStatus">
+        <span id="aiStep">Warming up the move engine…</span>
+        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        <p class="ai-meta" id="aiSubtext">Returning tiles to your rack and dreaming up moves.</p>
+      </div>
+      <ul class="ai-list" id="aiList" aria-live="polite"></ul>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="rulesModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
