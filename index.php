@@ -782,27 +782,43 @@ $aiSetupNotes = [
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.36);
-      backdrop-filter: blur(2px);
-      display: none;
+      background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.16), rgba(15, 23, 42, 0.28)), rgba(15, 23, 42, 0.36);
+      backdrop-filter: blur(3px);
+      display: flex;
       align-items: center;
       justify-content: center;
       padding: 18px;
       z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 240ms ease;
     }
 
-    .modal-backdrop.active { display: flex; }
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
     .modal {
       background: #fff;
       max-width: 720px;
       width: min(720px, 100%);
+      max-height: min(720px, calc(100vh - 48px));
       border-radius: 16px;
       box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
       border: 1px solid #e2e8f0;
       padding: 18px 18px 20px;
       display: grid;
       gap: 10px;
+      overflow: hidden;
+      transform: translateY(10px) scale(0.98);
+      opacity: 0;
+      transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;
+    }
+
+    .modal-backdrop.active .modal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
     }
 
     .modal-header {
@@ -893,8 +909,20 @@ $aiSetupNotes = [
       display: grid;
       gap: 8px;
       margin: 0;
-      padding: 0;
+      padding: 0 4px 0 0;
       list-style: none;
+      max-height: 420px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .ai-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .ai-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 999px;
     }
 
     .ai-card {
@@ -2529,7 +2557,7 @@ $aiSetupNotes = [
         if (!aiListEl) return;
         aiListEl.innerHTML = '';
 
-        list.forEach((move, index) => {
+        list.slice(0, 5).forEach((move, index) => {
           const li = document.createElement('li');
           li.className = 'ai-card';
           li.dataset.word = move.word;
@@ -2572,10 +2600,11 @@ $aiSetupNotes = [
         aiRevealTimeout = setTimeout(async () => {
           await fetchAiSuggestions();
           const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
-          renderAiSuggestions(playable);
+          const topFive = playable.slice(0, 5);
+          renderAiSuggestions(topFive);
           if (aiSubtextEl) {
-            aiSubtextEl.textContent = playable.length
-              ? 'Suggestions ready! Tap a move to load it and keep playing.'
+            aiSubtextEl.textContent = topFive.length
+              ? 'Suggestions ready! Showing the top five playable moves—scroll and tap to load one.'
               : 'No playable suggestions with your current rack—draw or adjust tiles and try again.';
           }
           clearAiTimers();
@@ -3047,7 +3076,7 @@ $aiSetupNotes = [
       <div class="ai-status" id="aiStatus">
         <span id="aiStep">Warming up the move engine…</span>
         <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-        <p class="ai-meta" id="aiSubtext">Returning tiles to your rack and dreaming up moves.</p>
+        <p class="ai-meta" id="aiSubtext">We’ll surface the top five playable words—scroll to review them once ready.</p>
       </div>
       <ul class="ai-list" id="aiList" aria-live="polite"></ul>
     </div>
