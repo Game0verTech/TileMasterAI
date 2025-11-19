@@ -346,7 +346,7 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      max-width: min(100%, 880px);
+      max-width: min(100%, 960px);
       margin: 0 auto;
     }
 
@@ -872,82 +872,26 @@ $aiSetupNotes = [
       color: #0f172a;
     }
 
-    .ai-loader {
+    .ai-dots {
       display: inline-flex;
+      gap: 4px;
       align-items: center;
-      gap: 12px;
-      padding: 8px 12px;
-      background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.12));
-      border: 1px solid #bae6fd;
-      border-radius: 999px;
-      box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
-      color: #0f172a;
-      font-weight: 800;
     }
 
-    .ai-loader .pulse {
-      position: relative;
-      width: 40px;
-      height: 40px;
-      display: grid;
-      place-items: center;
-    }
-
-    .ai-loader .pulse::before,
-    .ai-loader .pulse::after {
-      content: '';
-      position: absolute;
-      inset: 0;
+    .ai-dots span {
+      width: 8px;
+      height: 8px;
+      background: #0ea5e9;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(14, 165, 233, 0.32) 0%, rgba(14, 165, 233, 0) 65%);
-      animation: aiPulse 1.4s infinite ease-out;
+      animation: pulse 1.2s infinite ease-in-out;
     }
 
-    .ai-loader .pulse::after {
-      animation-delay: 0.28s;
-    }
+    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    .ai-loader .pulse span {
-      width: 14px;
-      height: 14px;
-      background: linear-gradient(145deg, #0ea5e9, #6366f1);
-      border-radius: 50%;
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45);
-      animation: aiBeat 1s infinite ease-in-out;
-    }
-
-    .ai-loader .spark {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .ai-loader .spark span {
-      width: 9px;
-      height: 18px;
-      border-radius: 6px;
-      background: linear-gradient(180deg, #22d3ee, #6366f1);
-      animation: aiEqualizer 1.05s infinite ease-in-out;
-      box-shadow: 0 6px 14px rgba(14, 165, 233, 0.18);
-    }
-
-    .ai-loader .spark span:nth-child(2) { animation-delay: 0.12s; }
-    .ai-loader .spark span:nth-child(3) { animation-delay: 0.24s; }
-
-    @keyframes aiPulse {
-      0% { transform: scale(0.6); opacity: 0.55; }
-      50% { transform: scale(1); opacity: 0.12; }
-      100% { transform: scale(1.25); opacity: 0; }
-    }
-
-    @keyframes aiBeat {
-      0%, 100% { transform: scale(0.9); box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45); }
-      50% { transform: scale(1.1); box-shadow: 0 10px 20px rgba(14, 165, 233, 0.45); }
-    }
-
-    @keyframes aiEqualizer {
-      0%, 100% { transform: scaleY(0.7); opacity: 0.6; }
-      50% { transform: scaleY(1.25); opacity: 1; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
     }
 
     @keyframes shimmer {
@@ -1032,7 +976,6 @@ $aiSetupNotes = [
       justify-content: center;
       overflow: hidden;
       touch-action: none;
-      overscroll-behavior: contain;
       cursor: grab;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
@@ -1853,29 +1796,6 @@ $aiSetupNotes = [
         effect({ rate });
       };
 
-      const measureBoard = () => {
-        if (!boardViewport || !boardScaleEl || !boardChromeEl) return null;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-        const viewportRect = boardViewport.getBoundingClientRect();
-        return { boardRect, viewportRect };
-      };
-
-      const clampPanWithinBounds = (finalScale = getFinalScale()) => {
-        const measurements = measureBoard();
-        if (!measurements) return;
-        const { boardRect, viewportRect } = measurements;
-        const scaledWidth = boardRect.width * finalScale;
-        const scaledHeight = boardRect.height * finalScale;
-        const maxOffsetX = Math.max(0, (scaledWidth - viewportRect.width) / (2 * finalScale));
-        const maxOffsetY = Math.max(0, (scaledHeight - viewportRect.height) / (2 * finalScale));
-
-        panX = clamp(panX, -maxOffsetX, maxOffsetX);
-        panY = clamp(panY, -maxOffsetY, maxOffsetY);
-      };
-
       const centerBoard = () => {
         if (!boardViewport || !boardScaleEl) return;
         const centerCell = document.querySelector('.cell[data-center="true"]');
@@ -1910,15 +1830,14 @@ $aiSetupNotes = [
       };
 
       const getFinalScale = () => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2);
+        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
         return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
       };
 
       const applyBoardTransform = () => {
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
-        clampPanWithinBounds(finalScale);
         boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
 
@@ -1929,8 +1848,6 @@ $aiSetupNotes = [
         const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
 
         boardViewport.style.height = `${availableHeight}px`;
-        boardViewport.style.maxHeight = `${availableHeight}px`;
-        boardViewport.style.minHeight = `${availableHeight}px`;
 
         const viewportRect = boardViewport.getBoundingClientRect();
         const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
@@ -1939,23 +1856,22 @@ $aiSetupNotes = [
         const boardRect = boardChromeEl.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
 
-        const heightScale = boardRect.height ? (availableHeight / boardRect.height) : 1;
-        const widthScale = boardRect.width ? (viewportWidth / boardRect.width) : 1;
-        baseScale = Math.min(heightScale, widthScale);
+        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
+        const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
+        baseScale = Math.min(heightScale, widthScale, 1);
         if (resetView) {
           panX = 0;
           panY = 0;
           userZoom = 1;
           centerBoard();
         } else {
-          clampPanWithinBounds();
           applyBoardTransform();
         }
       };
 
       const adjustZoom = (factor) => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2);
+        const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
+        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
@@ -3159,10 +3075,7 @@ $aiSetupNotes = [
       </div>
       <div class="ai-status" id="aiStatus">
         <span id="aiStep">Warming up the move engine…</span>
-        <span class="ai-loader" aria-hidden="true">
-          <span class="pulse" aria-hidden="true"><span></span></span>
-          <span class="spark" aria-hidden="true"><span></span><span></span><span></span></span>
-        </span>
+        <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
         <p class="ai-meta" id="aiSubtext">We’ll surface the top five playable words—scroll to review them once ready.</p>
       </div>
       <ul class="ai-list" id="aiList" aria-live="polite"></ul>
