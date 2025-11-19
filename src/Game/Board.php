@@ -57,6 +57,11 @@ class Board
         $this->tiles[$coord] = $tile;
     }
 
+    public function isEmpty(): bool
+    {
+        return $this->tiles === [];
+    }
+
     public function placeTileByCoordinate(string $coordinate, Tile $tile): void
     {
         [$row, $column] = self::parseCoordinate($coordinate);
@@ -66,6 +71,13 @@ class Board
     public function tileAt(string $coordinate): ?Tile
     {
         $coord = strtoupper($coordinate);
+        return $this->tiles[$coord] ?? null;
+    }
+
+    public function tileAtPosition(int $row, int $column): ?Tile
+    {
+        $this->assertInBounds($row, $column);
+        $coord = self::coordinateKey($row, $column);
         return $this->tiles[$coord] ?? null;
     }
 

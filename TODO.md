@@ -26,9 +26,9 @@ A living checklist to track progress while designing and building TileMasterAI.
 - [x] Implement scoring helpers (tile values, multipliers, blanks).
 
 ## Phase 4 – Move generation & validation
-- [ ] Anchor-based move generator with cross-check validation.
-- [ ] Scoring integration for main word and cross-words.
-- [ ] API contract for requesting top N moves.
+- [x] Anchor-based move generator with cross-check validation.
+- [x] Scoring integration for main word and cross-words.
+- [x] API contract for requesting top N moves.
 
 ## Phase 5 – Frontend implementation
 - [ ] Build interactive board and rack UI per design.

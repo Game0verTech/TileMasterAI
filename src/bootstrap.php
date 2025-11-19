@@ -7,3 +7,4 @@ require_once __DIR__ . '/Game/Tile.php';
 require_once __DIR__ . '/Game/Board.php';
 require_once __DIR__ . '/Game/Rack.php';
 require_once __DIR__ . '/Game/Dictionary.php';
+require_once __DIR__ . '/Game/MoveGenerator.php';

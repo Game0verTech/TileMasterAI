@@ -4,6 +4,8 @@ require __DIR__ . '/src/bootstrap.php';
 
 use TileMasterAI\Game\Board;
 use TileMasterAI\Game\Dictionary;
+use TileMasterAI\Game\MoveGenerator;
+use TileMasterAI\Game\Rack;
 use TileMasterAI\Game\Scoring;
 use TileMasterAI\Game\Tile;
 
@@ -66,6 +68,10 @@ $dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.
 $dictionary = new Dictionary($dictionaryPath);
 $demoWord = 'ORATION';
 
+$rackModel = Rack::fromLetters(array_map(static fn ($tile) => $tile['letter'], $rackTiles));
+$moveGenerator = new MoveGenerator($boardModel, $dictionary);
+$moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
+
 $demoPlacements = [];
 foreach (['H8', 'I8', 'J8', 'K8', 'L8', 'M8', 'N8'] as $coordinate) {
   $letter = $sampleTiles[$coordinate]['letter'] ?? '';
@@ -83,7 +89,7 @@ $dictionaryHasDemoWord = $dictionary->has($demoWord);
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TileMasterAI | Phase 2 Experience Design</title>
+  <title>TileMasterAI | Phase 4 Move Generation Preview</title>
   <style>
     :root {
       color-scheme: light;
@@ -185,6 +191,16 @@ $dictionaryHasDemoWord = $dictionary->has($demoWord);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
       padding: 18px 18px 16px;
+    }
+
+    pre.code {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 12px;
+      overflow: auto;
+      font-size: 13px;
+      border: 1px solid #0f172a;
     }
 
     .layout-shell {
@@ -499,14 +515,23 @@ $dictionaryHasDemoWord = $dictionary->has($demoWord);
     </article>
 
     <article class="card">
-      <h2 class="subhead">Top moves (mocked)</h2>
-      <p class="note">Placeholder output for the solver: score, notation, and rack consumption for the leading candidates.</p>
-      <ul class="list" aria-label="Mock move results">
-        <li class="list-item"><div><strong>1) ORATION</strong> · H8 ➜ Down</div><span class="badge">78 pts</span></li>
-        <li class="list-item"><div><strong>2) TONE</strong> · F7 ➜ Across</div><span class="badge">38 pts</span></li>
-        <li class="list-item"><div><strong>3) MATE</strong> · I5 ➜ Across</div><span class="badge">32 pts</span></li>
-        <li class="list-item"><div><strong>4) LATHE</strong> · D9 ➜ Down</div><span class="badge">29 pts</span></li>
-        <li class="list-item"><div><strong>5) RAIN</strong> · L4 ➜ Across</div><span class="badge">22 pts</span></li>
+      <h2 class="subhead">Phase 4: anchor-based move generation</h2>
+      <p class="note">Suggestions are generated from board anchors (adjacent empties) using the demo rack, dictionary validation, and scoring with cross-checks.</p>
+      <ul class="list" aria-label="Generated move results">
+        <?php if ($moveSuggestions === []): ?>
+          <li class="list-item"><div>No legal moves found with the current rack.</div><span class="badge">–</span></li>
+        <?php else: ?>
+          <?php foreach ($moveSuggestions as $index => $move): ?>
+            <?php $crossCount = count($move['crossWords']); ?>
+            <li class="list-item">
+              <div>
+                <strong><?php echo ($index + 1) . ') ' . $move['word']; ?></strong> · <?php echo $move['start']; ?> ➜ <?php echo ucfirst($move['direction']); ?><br>
+                <span class="note">Main: <?php echo $move['mainWordScore']; ?> pts<?php if ($crossCount > 0): ?> · Cross-words: <?php echo $crossCount; ?><?php endif; ?></span>
+              </div>
+              <span class="badge"><?php echo $move['score']; ?> pts</span>
+            </li>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </ul>
     </article>
 
@@ -602,6 +627,51 @@ $dictionaryHasDemoWord = $dictionary->has($demoWord);
           <span class="badge"><?php echo $demoScore['total']; ?> pts</span>
         </div>
       </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Phase 4 move generation">
+    <article class="card">
+      <h2 class="subhead">Phase 4 kickoff: anchor & cross-check solver loop</h2>
+      <div class="list" aria-label="Solver highlights">
+        <div class="list-item">
+          <div><strong>Anchors & adjacency</strong><br><span class="note">Empty squares touching existing tiles (plus center start) seed the horizontal generator.</span></div>
+          <span class="badge">Board-aware</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Dictionary validation</strong><br><span class="note">Main word and all perpendicular cross-words must appear in the active dictionary.</span></div>
+          <span class="badge"><?php echo number_format($dictionary->count()); ?> words</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Scoring integration</strong><br><span class="note">Letter/word multipliers apply only to newly placed tiles; cross-word totals are added.</span></div>
+          <span class="badge">Scoring::scoreMove()</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2 class="subhead">API contract: request top N moves</h2>
+      <p class="note">Planned endpoint signature for the solver surface (JSON). Takes current board state, rack letters, and desired limit; returns ranked moves with scoring breakdowns.</p>
+      <pre class="code" aria-label="API contract example">POST /api/moves
+{
+  "board": "array of placed tiles [{coord: 'H8', letter: 'O', blank: false}]",
+  "rack": ["T", "I", "L", "E", "M", "A", "?"],
+  "limit": 5
+}
+
+Response
+{
+  "moves": [
+    {
+      "word": "ORATION",
+      "start": "H8",
+      "direction": "horizontal",
+      "score": 78,
+      "mainWord": {"word": "ORATION", "total": 78},
+      "crossWords": []
+    }
+  ]
+}</pre>
     </article>
   </section>
 </body>

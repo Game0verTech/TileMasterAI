@@ -27,6 +27,14 @@ class Dictionary
         return count($this->words);
     }
 
+    /**
+     * @return string[]
+     */
+    public function words(): array
+    {
+        return array_keys($this->words);
+    }
+
     public function has(string $word): bool
     {
         $key = strtoupper(trim($word));
