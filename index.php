@@ -143,6 +143,16 @@ $aiSetupNotes = [
       --accent: #6366f1;
       --accent-strong: #4f46e5;
       --border: #e2e8f0;
+      --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)),
+        repeating-linear-gradient(
+          25deg,
+          rgba(255, 255, 255, 0.22) 0px,
+          rgba(255, 255, 255, 0.22) 8px,
+          rgba(0, 0, 0, 0.04) 8px,
+          rgba(0, 0, 0, 0.04) 16px
+        ),
+        linear-gradient(135deg, #f4debd 0%, #e4c69d 55%, #f1d8aa 100%);
+      --tile-wood-border: #c7965a;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
       --cell-size: 56px;
@@ -327,9 +337,9 @@ $aiSetupNotes = [
     .tile {
       width: var(--tile-size);
       height: var(--tile-size);
-      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      background: var(--tile-wood);
       border-radius: 6px;
-      border: 1px solid #d4a373;
+      border: 1px solid var(--tile-wood-border);
       box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       display: grid;
       align-items: center;
@@ -341,8 +351,8 @@ $aiSetupNotes = [
 
     .tile.blank,
     .rack-tile.blank {
-      background: linear-gradient(135deg, #ede9fe, #e0e7ff);
-      border-color: #a5b4fc;
+      background: var(--tile-wood);
+      border-color: var(--tile-wood-border);
     }
 
     .tile .letter { font-size: 18px; font-weight: 800; }
@@ -373,9 +383,9 @@ $aiSetupNotes = [
       align-items: center;
       justify-items: center;
       grid-template-rows: 1fr auto;
-      background: linear-gradient(135deg, #f5e0c3, #e6c89f);
+      background: var(--tile-wood);
       border-radius: 8px;
-      border: 1px solid #d4a373;
+      border: 1px solid var(--tile-wood-border);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
       color: #0f172a;
       font-weight: 800;
