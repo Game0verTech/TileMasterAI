@@ -1,5 +1,11 @@
 <?php
 require __DIR__ . '/config/env.php';
+require __DIR__ . '/src/bootstrap.php';
+
+use TileMasterAI\Game\Board;
+use TileMasterAI\Game\Dictionary;
+use TileMasterAI\Game\Scoring;
+use TileMasterAI\Game\Tile;
 
 $hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
 
@@ -47,6 +53,30 @@ $rackTiles = [
   ['letter' => 'A', 'value' => 1],
   ['letter' => '?', 'value' => 0],
 ];
+
+$boardModel = Board::standard();
+foreach ($sampleTiles as $coordinate => $tileData) {
+  $boardModel->placeTileByCoordinate(
+    $coordinate,
+    new Tile($tileData['letter'], $tileData['letter'] === '?', $tileData['value'])
+  );
+}
+
+$dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.txt';
+$dictionary = new Dictionary($dictionaryPath);
+$demoWord = 'ORATION';
+
+$demoPlacements = [];
+foreach (['H8', 'I8', 'J8', 'K8', 'L8', 'M8', 'N8'] as $coordinate) {
+  $letter = $sampleTiles[$coordinate]['letter'] ?? '';
+  if ($letter === '') {
+    continue;
+  }
+  $demoPlacements[] = ['coord' => $coordinate, 'tile' => Tile::fromLetter($letter)];
+}
+
+$demoScore = Scoring::scorePlacements($boardModel, $demoPlacements);
+$dictionaryHasDemoWord = $dictionary->has($demoWord);
 ?>
 <!doctype html>
 <html lang="en">
@@ -169,16 +199,20 @@ $rackTiles = [
       border-radius: var(--radius);
       padding: 12px;
       border: 1px dashed #cbd5e1;
+      overflow-x: auto;
     }
 
     .board-grid {
       display: grid;
-      grid-template-columns: repeat(15, minmax(0, 1fr));
+      grid-template-columns: repeat(15, minmax(20px, 1fr));
       gap: 5px;
       background: #e2e8f0;
       padding: 8px;
       border-radius: 14px;
       border: 1px solid #cbd5e1;
+      width: min(100%, 720px);
+      min-width: 420px;
+      margin: 0 auto;
     }
 
     .cell {
@@ -373,7 +407,8 @@ $rackTiles = [
     }
 
     @media (max-width: 599px) {
-      .board-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .board-preview { padding: 10px; }
+      .board-grid { min-width: 360px; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -534,6 +569,37 @@ $rackTiles = [
         <div class="flow-step">
           <strong>Shortcuts</strong>
           <p class="note">Enter runs solver, Ctrl/Cmd+Z undoes last placement, Shift+R shuffles rack, Shift+C clears rack.</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Phase 3 game engine foundations">
+    <article class="card">
+      <h2 class="subhead">Phase 3 kickoff: board state & scoring helpers</h2>
+      <p class="note">Backend-friendly PHP domain classes now describe the 15x15 board, rack tiles, dictionary lookups, and baseline scoring (tile values + letter/word multipliers).</p>
+      <div class="list" aria-label="Engine milestones">
+        <div class="list-item">
+          <div><strong>Board &amp; rack models</strong><br><span class="note">Coordinate parsing (A1–O15), premium lookup, tile storage, and rack containers.</span></div>
+          <span class="badge">Board::standard()</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Dictionary</strong><br><span class="note">Pluggable wordlist driven by <code>DICTIONARY_PATH</code> (defaults to <code>data/dictionary-mini.txt</code>).</span></div>
+          <span class="badge"><?php echo number_format($dictionary->count()); ?> entries</span>
+        </div>
+        <div class="list-item">
+          <div><strong>Scoring helpers</strong><br><span class="note">Tile values + DL/TL/DW/TW multipliers ready for solver integration.</span></div>
+          <span class="badge">Helpers: Scoring::tileValues()</span>
+        </div>
+      </div>
+      <div class="list" aria-label="Dictionary and scoring preview" style="margin-top: 12px;">
+        <div class="list-item">
+          <div><strong><?php echo $demoWord; ?></strong> lookup</div>
+          <span class="badge"><?php echo $dictionaryHasDemoWord ? 'In wordlist' : 'Missing'; ?></span>
+        </div>
+        <div class="list-item">
+          <div><strong>Move score preview</strong><br><span class="note"><?php echo $demoWord; ?> on H8 across (DW on start) using tile values + multipliers.</span></div>
+          <span class="badge"><?php echo $demoScore['total']; ?> pts</span>
         </div>
       </div>
     </article>
