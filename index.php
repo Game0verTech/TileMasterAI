@@ -211,11 +211,12 @@ $aiSetupNotes = [
       --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
-      --cell-size: 56px;
-      --cell-gap: 6px;
+      --cell-size: clamp(42px, 4.5vw + 12px, 56px);
+      --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
       --top-dock-height: 82px;
       --bottom-dock-height: 116px;
+      --board-toolbar: rgba(15, 23, 42, 0.86);
     }
 
     * {
@@ -233,6 +234,7 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       gap: 0;
+      overflow: hidden;
     }
 
     header {
@@ -332,6 +334,7 @@ $aiSetupNotes = [
       width: min(1100px, 100%);
       display: flex;
       justify-content: center;
+      max-width: 100%;
     }
 
     .board-grid {
@@ -343,7 +346,8 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      min-width: min(100%, 880px);
+      min-width: max-content;
+      max-width: min(100%, 880px);
       margin: 0 auto;
     }
 
@@ -464,6 +468,8 @@ $aiSetupNotes = [
       align-items: center;
       gap: 10px;
       position: relative;
+      width: 100%;
+      min-width: 0;
     }
 
     .dock-help {
@@ -525,7 +531,7 @@ $aiSetupNotes = [
       display: flex;
       gap: 6px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       padding: 5px 8px;
       background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
         linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
@@ -534,6 +540,8 @@ $aiSetupNotes = [
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
       min-height: 60px;
+      overflow-x: auto;
+      scrollbar-width: thin;
     }
 
     .rack-actions {
@@ -926,18 +934,29 @@ $aiSetupNotes = [
       display: grid;
       gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      justify-items: center;
+      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      grid-template-rows: 1fr;
+      justify-items: stretch;
+      align-items: stretch;
     }
 
     .board-viewport {
-      width: min(1200px, 100%);
+      position: relative;
+      width: 100%;
       margin: 0 auto;
       display: grid;
-      align-items: start;
+      align-items: center;
       justify-items: center;
       overflow: hidden;
       touch-action: none;
       cursor: grab;
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
+      border-radius: 16px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      padding: 8px;
+      min-height: 320px;
+      height: 100%;
+      max-height: 100%;
     }
 
     .board-viewport.dragging { cursor: grabbing; }
@@ -947,8 +966,17 @@ $aiSetupNotes = [
       transition: transform 180ms ease;
       will-change: transform;
       display: grid;
-      align-items: start;
+      align-items: center;
       justify-items: center;
+      width: min(100%, 1100px);
+      height: min(100%, 1100px);
+    }
+
+    .board-frame {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
     }
 
     .board-chrome {
@@ -956,10 +984,12 @@ $aiSetupNotes = [
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: var(--glow);
-      padding: 16px;
+      padding: 12px 12px 10px;
       display: grid;
       gap: 12px;
       justify-items: center;
+      width: min(1040px, 100%);
+      max-height: 100%;
     }
 
     .hud-dock {
@@ -1170,12 +1200,12 @@ $aiSetupNotes = [
       margin: 0 auto;
       padding: 8px 12px 10px;
       display: grid;
-      gap: 6px;
+      gap: 8px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: auto auto 1fr;
       align-items: center;
       gap: 8px;
     }
@@ -1184,8 +1214,7 @@ $aiSetupNotes = [
       display: flex;
       justify-content: center;
       align-items: center;
-      grid-column: 1 / span 2;
-      min-width: 240px;
+      min-width: 200px;
     }
 
     .ai-cta {
@@ -1202,7 +1231,7 @@ $aiSetupNotes = [
       border-radius: 12px;
       margin-left: 0;
       flex-shrink: 0;
-      justify-self: end;
+      justify-self: start;
     }
 
     .ai-cta.disabled,
@@ -1313,7 +1342,85 @@ $aiSetupNotes = [
       background: #f8fafc;
       color: var(--muted);
       font-weight: 600;
+      width: 100%;
     }
+
+    .board-controls {
+      position: absolute;
+      right: 10px;
+      bottom: 12px;
+      display: grid;
+      gap: 6px;
+      background: var(--board-toolbar);
+      color: #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+      padding: 8px;
+      z-index: 4;
+      width: 130px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .board-viewport.controls-open .board-controls {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .board-controls-toggle {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(255, 255, 255, 0.82);
+      color: #0f172a;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    .board-controls h3 {
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #c7d2fe;
+    }
+
+    .board-controls .controls-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .board-controls button {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.12));
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 9px;
+      padding: 8px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .board-controls button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, 0.8);
+      box-shadow: 0 10px 22px rgba(14, 165, 233, 0.2);
+    }
+
+    .board-controls button:active { transform: translateY(0); }
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1324,9 +1431,9 @@ $aiSetupNotes = [
     @media (max-width: 720px) {
       :root {
         --top-dock-height: 74px;
-        --bottom-dock-height: 110px;
-        --cell-size: 48px;
-        --cell-gap: 4px;
+        --bottom-dock-height: 104px;
+        --cell-size: clamp(34px, 7vw + 6px, 44px);
+        --cell-gap: 3px;
       }
 
       body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
@@ -1340,16 +1447,23 @@ $aiSetupNotes = [
       .app-title { font-size: clamp(18px, 5vw, 22px); }
       .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
 
-      .dock-inner { padding: 8px 10px 9px; gap: 8px; }
-      .dock-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-      .dock-cta { min-width: 0; }
+      .dock-inner { padding: 8px 10px 9px; gap: 10px; }
+      .dock-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+      .dock-cta { min-width: 0; grid-column: 1 / -1; }
       .turn-toggle { width: 100%; min-width: 0; }
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
+      .rack-wrap { grid-column: 1 / -1; }
+
+      .board-chrome { padding: 10px 10px 8px; }
+      .board-preview { padding: 6px; }
+      .board-controls { right: 8px; bottom: 8px; width: min(100%, 240px); }
+      .board-viewport { padding: 6px; }
     }
 
     @media (max-width: 599px) {
       .board-preview { padding: 10px; }
-      .board-grid { min-width: 320px; }
+      .board-controls { left: 8px; right: 8px; width: auto; grid-template-columns: 1fr; }
+      .board-controls-toggle { left: 12px; right: auto; }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list-item { grid-template-columns: 1fr; }
     }
@@ -1386,9 +1500,10 @@ $aiSetupNotes = [
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
       <div class="board-scale" id="boardScale">
-        <div class="board-chrome" id="boardChrome">
-          <div class="board-preview" aria-label="Game board">
-            <div class="board-grid" role="presentation">
+        <div class="board-frame" id="boardFrame">
+          <div class="board-chrome" id="boardChrome">
+            <div class="board-preview" aria-label="Game board">
+              <div class="board-grid" role="presentation">
               <?php foreach ($premiumBoard as $rowIndex => $row): ?>
                 <?php foreach ($row as $colIndex => $cellType):
                   $rowLabel = $rowLabels[$rowIndex];
@@ -1441,11 +1556,22 @@ $aiSetupNotes = [
                 </div>
                 <?php endforeach; ?>
               <?php endforeach; ?>
+              </div>
             </div>
-          </div>
 
-          <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
+          </div>
         </div>
+      </div>
+      <button class="board-controls-toggle" id="boardControlsToggle" type="button" aria-label="Show board controls" aria-expanded="false">🧭 Board tools</button>
+      <div class="board-controls" aria-label="Board view controls">
+        <h3>View</h3>
+        <div class="controls-row">
+          <button type="button" id="fitBoard" aria-label="Fit board to screen">Fit</button>
+          <button type="button" id="zoomOut" aria-label="Zoom out">–</button>
+          <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+        </div>
+        <button type="button" id="resetBoardView" aria-label="Recenter board">Center board</button>
       </div>
     </div>
   </main>
@@ -1465,17 +1591,17 @@ $aiSetupNotes = [
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
         </button>
-      </div>
-      <div class="rack-wrap">
-        <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-        <div class="rack-bar" aria-label="Rack" id="rack"></div>
-        <div class="rack-actions">
-          <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-        </div>
-        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
-          <strong>Rack tips</strong>
-          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-          <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+        <div class="rack-wrap">
+          <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+          <div class="rack-bar" aria-label="Rack" id="rack"></div>
+          <div class="rack-actions">
+            <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
+          </div>
+          <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+            <strong>Rack tips</strong>
+            <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+            <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1515,6 +1641,11 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardScaleEl = document.getElementById('boardScale');
       const boardChromeEl = document.getElementById('boardChrome');
+      const boardControlsToggle = document.getElementById('boardControlsToggle');
+      const fitBoardBtn = document.getElementById('fitBoard');
+      const zoomInBtn = document.getElementById('zoomIn');
+      const zoomOutBtn = document.getElementById('zoomOut');
+      const resetBoardViewBtn = document.getElementById('resetBoardView');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
 
@@ -1537,6 +1668,7 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
+      let boardControlsOpen = false;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -1572,23 +1704,61 @@ $aiSetupNotes = [
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-      const applyBoardTransform = () => {
-        if (!boardScaleEl) return;
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
+        const centerCell = document.querySelector('.cell[data-center="true"]');
+        if (!centerCell) return;
+
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const cellRect = centerCell.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+
+        const viewportCenterX = viewportRect.width / 2;
+        const viewportCenterY = viewportRect.height / 2;
+        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
+        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
+        const finalScale = getFinalScale();
+
+        panX = (viewportCenterX - cellCenterX) / finalScale;
+        panY = (viewportCenterY - cellCenterY) / finalScale;
+        applyBoardTransform();
+      };
+
+      const setBoardControlsOpen = (open) => {
+        boardControlsOpen = !!open;
+        if (boardViewport) {
+          boardViewport.classList.toggle('controls-open', boardControlsOpen);
+        }
+        if (boardControlsToggle) {
+          boardControlsToggle.setAttribute('aria-expanded', boardControlsOpen ? 'true' : 'false');
+          boardControlsToggle.textContent = boardControlsOpen ? 'Hide board tools' : '🧭 Board tools';
+        }
+      };
+
+      const getFinalScale = () => {
         const MIN_ZOOM = Math.min(baseScale || 1, 0.6);
         const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
-        const finalScale = clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+        return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+      };
+
+      const applyBoardTransform = () => {
+        if (!boardScaleEl) return;
+        const finalScale = getFinalScale();
         boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
       };
 
-      const resizeBoardToViewport = () => {
+      const resizeBoardToViewport = ({ resetView = false } = {}) => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
 
         boardViewport.style.height = `${availableHeight}px`;
 
-        const viewportWidth = boardViewport.getBoundingClientRect().width || document.documentElement.clientWidth;
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
         const boardRect = boardChromeEl.getBoundingClientRect();
@@ -1597,9 +1767,14 @@ $aiSetupNotes = [
         const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
         const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
         baseScale = Math.min(heightScale, widthScale, 1);
-        panX = 0;
-        panY = 0;
-        applyBoardTransform();
+        if (resetView) {
+          panX = 0;
+          panY = 0;
+          userZoom = 1;
+          centerBoard();
+        } else {
+          applyBoardTransform();
+        }
       };
 
       const adjustZoom = (factor) => {
@@ -1609,6 +1784,17 @@ $aiSetupNotes = [
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
         applyBoardTransform();
+      };
+
+      const resetBoardView = () => {
+        panX = 0;
+        panY = 0;
+        userZoom = 1;
+        centerBoard();
+      };
+
+      const fitBoard = () => {
+        resizeBoardToViewport({ resetView: true });
       };
 
       const handleWheelZoom = (event) => {
@@ -2724,6 +2910,12 @@ $aiSetupNotes = [
       }
 
       if (boardViewport) {
+        boardViewport.addEventListener('click', (event) => {
+          if (event.target.closest('.board-controls') || event.target === boardControlsToggle) return;
+          if (!boardControlsOpen) {
+            setBoardControlsOpen(true);
+          }
+        });
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
         boardViewport.addEventListener('mousedown', startBoardPan);
         boardViewport.addEventListener('mouseleave', endBoardPan);
@@ -2733,18 +2925,46 @@ $aiSetupNotes = [
         boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
         boardViewport.addEventListener('touchend', handleTouchEnd);
         boardViewport.addEventListener('touchcancel', handleTouchEnd);
+        boardViewport.addEventListener('dblclick', (event) => {
+          event.preventDefault();
+          centerBoard();
+        });
       }
 
-      window.addEventListener('resize', resizeBoardToViewport);
+      if (boardControlsToggle) {
+        boardControlsToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          setBoardControlsOpen(!boardControlsOpen);
+        });
+      }
+
+      if (fitBoardBtn) {
+        fitBoardBtn.addEventListener('click', fitBoard);
+      }
+
+      if (resetBoardViewBtn) {
+        resetBoardViewBtn.addEventListener('click', resetBoardView);
+      }
+
+      if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => adjustZoom(1.12));
+      }
+
+      if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => adjustZoom(0.9));
+      }
+
+      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
 
       buildBag();
       updateBagCount();
       renderRack();
       renderBoard();
+      setBoardControlsOpen(false);
       updateTurnButton();
       updateAiButton();
-      resizeBoardToViewport();
-      setTimeout(resizeBoardToViewport, 120);
+      resizeBoardToViewport({ resetView: true });
+      setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
       setupDragAndDrop();
       loadDictionary();
     });
