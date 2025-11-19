@@ -191,7 +191,7 @@ $aiSetupNotes = [
       --cell-gap: 6px;
       --tile-size: calc(var(--cell-size) - 8px);
       --top-dock-height: 92px;
-      --bottom-dock-height: 188px;
+      --bottom-dock-height: 148px;
     }
 
     * {
@@ -439,12 +439,12 @@ $aiSetupNotes = [
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      padding: 8px;
-      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.15), transparent 40%),
-        linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.18));
+      padding: 6px 8px;
+      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
+        linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
       border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 14px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 14px 26px rgba(79, 70, 229, 0.22);
+      border-radius: 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
     }
 
@@ -480,10 +480,15 @@ $aiSetupNotes = [
 
     .rack-note {
       text-align: center;
-      margin-top: 4px;
-      color: #cbd5e1;
+      margin: 2px 0 0;
+      color: #dbeafe;
       font-size: 12px;
+      font-weight: 700;
+      display: grid;
+      gap: 2px;
     }
+
+    .rack-note .note-secondary { color: #cbd5e1; font-weight: 600; }
 
     .message {
       padding: 10px 12px;
@@ -1034,57 +1039,25 @@ $aiSetupNotes = [
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 10px 18px 12px;
+      padding: 8px 14px 10px;
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .dock-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      justify-content: space-between;
-    }
-
-    .dock-main {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      flex: 1;
-      min-width: 260px;
-    }
-
-    .dock-tip {
-      margin: 0;
-      color: #cbd5e1;
-      font-weight: 600;
-      font-size: 13px;
-    }
-
-    .dock-label {
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      font-weight: 800;
-      color: #e2e8f0;
-      font-size: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      padding: 6px 10px;
-      border-radius: 10px;
-    }
-
-    .dock-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .dock-cta {
       display: flex;
       justify-content: center;
       align-items: center;
+      flex: 1;
+      min-width: 240px;
     }
 
     .ai-cta {
@@ -1097,8 +1070,8 @@ $aiSetupNotes = [
       box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
       font-weight: 800;
       letter-spacing: 0.2px;
-      padding-inline: 16px 18px;
-      border-radius: 14px;
+      padding-inline: 14px 16px;
+      border-radius: 12px;
       margin-left: auto;
       flex-shrink: 0;
     }
@@ -1123,10 +1096,10 @@ $aiSetupNotes = [
     .turn-toggle {
       position: relative;
       overflow: hidden;
-      min-width: clamp(240px, 50vw, 380px);
-      padding: 16px 22px;
-      border-radius: 16px;
-      font-size: 18px;
+      min-width: clamp(260px, 52vw, 420px);
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-size: 19px;
       letter-spacing: 0.3px;
       display: inline-flex;
       align-items: center;
@@ -1314,25 +1287,24 @@ $aiSetupNotes = [
   <footer class="turn-dock" aria-label="Turn controls">
     <div class="dock-inner">
       <div class="dock-row">
-        <div class="dock-main">
-          <span class="dock-label">Rack</span>
-          <p class="dock-tip">Drag tiles onto the board. Double-click a placed tile to send it back.</p>
+        <div class="dock-cta">
+          <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
+            <span class="turn-label">
+              <span class="turn-title">Start turn</span>
+              <span class="turn-subtitle">Draw tiles and place your word</span>
+            </span>
+          </button>
         </div>
         <button class="btn ai-cta" type="button" id="aiMovesBtn">
           <span class="ai-icon" aria-hidden="true">🤖</span>
           <span class="ai-text">AI suggested moves</span>
         </button>
       </div>
-      <div class="dock-cta">
-        <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
-          <span class="turn-label">
-            <span class="turn-title">Start turn</span>
-            <span class="turn-subtitle">Draw tiles and place your word</span>
-          </span>
-        </button>
-      </div>
       <div class="rack-bar" aria-label="Rack" id="rack"></div>
-      <p class="rack-note">Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</p>
+      <p class="rack-note">
+        <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+        <span class="note-secondary">Drag tiles onto the board. Double-click a placed tile to send it back.</span>
+      </p>
     </div>
   </footer>
 
