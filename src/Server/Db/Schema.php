@@ -26,6 +26,7 @@ final class Schema
         }
 
         self::ensurePlayerTokenColumn($pdo, $driver);
+        self::ensureLobbyEnhancements($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -160,5 +161,87 @@ final class Schema
         $columnType = $driver === 'mysql' ? 'VARCHAR(255)' : 'TEXT';
         $pdo->exec("ALTER TABLE players ADD COLUMN client_token {$columnType} NULL");
         $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_client_token ON players(client_token)');
+    }
+
+    private static function ensureLobbyEnhancements(PDO $pdo, string $driver): void
+    {
+        $columnType = $driver === 'mysql' ? 'VARCHAR(255)' : 'TEXT';
+        $boolColumn = $driver === 'mysql' ? 'TINYINT(1)' : 'INTEGER';
+
+        // Add optional lobby name to sessions
+        $hasLobbyName = false;
+        $hasStatusIndex = false;
+
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(sessions)");
+            $columns = $statement ? $statement->fetchAll() : [];
+            foreach ($columns as $column) {
+                if (($column['name'] ?? '') === 'name') {
+                    $hasLobbyName = true;
+                }
+                if (($column['name'] ?? '') === 'status') {
+                    $hasStatusIndex = true;
+                }
+            }
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'sessions' AND COLUMN_NAME = 'name' LIMIT 1"
+            );
+            $statement->execute();
+            $hasLobbyName = $statement->fetchColumn() !== false;
+
+            $statement = $pdo->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_NAME = 'sessions' AND COLUMN_NAME = 'status' LIMIT 1"
+            );
+            $statement->execute();
+            $hasStatusIndex = $statement->fetchColumn() !== false;
+        }
+
+        if (!$hasLobbyName) {
+            $pdo->exec("ALTER TABLE sessions ADD COLUMN name {$columnType} NULL");
+        }
+
+        if (!$hasStatusIndex) {
+            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)');
+        }
+
+        // Add readiness flags to session_players
+        $hasReadyFlag = false;
+        $hasReadyAt = false;
+
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(session_players)");
+            $columns = $statement ? $statement->fetchAll() : [];
+            foreach ($columns as $column) {
+                if (($column['name'] ?? '') === 'is_ready') {
+                    $hasReadyFlag = true;
+                }
+                if (($column['name'] ?? '') === 'ready_at') {
+                    $hasReadyAt = true;
+                }
+            }
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'session_players' AND COLUMN_NAME = 'is_ready' LIMIT 1"
+            );
+            $statement->execute();
+            $hasReadyFlag = $statement->fetchColumn() !== false;
+
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'session_players' AND COLUMN_NAME = 'ready_at' LIMIT 1"
+            );
+            $statement->execute();
+            $hasReadyAt = $statement->fetchColumn() !== false;
+        }
+
+        if (!$hasReadyFlag) {
+            $pdo->exec("ALTER TABLE session_players ADD COLUMN is_ready {$boolColumn} NOT NULL DEFAULT 0");
+        }
+
+        if (!$hasReadyAt) {
+            $pdo->exec('ALTER TABLE session_players ADD COLUMN ready_at DATETIME NULL');
+        }
+
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_session_players_ready ON session_players(session_id, is_ready)');
     }
 }
