@@ -188,6 +188,8 @@ try {
                 $sendError(422, 'Need at least two players to start.');
             }
 
+            $repository->seedStandardTileBag($sessionId);
+
             $repository->setSessionStatus($sessionId, 'started');
 
             echo json_encode([

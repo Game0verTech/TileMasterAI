@@ -408,6 +408,48 @@ class GameRepository
         $this->seedTileBag($sessionId, $tileSet);
     }
 
+    public function countTilesInBag(int $sessionId): int
+    {
+        $statement = $this->pdo->prepare('SELECT COUNT(*) AS total FROM tile_bag WHERE session_id = :session_id');
+        $statement->execute([':session_id' => $sessionId]);
+        $result = $statement->fetch();
+
+        return isset($result['total']) ? (int) $result['total'] : 0;
+    }
+
+    /**
+     * @return array<int, array{player: array{id: int, name: string}, tile: array{id: int, letter: string, value: int}, distance?: int, drawn_at?: string}>
+     */
+    public function listDrawnTiles(int $sessionId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT tb.id as tile_id, tb.letter, tb.value, tb.drawn_by, tb.drawn_at, p.name AS player_name '
+            . 'FROM tile_bag tb '
+            . 'LEFT JOIN players p ON p.id = tb.drawn_by '
+            . 'WHERE tb.session_id = :session_id AND tb.state = "drawn" '
+            . 'ORDER BY tb.drawn_at ASC'
+        );
+
+        $statement->execute([':session_id' => $sessionId]);
+        $rows = $statement->fetchAll();
+
+        return array_map(
+            static fn ($row) => [
+                'player' => [
+                    'id' => (int) $row['drawn_by'],
+                    'name' => (string) ($row['player_name'] ?? ''),
+                ],
+                'tile' => [
+                    'id' => (int) $row['tile_id'],
+                    'letter' => (string) $row['letter'],
+                    'value' => (int) $row['value'],
+                ],
+                'drawn_at' => (string) ($row['drawn_at'] ?? ''),
+            ],
+            $rows ?: []
+        );
+    }
+
     public function drawTileFromBag(int $sessionId, ?int $playerId = null): ?array
     {
         $this->pdo->beginTransaction();
