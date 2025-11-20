@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/config/env.php';
+require dirname(__DIR__) . '/src/bootstrap.php';
 require dirname(__DIR__) . '/src/Server/Db/Connection.php';
 require dirname(__DIR__) . '/src/Server/Db/GameRepository.php';
 
@@ -105,6 +106,22 @@ $sendRoster = static function (array &$clients, array $session, array $players, 
     @fwrite($socket, $encodeFrame(json_encode($message)));
 };
 
+$distanceFromA = static function (string $letter): int {
+    $upper = strtoupper($letter);
+
+    if ($upper === '?' || $upper === ' ') {
+        return 0;
+    }
+
+    $ord = ord($upper);
+
+    if ($ord < 65 || $ord > 90) {
+        return 100;
+    }
+
+    return $ord - ord('A');
+};
+
 echo "Lobby WebSocket server listening on ws://{$host}:{$port}\n";
 
 while (true) {
@@ -203,6 +220,151 @@ while (true) {
         $session = $repository->getSessionByCode($sessionCode);
 
         if (!$session) {
+            continue;
+        }
+
+        if (($payload['type'] ?? '') === 'turnorder.draw') {
+            $sessionId = (int) $session['id'];
+            $players = $repository->listPlayersForSession($sessionId);
+
+            if (count($players) < 2) {
+                @fwrite($socket, $encodeFrame(json_encode([
+                    'type' => 'turnorder.error',
+                    'sessionCode' => $sessionCode,
+                    'message' => 'Need at least two players to determine turn order.',
+                ])));
+                continue;
+            }
+
+            $repository->seedStandardTileBag($sessionId);
+
+            $drawHistory = [];
+            $finalOrder = [];
+
+            $resolveGroup = function (array $group) use (
+                &$resolveGroup,
+                &$finalOrder,
+                &$drawHistory,
+                $repository,
+                $sessionId,
+                $sessionCode,
+                &$clients,
+                $broadcast,
+                $distanceFromA,
+                $encodeFrame,
+                $socket
+            ): bool {
+                $roundDraws = [];
+
+                foreach ($group as $player) {
+                    $tile = $repository->drawTileFromBag($sessionId, (int) $player['id']);
+
+                    if ($tile === null) {
+                        @fwrite($socket, $encodeFrame(json_encode([
+                            'type' => 'turnorder.error',
+                            'sessionCode' => $sessionCode,
+                            'message' => 'Tile bag is empty; cannot determine order.',
+                        ])));
+
+                        return false;
+                    }
+
+                    $draw = [
+                        'player' => [
+                            'id' => (int) $player['id'],
+                            'name' => $player['name'],
+                        ],
+                        'tile' => [
+                            'id' => (int) $tile['id'],
+                            'letter' => $tile['letter'],
+                            'value' => (int) $tile['value'],
+                        ],
+                    ];
+
+                    $draw['distance'] = $distanceFromA($draw['tile']['letter']);
+                    $drawHistory[] = $draw;
+                    $roundDraws[] = $draw;
+
+                    $broadcast($clients, $sessionCode, [
+                        'type' => 'turnorder.drawn',
+                        'sessionCode' => $sessionCode,
+                        'player' => $draw['player'],
+                        'tile' => $draw['tile'],
+                        'distance' => $draw['distance'],
+                    ]);
+
+                    $broadcast($clients, $sessionCode, [
+                        'type' => 'player.sound',
+                        'tone' => 'draw',
+                    ]);
+                }
+
+                $byDistance = [];
+                foreach ($roundDraws as $draw) {
+                    $byDistance[$draw['distance']][] = $draw;
+                }
+
+                ksort($byDistance, SORT_NUMERIC);
+
+                foreach ($byDistance as $distance => $entries) {
+                    if (count($entries) === 1) {
+                        $finalOrder[] = $entries[0];
+                        continue;
+                    }
+
+                    $broadcast($clients, $sessionCode, [
+                        'type' => 'turnorder.tie',
+                        'sessionCode' => $sessionCode,
+                        'distance' => $distance,
+                        'players' => array_map(static fn ($entry) => $entry['player'], $entries),
+                    ]);
+
+                    $broadcast($clients, $sessionCode, [
+                        'type' => 'player.sound',
+                        'tone' => 'alert',
+                    ]);
+
+                    foreach ($entries as $entry) {
+                        $repository->recordTileReturn((int) $entry['tile']['id']);
+                    }
+
+                    $tiedPlayers = array_map(static fn ($entry) => $entry['player'], $entries);
+
+                    if (!$resolveGroup($tiedPlayers)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            };
+
+            if (!$resolveGroup($players)) {
+                continue;
+            }
+
+            foreach ($finalOrder as $entry) {
+                $repository->recordTileReturn((int) $entry['tile']['id']);
+            }
+
+            $broadcast($clients, $sessionCode, [
+                'type' => 'turnorder.resolved',
+                'sessionCode' => $sessionCode,
+                'order' => array_map(
+                    static fn ($entry) => [
+                        'player' => $entry['player'],
+                        'tile' => $entry['tile'],
+                        'distance' => $entry['distance'],
+                    ],
+                    $finalOrder
+                ),
+                'draws' => $drawHistory,
+            ]);
+
+            $broadcast($clients, $sessionCode, [
+                'type' => 'player.sound',
+                'tone' => 'alert',
+            ]);
+
             continue;
         }
 

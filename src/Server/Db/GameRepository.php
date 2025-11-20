@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace TileMasterAI\Server\Db;
 
 use PDO;
+use TileMasterAI\Game\Scoring;
+
+require_once dirname(__DIR__, 2) . '/Game/Scoring.php';
 
 class GameRepository
 {
@@ -295,11 +298,32 @@ class GameRepository
         }
     }
 
-    public function drawTileFromBag(int $sessionId): ?array
+    public function seedStandardTileBag(int $sessionId): void
+    {
+        $distribution = Scoring::tileDistribution();
+        $tileSet = [];
+
+        foreach ($distribution as $letter => $meta) {
+            $tileSet[] = [
+                'letter' => $letter,
+                'value' => $meta['value'],
+                'count' => $meta['count'],
+            ];
+        }
+
+        $this->seedTileBag($sessionId, $tileSet);
+    }
+
+    public function drawTileFromBag(int $sessionId, ?int $playerId = null): ?array
     {
         $this->pdo->beginTransaction();
+
+        $orderBy = $this->driver === 'mysql' ? 'RAND()' : 'RANDOM()';
         $select = $this->pdo->prepare(
-            'SELECT id, letter, value FROM tile_bag WHERE session_id = :session_id AND state = "bag" LIMIT 1'
+            sprintf(
+                'SELECT id, letter, value FROM tile_bag WHERE session_id = :session_id AND state = "bag" ORDER BY %s LIMIT 1',
+                $orderBy
+            )
         );
         $select->execute([':session_id' => $sessionId]);
         $tile = $select->fetch();
@@ -309,8 +333,13 @@ class GameRepository
             return null;
         }
 
-        $update = $this->pdo->prepare('UPDATE tile_bag SET state = "drawn" WHERE id = :id');
-        $update->execute([':id' => $tile['id']]);
+        $update = $this->pdo->prepare(
+            'UPDATE tile_bag SET state = "drawn", drawn_by = :drawn_by, drawn_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $update->execute([
+            ':id' => $tile['id'],
+            ':drawn_by' => $playerId,
+        ]);
         $this->pdo->commit();
 
         return $tile;
@@ -334,5 +363,20 @@ class GameRepository
     public function getPdo(): PDO
     {
         return $this->pdo;
+    }
+
+    public function countTilesInState(int $sessionId, string $state = 'bag'): int
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) as total FROM tile_bag WHERE session_id = :session_id AND state = :state'
+        );
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':state' => $state,
+        ]);
+
+        $result = $statement->fetch();
+
+        return isset($result['total']) ? (int) $result['total'] : 0;
     }
 }
