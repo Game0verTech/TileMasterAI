@@ -154,11 +154,12 @@ require __DIR__ . '/config/env.php';
     </section>
   </main>
 
-  <footer>Lobby state is refreshed every 3 seconds while you are seated.</footer>
+  <footer>Lobby list refreshes every 5 seconds; players in your lobby update every second.</footer>
 
   <script>
     const API_BASE = '/api/lobbies.php';
-    const POLL_INTERVAL = 3000;
+    const LOBBY_DETAIL_POLL_INTERVAL = 1000;
+    const LOBBY_LIST_POLL_INTERVAL = 5000;
 
     const playerNameInput = document.getElementById('playerName');
     const joinCodeInput = document.getElementById('joinCode');
@@ -185,7 +186,8 @@ require __DIR__ . '/config/env.php';
     let player = null;
     let activeLobby = null;
     let activePlayers = [];
-    let pollHandle = null;
+    let detailPollHandle = null;
+    let listPollHandle = null;
 
     const setFlash = (text, tone = 'info') => {
       flash.hidden = !text;
@@ -311,31 +313,64 @@ require __DIR__ . '/config/env.php';
       }
     };
 
-    const stopPolling = () => {
-      if (pollHandle) {
-        clearInterval(pollHandle);
-        pollHandle = null;
+    const stopDetailPolling = () => {
+      if (detailPollHandle) {
+        clearTimeout(detailPollHandle);
+        detailPollHandle = null;
       }
     };
 
+    const stopListPolling = () => {
+      if (listPollHandle) {
+        clearTimeout(listPollHandle);
+        listPollHandle = null;
+      }
+    };
+
+    const refreshLobbyList = async () => {
+      try {
+        const data = await fetchJson(`${API_BASE}?action=list`);
+        renderLobbies(data.lobbies || []);
+      } catch (error) {
+        console.error('Failed to refresh lobby list', error);
+      }
+    };
+
+    const pollLobbyList = () => {
+      stopListPolling();
+
+      const tick = async () => {
+        await refreshLobbyList();
+        listPollHandle = setTimeout(tick, LOBBY_LIST_POLL_INTERVAL);
+      };
+
+      tick();
+    };
+
     const pollLobby = () => {
-      stopPolling();
+      stopDetailPolling();
       if (!activeLobby) return;
-      pollHandle = setInterval(async () => {
+
+      const tick = async () => {
         try {
           const data = await fetchJson(`${API_BASE}?action=detail&code=${encodeURIComponent(activeLobby.code)}`);
           if (!data.lobby) return;
           const extras = { turn_state: data.turn_state, turn_order: toTurnOrder(data.turn_state) };
           renderActiveLobby(data.lobby, data.players || [], extras);
           if (data.lobby.status === 'in_game') {
-            stopPolling();
+            stopDetailPolling();
             goToGame.hidden = false;
             goToGame.onclick = () => window.location.href = `/game.php?code=${encodeURIComponent(data.lobby.code)}`;
+            return;
           }
         } catch (error) {
           console.error(error);
         }
-      }, POLL_INTERVAL);
+
+        detailPollHandle = setTimeout(tick, LOBBY_DETAIL_POLL_INTERVAL);
+      };
+
+      tick();
     };
 
     const bootstrap = async () => {
@@ -347,6 +382,7 @@ require __DIR__ . '/config/env.php';
           playerNameInput.value = player.name || '';
         }
         renderLobbies(data.lobbies || []);
+        pollLobbyList();
 
         if (data.activeLobby) {
           const extras = { turn_state: data.activeLobby.turn_state, turn_order: toTurnOrder(data.activeLobby.turn_state) };
@@ -370,20 +406,20 @@ require __DIR__ . '/config/env.php';
       }
 
       try {
-        const data = await fetchJson(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'create', playerName: name }),
-        });
-        player = data.player || player;
-        renderActiveLobby(data.lobby, data.players || [], { turn_state: data.turn_state });
-        setFlash(`Created lobby ${data.lobby.code}.`, 'success');
-        renderLobbies([]);
-        pollLobby();
-      } catch (error) {
-        setFlash(error.message, 'error');
-      }
-    };
+      const data = await fetchJson(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', playerName: name }),
+      });
+      player = data.player || player;
+      renderActiveLobby(data.lobby, data.players || [], { turn_state: data.turn_state });
+      setFlash(`Created lobby ${data.lobby.code}.`, 'success');
+      refreshLobbyList();
+      pollLobby();
+    } catch (error) {
+      setFlash(error.message, 'error');
+    }
+  };
 
     const joinLobby = async () => {
       const code = (joinCodeInput.value || '').trim().toUpperCase();
@@ -394,38 +430,39 @@ require __DIR__ . '/config/env.php';
       }
 
       try {
-        const data = await fetchJson(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'join', code, playerName: name }),
-        });
-        player = data.player || player;
-        renderActiveLobby(data.lobby, data.players || [], { turn_state: data.turn_state });
-        setFlash(`Joined lobby ${code}.`, 'success');
-        pollLobby();
-      } catch (error) {
-        setFlash(error.message, 'error');
-      }
-    };
+      const data = await fetchJson(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'join', code, playerName: name }),
+      });
+      player = data.player || player;
+      renderActiveLobby(data.lobby, data.players || [], { turn_state: data.turn_state });
+      setFlash(`Joined lobby ${code}.`, 'success');
+      refreshLobbyList();
+      pollLobby();
+    } catch (error) {
+      setFlash(error.message, 'error');
+    }
+  };
 
     const leaveLobby = async () => {
       if (!activeLobby) return;
       try {
-        const data = await fetchJson(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'leave', code: activeLobby.code }),
-        });
-        setFlash('Left lobby.', 'success');
-        activeLobby = null;
-        activePlayers = [];
-        renderActiveLobby(null, []);
-        stopPolling();
-        bootstrap();
-      } catch (error) {
-        setFlash(error.message, 'error');
-      }
-    };
+      const data = await fetchJson(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'leave', code: activeLobby.code }),
+      });
+      setFlash('Left lobby.', 'success');
+      activeLobby = null;
+      activePlayers = [];
+      renderActiveLobby(null, []);
+      stopDetailPolling();
+      bootstrap();
+    } catch (error) {
+      setFlash(error.message, 'error');
+    }
+  };
 
     const toggleReady = async () => {
       if (!activeLobby) return;
