@@ -2373,12 +2373,12 @@ $aiSetupNotes = [
         if (!sessionListEl || !sessionEmptyEl) return;
 
         try {
-          const response = await fetch('/api/sessions');
+          const response = await fetch('/api/sessions.php');
           const contentType = response.headers.get('content-type') || '';
           const bodyText = await response.text();
           const isJson = contentType.toLowerCase().includes('application/json');
           const describePayload = {
-            requestLabel: 'Request: GET /api/sessions',
+            requestLabel: 'Request: GET /api/sessions.php',
             response,
             contentType,
             bodyText,
@@ -2473,13 +2473,13 @@ $aiSetupNotes = [
         setSessionFlash('Creating session…');
 
         try {
-          const response = await fetch('/api/sessions', {
+          const response = await fetch('/api/sessions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, playerName }),
           });
 
-          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions' });
+          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions.php' });
 
           if (!response.ok || !payload?.success) {
             const error = new Error(payload?.message || 'Unable to create session.');
