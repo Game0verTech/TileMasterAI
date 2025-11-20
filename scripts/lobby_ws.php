@@ -94,18 +94,42 @@ $broadcast = static function (array &$clients, string $sessionCode, array $messa
     }
 };
 
-$sendRoster = static function (array &$clients, array $session, array $players, $socket) use ($encodeFrame, $maxPlayers): void {
-    $message = [
-        'type' => 'session.roster',
-        'sessionCode' => $session['code'],
-        'status' => $session['status'],
+  $sendRoster = static function (array &$clients, array $session, array $players, $socket) use ($encodeFrame, $maxPlayers): void {
+      $message = [
+          'type' => 'session.roster',
+          'sessionCode' => $session['code'],
+          'status' => $session['status'],
         'maxPlayers' => $maxPlayers,
         'players' => $players,
         'canStart' => count($players) >= 2,
     ];
 
-    @fwrite($socket, $encodeFrame(json_encode($message)));
-};
+      @fwrite($socket, $encodeFrame(json_encode($message)));
+  };
+
+  $broadcastRoster = static function (array &$clients, array $session, array $players, callable $encodeFrame, int $maxPlayers): void {
+      $payload = $encodeFrame(json_encode([
+          'type' => 'session.roster',
+          'sessionCode' => $session['code'],
+          'status' => $session['status'],
+          'maxPlayers' => $maxPlayers,
+          'players' => $players,
+          'canStart' => count($players) >= 2,
+      ]));
+
+      foreach ($clients as $index => $client) {
+          if (($client['session'] ?? null) !== $session['code']) {
+              continue;
+          }
+
+          if (!is_resource($client['socket'])) {
+              unset($clients[$index]);
+              continue;
+          }
+
+          @fwrite($client['socket'], $payload);
+      }
+  };
 
 $sendLobbyList = static function (array &$clients, ?array $targetSockets = null) use ($repository, $encodeFrame, $sessionTtlMinutes, $maxPlayers): void {
     $sessions = $repository->listOpenSessionsWithCounts($sessionTtlMinutes);
@@ -428,11 +452,14 @@ while (true) {
         }
 
         if (($payload['type'] ?? '') === 'session.start') {
+            $session['status'] = 'started';
+            $players = $repository->listPlayersForSession((int) $session['id']);
             $broadcast($clients, $sessionCode, [
                 'type' => 'session.started',
                 'sessionCode' => $sessionCode,
                 'by' => $payload['by'] ?? null,
             ]);
+            $broadcastRoster($clients, $session, $players, $encodeFrame, $maxPlayers);
             $sendLobbyList($clients);
             continue;
         }

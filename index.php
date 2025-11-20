@@ -27,10 +27,13 @@ require __DIR__ . '/config/env.php';
 
     body {
       margin: 0;
-      background: var(--bg);
+      background: radial-gradient(circle at 20% 20%, #e0e7ff 0%, rgba(224, 231, 255, 0) 32%),
+        radial-gradient(circle at 80% 0%, #fce7f3 0%, rgba(252, 231, 243, 0) 30%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2ff 60%, #e2e8f0 100%);
       min-height: 100vh;
       color: var(--ink);
       padding: 28px 18px 48px;
+      transition: background 240ms ease;
     }
 
     header {
@@ -174,6 +177,22 @@ require __DIR__ . '/config/env.php';
     .meta { padding: 12px; border-radius: 12px; border: 1px dashed var(--border); background: #f8fafc; }
 
     footer { text-align: center; color: var(--muted); margin-top: 16px; }
+
+    body.lobby-active {
+      background: linear-gradient(145deg, #0f172a 0%, #0b1224 60%, #0f172a 100%), radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.35) 0%, rgba(79, 70, 229, 0) 30%), radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.35) 0%, rgba(14, 165, 233, 0) 30%);
+      color: #e2e8f0;
+    }
+    body.lobby-active #landingCard { display: none; }
+    body.lobby-active footer { display: none; }
+    body.lobby-active .status-board { display: none; }
+    body.lobby-active header { grid-template-columns: 1fr; }
+    body.lobby-active main { max-width: 760px; }
+    body.lobby-active .card { background: rgba(15, 23, 42, 0.72); border-color: rgba(226, 232, 240, 0.12); color: #e2e8f0; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+    body.lobby-active .player { background: rgba(255, 255, 255, 0.04); border-color: rgba(226, 232, 240, 0.12); }
+    body.lobby-active .pill { background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border-color: rgba(226, 232, 240, 0.18); }
+    body.lobby-active .pill.primary { background: linear-gradient(135deg, #22d3ee, #6366f1); }
+    body.lobby-active .btn { box-shadow: none; }
+    body.lobby-active .log { background: rgba(15, 23, 42, 0.72); color: #e2e8f0; }
   </style>
 </head>
 <body data-page="lobby">
@@ -193,7 +212,7 @@ require __DIR__ . '/config/env.php';
   </header>
 
   <main>
-    <section class="card">
+    <section class="card" id="landingCard">
       <p class="section-title">Get started</p>
       <div class="grid">
         <div class="stack">
@@ -311,6 +330,7 @@ require __DIR__ . '/config/env.php';
       const inlineSessionCode = document.getElementById('inlineSessionCode');
       const inlinePlayerName = document.getElementById('inlinePlayerName');
       const sessionFlash = document.getElementById('sessionFlash');
+      const landingCard = document.getElementById('landingCard');
       const sessionList = document.getElementById('sessionList');
       const sessionEmpty = document.getElementById('sessionEmpty');
       const stuckSession = document.getElementById('stuckSession');
@@ -361,6 +381,17 @@ require __DIR__ . '/config/env.php';
       let pendingLobbyRefresh = false;
       let lastSyncedAt = null;
       let pollTimer = null;
+
+      const setLobbyMode = (active) => {
+        const inLobby = Boolean(active);
+        document.body.classList.toggle('lobby-active', inLobby);
+        if (landingCard) landingCard.hidden = inLobby;
+        if (!inLobby) {
+          if (sessionStatus) sessionStatus.textContent = 'Waiting to join';
+          if (lobbyStatus) lobbyStatus.textContent = 'Waiting';
+          if (shareCode) shareCode.textContent = 'Invite code: —';
+        }
+      };
 
       const setConnectionState = (state, text) => {
         if (!connectionState) return;
@@ -585,10 +616,12 @@ require __DIR__ . '/config/env.php';
         persistSession(session, player);
         resetTurnOrderUi();
         renderRoster({ sessionCode: session.code, players: [], status: session.status, maxPlayers: session.max_players || MAX_PLAYERS });
+        setLobbyMode(true);
         if (lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: session.code }));
           lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: session.code }));
         }
+        refreshActiveSession();
       };
 
       const fetchSessions = async () => {
@@ -668,27 +701,29 @@ require __DIR__ . '/config/env.php';
             markSynced();
           }
 
-          if (payload.type === 'lobbies.list') {
-            updateSessionList(payload.sessions || []);
-            markSynced();
-          }
+            if (payload.type === 'lobbies.list') {
+              updateSessionList(payload.sessions || []);
+              markSynced();
+            }
 
-          if (payload.type === 'session.started') {
-            lobbyStatus.textContent = 'started';
-            if (activeSession) {
-              activeSession.status = 'started';
+            if (payload.type === 'session.started') {
+              lobbyStatus.textContent = 'started';
+              if (activeSession) {
+                activeSession.status = 'started';
+              }
+              resetTurnOrderUi();
+              setFlash('Game started! Draw your tile to decide order.', 'success');
+              if (activeSession?.code) {
+                renderRoster({
+                  sessionCode: activeSession.code,
+                  players: currentPlayers,
+                  status: 'started',
+                  maxPlayers: activeSession.max_players || MAX_PLAYERS,
+                });
+                refreshActiveSession();
+              }
+              markSynced();
             }
-            resetTurnOrderUi();
-            if (activeSession?.code) {
-              renderRoster({
-                sessionCode: activeSession.code,
-                players: currentPlayers,
-                status: 'started',
-                maxPlayers: activeSession.max_players || MAX_PLAYERS,
-              });
-            }
-            markSynced();
-          }
 
           if (payload.type === 'turnorder.drawn') {
             showTilePop(payload.tile?.letter || '?', payload.player?.name || 'Player');
@@ -822,25 +857,26 @@ require __DIR__ . '/config/env.php';
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
           });
-          const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
-          lobbyStatus.textContent = 'started';
-          activeSession.status = 'started';
-          setFlash('Game started. Everyone can draw for turn order.', 'success');
-          resetTurnOrderUi();
-          renderRoster({
-            sessionCode: activeSession.code,
-            players: currentPlayers,
-            status: 'started',
-            maxPlayers: activeSession.max_players || MAX_PLAYERS,
-          });
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
-            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-          }
-          markSynced();
-        } catch (error) {
-          setFlash(error.message, 'error');
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
+            lobbyStatus.textContent = 'started';
+            activeSession.status = 'started';
+            setFlash('Game started. Everyone can draw for turn order.', 'success');
+            resetTurnOrderUi();
+            renderRoster({
+              sessionCode: activeSession.code,
+              players: currentPlayers,
+              status: 'started',
+              maxPlayers: activeSession.max_players || MAX_PLAYERS,
+            });
+            if (lobbySocket?.readyState === WebSocket.OPEN) {
+              lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
+              lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
+            }
+            refreshActiveSession();
+            markSynced();
+          } catch (error) {
+            setFlash(error.message, 'error');
         }
       };
 
@@ -874,6 +910,7 @@ require __DIR__ . '/config/env.php';
         activeSession = null;
         currentPlayer = null;
         lobbyCard.hidden = true;
+        setLobbyMode(false);
         setFlash('Left the lobby.', 'info');
         localStorage.removeItem(SESSION_STORAGE_KEY);
         requestLobbyRefresh();
@@ -892,6 +929,7 @@ require __DIR__ . '/config/env.php';
           });
           setFlash('Lobby deleted.', 'success');
           lobbyCard.hidden = true;
+          setLobbyMode(false);
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
         } catch (error) {
@@ -929,6 +967,8 @@ require __DIR__ . '/config/env.php';
       const attemptResume = async () => {
         const saved = loadSavedSession();
         if (!saved?.sessionCode || !saved.clientToken) return;
+        setFlash(`Rejoining lobby ${saved.sessionCode}…`, 'info');
+        if (sessionStatus) sessionStatus.textContent = `Rejoining ${saved.sessionCode}`;
         try {
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
@@ -944,6 +984,7 @@ require __DIR__ . '/config/env.php';
           markSynced();
         } catch (error) {
           setFlash('No saved lobby.', 'info');
+          setLobbyMode(false);
         }
       };
 
