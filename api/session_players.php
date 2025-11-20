@@ -94,6 +94,65 @@ try {
             $clientToken = bin2hex(random_bytes(16));
         }
 
+        if ($action === 'force_leave') {
+            $player = $repository->findPlayerByToken($clientToken);
+
+            if (!$player) {
+                $sendError(404, 'No saved player found for this browser.');
+            }
+
+            $activeSession = $repository->getActiveSessionForPlayer((int) $player['id'], $sessionTtlMinutes);
+
+            if (!$activeSession) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'You are not seated in any active session.',
+                ]);
+                exit;
+            }
+
+            $sessionId = (int) $activeSession['id'];
+            $role = $repository->getPlayerSessionRole($sessionId, (int) $player['id']);
+            $repository->removePlayerFromSession($sessionId, (int) $player['id']);
+            $remaining = $repository->countPlayersInSession($sessionId);
+
+            if ($remaining === 0) {
+                $repository->deleteSession($sessionId);
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Left the lobby. It was removed because it was empty.',
+                    'session' => [
+                        'id' => $sessionId,
+                        'code' => $activeSession['code'],
+                        'status' => 'closed',
+                        'player_count' => 0,
+                        'max_players' => $maxPlayers,
+                    ],
+                ]);
+                exit;
+            }
+
+            if ($role && ($role['is_host'] ?? false)) {
+                $repository->assignNextHost($sessionId);
+            }
+
+            $players = $repository->listPlayersForSession($sessionId);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Left the previous lobby.',
+                'session' => [
+                    'id' => $sessionId,
+                    'code' => $activeSession['code'],
+                    'status' => $activeSession['status'],
+                    'player_count' => count($players),
+                    'max_players' => $maxPlayers,
+                ],
+                'players' => $players,
+            ]);
+            exit;
+        }
+
         if ($code === '') {
             $sendError(422, 'Session code is required.');
         }

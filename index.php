@@ -215,6 +215,10 @@ require __DIR__ . '/config/env.php';
         </div>
       </div>
       <div id="sessionFlash" class="flash" hidden></div>
+      <div id="stuckSession" class="actions" hidden>
+        <span class="pill">Looks like you're stuck in another lobby.</span>
+        <button class="btn ghost danger" type="button" id="forceLeaveBtn">Leave previous lobby</button>
+      </div>
     </section>
 
     <section class="card" id="lobbyCard" hidden>
@@ -279,6 +283,8 @@ require __DIR__ . '/config/env.php';
       const sessionFlash = document.getElementById('sessionFlash');
       const sessionList = document.getElementById('sessionList');
       const sessionEmpty = document.getElementById('sessionEmpty');
+      const stuckSession = document.getElementById('stuckSession');
+      const forceLeaveBtn = document.getElementById('forceLeaveBtn');
       const lobbyCard = document.getElementById('lobbyCard');
       const lobbyTitle = document.getElementById('lobbyTitle');
       const lobbyStatus = document.getElementById('lobbyStatus');
@@ -313,12 +319,34 @@ require __DIR__ . '/config/env.php';
       let turnOrderInFlight = false;
       let pendingJoinCode = null;
       let countdownTimer = null;
+      let lastConflictSession = null;
 
       const setFlash = (text, tone = 'info') => {
         if (!sessionFlash) return;
         sessionFlash.hidden = !text;
         sessionFlash.textContent = text;
         sessionFlash.className = `flash ${tone === 'error' ? 'error' : tone === 'success' ? 'success' : ''}`;
+      };
+
+      const setStuckSession = (session) => {
+        lastConflictSession = session || null;
+        if (!stuckSession || !forceLeaveBtn) return;
+        if (!session) {
+          stuckSession.hidden = true;
+          return;
+        }
+        stuckSession.hidden = false;
+        forceLeaveBtn.textContent = session.code
+          ? `Leave lobby ${session.code}`
+          : 'Leave previous lobby';
+      };
+
+      const requestLobbyRefresh = () => {
+        if (lobbySocket?.readyState === WebSocket.OPEN) {
+          lobbySocket.send(JSON.stringify({ type: 'lobbies.refresh' }));
+          return;
+        }
+        fetchSessions();
       };
 
       const persistIdentity = (playerName, clientToken) => {
@@ -354,6 +382,39 @@ require __DIR__ . '/config/env.php';
         } catch (error) {
           return null;
         }
+      };
+
+      const updateSessionList = (sessions = []) => {
+        sessionList.innerHTML = '';
+        if (!sessions.length) {
+          sessionEmpty.hidden = false;
+          return;
+        }
+        sessionEmpty.hidden = true;
+        sessions.forEach((session) => {
+          const row = document.createElement('div');
+          row.className = 'player';
+          row.innerHTML = `<strong>${session.code}</strong><div class="badge">${session.status}</div><div>${session.player_count}/${MAX_PLAYERS}</div>`;
+          row.addEventListener('click', () => {
+            sessionCodeInput.value = session.code;
+            setFlash(`Joining ${session.code}? Enter your name.`, 'info');
+            playerNameInput.focus();
+          });
+          sessionList.appendChild(row);
+        });
+      };
+
+      const parseSessionDetail = (detail) => {
+        if (!detail) return null;
+        if (typeof detail === 'object') return detail;
+        if (typeof detail === 'string') {
+          try {
+            return JSON.parse(detail);
+          } catch (error) {
+            return null;
+          }
+        }
+        return null;
       };
 
       const renderRoster = ({ sessionCode, players = [], status, maxPlayers }) => {
@@ -440,6 +501,7 @@ require __DIR__ . '/config/env.php';
       const setActiveSession = (session, player) => {
         activeSession = session;
         currentPlayer = player;
+        setStuckSession(null);
         persistSession(session, player);
         renderRoster({ sessionCode: session.code, players: [], status: session.status, maxPlayers: session.max_players || MAX_PLAYERS });
         if (lobbySocket?.readyState === WebSocket.OPEN) {
@@ -454,23 +516,7 @@ require __DIR__ . '/config/env.php';
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load sessions');
           const sessions = data.sessions || [];
-          sessionList.innerHTML = '';
-          if (!sessions.length) {
-            sessionEmpty.hidden = false;
-            return;
-          }
-          sessionEmpty.hidden = true;
-          sessions.forEach((session) => {
-            const row = document.createElement('div');
-            row.className = 'player';
-            row.innerHTML = `<strong>${session.code}</strong><div class="badge">${session.status}</div><div>${session.player_count}/${MAX_PLAYERS}</div>`;
-            row.addEventListener('click', () => {
-              sessionCodeInput.value = session.code;
-              setFlash(`Joining ${session.code}? Enter your name.`, 'info');
-              playerNameInput.focus();
-            });
-            sessionList.appendChild(row);
-          });
+          updateSessionList(sessions);
         } catch (error) {
           sessionEmpty.hidden = false;
         }
@@ -481,6 +527,7 @@ require __DIR__ . '/config/env.php';
         lobbySocket = new WebSocket(lobbyWsUrl);
         lobbySocket.addEventListener('open', () => {
           lobbyConnected = true;
+          lobbySocket.send(JSON.stringify({ type: 'lobbies.subscribe' }));
           if (activeSession?.code) {
             lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
@@ -501,6 +548,10 @@ require __DIR__ . '/config/env.php';
               status: payload.status,
               maxPlayers: payload.maxPlayers,
             });
+          }
+
+          if (payload.type === 'lobbies.list') {
+            updateSessionList(payload.sessions || []);
           }
 
           if (payload.type === 'session.started') {
@@ -573,7 +624,10 @@ require __DIR__ . '/config/env.php';
             body: JSON.stringify({ code, playerName }),
           });
           const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to create session');
+          if (!response.ok || !data.success) {
+            setStuckSession(parseSessionDetail(data.detail));
+            throw new Error(data.message || 'Unable to create session');
+          }
           setFlash('Lobby created.', 'success');
           setActiveSession(data.session, data.player);
           renderRoster({
@@ -582,6 +636,7 @@ require __DIR__ . '/config/env.php';
             players: [data.player],
             maxPlayers: data.session.max_players,
           });
+          requestLobbyRefresh();
           openLobbySocket();
         } catch (error) {
           setFlash(error.message, 'error');
@@ -607,7 +662,10 @@ require __DIR__ . '/config/env.php';
             body: JSON.stringify({ action: 'join', code, playerName, clientToken }),
           });
           const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to join');
+          if (!response.ok || !data.success) {
+            setStuckSession(parseSessionDetail(data.detail));
+            throw new Error(data.message || 'Unable to join');
+          }
           setFlash(`Joined ${data.session.code}.`, 'success');
           setActiveSession(data.session, data.player);
           closeJoinModal();
@@ -617,6 +675,7 @@ require __DIR__ . '/config/env.php';
             players: data.players,
             maxPlayers: data.session.max_players,
           });
+          requestLobbyRefresh();
           openLobbySocket();
         } catch (error) {
           setFlash(error.message, 'error');
@@ -680,6 +739,7 @@ require __DIR__ . '/config/env.php';
         lobbyCard.hidden = true;
         setFlash('Left the lobby.', 'info');
         localStorage.removeItem(SESSION_STORAGE_KEY);
+        requestLobbyRefresh();
       };
 
       const deleteSession = async () => {
@@ -696,8 +756,36 @@ require __DIR__ . '/config/env.php';
           setFlash('Lobby deleted.', 'success');
           lobbyCard.hidden = true;
           localStorage.removeItem(SESSION_STORAGE_KEY);
+          requestLobbyRefresh();
         } catch (error) {
           setFlash('Unable to delete lobby.', 'error');
+        }
+      };
+
+      const forceLeavePreviousSession = async () => {
+        const identity = loadIdentity();
+        if (!identity?.clientToken) {
+          setFlash('No saved player identity to leave a previous lobby.', 'error');
+          return;
+        }
+        try {
+          const response = await fetch('/api/session_players.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'force_leave', clientToken: identity.clientToken }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to leave previous lobby');
+          setFlash(data.message || 'Left previous lobby.', 'success');
+          setStuckSession(null);
+          activeSession = null;
+          currentPlayer = null;
+          lobbyCard.hidden = true;
+          localStorage.removeItem(SESSION_STORAGE_KEY);
+          requestLobbyRefresh();
+          fetchSessions();
+        } catch (error) {
+          setFlash(error.message, 'error');
         }
       };
 
@@ -777,6 +865,7 @@ require __DIR__ . '/config/env.php';
       if (drawTurnOrderBtn) drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
       if (leaveSessionBtn) leaveSessionBtn.addEventListener('click', leaveSession);
       if (deleteSessionBtn) deleteSessionBtn.addEventListener('click', deleteSession);
+      if (forceLeaveBtn) forceLeaveBtn.addEventListener('click', forceLeavePreviousSession);
 
       populateIdentity();
       fetchSessions();
