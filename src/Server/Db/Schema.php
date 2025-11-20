@@ -21,11 +21,11 @@ final class Schema
             $exists = $statement !== false && $statement->fetchColumn() !== false;
         }
 
-        if ($exists) {
-            return;
+        if (!$exists) {
+            self::applyMigrations($pdo, $driver);
         }
 
-        self::applyMigrations($pdo, $driver);
+        self::ensurePlayerTokenColumn($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -35,6 +35,8 @@ final class Schema
             ? 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY'
             : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         $boolColumn = $driver === 'mysql' ? 'TINYINT(1)' : 'INTEGER';
+
+        $stringColumn = $driver === 'mysql' ? 'VARCHAR(255)' : 'TEXT';
 
         $migrations = [
             <<<SQL
@@ -50,7 +52,9 @@ final class Schema
             CREATE TABLE IF NOT EXISTS players (
                 id {$idColumn},
                 name TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                client_token {$stringColumn} NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(client_token)
             );
             SQL,
             <<<SQL
@@ -113,5 +117,35 @@ final class Schema
         foreach ($migrations as $sql) {
             $pdo->exec($sql);
         }
+    }
+
+    private static function ensurePlayerTokenColumn(PDO $pdo, string $driver): void
+    {
+        $hasColumn = false;
+
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(players)");
+            $columns = $statement ? $statement->fetchAll() : [];
+            foreach ($columns as $column) {
+                if (($column['name'] ?? '') === 'client_token') {
+                    $hasColumn = true;
+                    break;
+                }
+            }
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'players' AND COLUMN_NAME = 'client_token' LIMIT 1"
+            );
+            $statement->execute();
+            $hasColumn = $statement->fetchColumn() !== false;
+        }
+
+        if ($hasColumn) {
+            return;
+        }
+
+        $columnType = $driver === 'mysql' ? 'VARCHAR(255)' : 'TEXT';
+        $pdo->exec("ALTER TABLE players ADD COLUMN client_token {$columnType} NULL");
+        $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_client_token ON players(client_token)');
     }
 }
