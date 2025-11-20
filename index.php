@@ -129,6 +129,41 @@ require __DIR__ . '/config/env.php';
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .pill-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+    .waiting-banner {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+      background: linear-gradient(120deg, rgba(99, 102, 241, 0.12), rgba(34, 211, 238, 0.08));
+      color: var(--ink);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      animation: waitPulse 1.6s ease-in-out infinite;
+    }
+
+    .waiting-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+      animation: dotBeat 1.4s ease-in-out infinite;
+    }
+
+    @keyframes waitPulse {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+      100% { transform: translateY(0); }
+    }
+
+    @keyframes dotBeat {
+      0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+      100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+
     .log { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 12px; min-height: 180px; display: grid; gap: 6px; font-family: "SFMono", ui-monospace, monospace; }
     .log .entry { padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 10px; display: flex; gap: 8px; align-items: center; }
     .log .entry strong { color: #a5b4fc; }
@@ -195,6 +230,10 @@ require __DIR__ . '/config/env.php';
         <button class="btn ghost danger" id="leaveSessionBtn">Leave</button>
         <button class="btn ghost danger" id="deleteSessionBtn">Delete</button>
       </div>
+      <div id="waitingForHost" class="waiting-banner" hidden>
+        <span class="waiting-dot" aria-hidden="true"></span>
+        <span class="waiting-text"></span>
+      </div>
       <div class="roster" id="lobbyRoster"></div>
       <div class="card" style="margin-top:14px; background:#0f172a; color:#e2e8f0;">
         <p class="eyebrow" style="color:#cbd5e1;">Turn order</p>
@@ -253,6 +292,7 @@ require __DIR__ . '/config/env.php';
       const turnOrderResult = document.getElementById('turnOrderResult');
       const sessionStatus = document.getElementById('sessionStatus');
       const tilePop = document.getElementById('tilePop');
+      const waitingForHost = document.getElementById('waitingForHost');
       const joinSessionBtn = document.getElementById('joinSessionBtn');
       const joinModal = document.getElementById('joinModal');
       const joinModalForm = document.getElementById('joinModalForm');
@@ -269,6 +309,7 @@ require __DIR__ . '/config/env.php';
       let lobbyConnected = false;
       let activeSession = null;
       let currentPlayer = null;
+      let currentPlayers = [];
       let turnOrderInFlight = false;
       let pendingJoinCode = null;
       let countdownTimer = null;
@@ -317,11 +358,16 @@ require __DIR__ . '/config/env.php';
 
       const renderRoster = ({ sessionCode, players = [], status, maxPlayers }) => {
         if (!lobbyCard || !lobbyRoster) return;
+        currentPlayers = players;
         lobbyCard.hidden = false;
         lobbyTitle.textContent = `Session ${sessionCode}`;
         lobbyStatus.textContent = status;
         lobbyCapacity.textContent = `${players.length}/${maxPlayers} players`;
         lobbyRoster.innerHTML = '';
+        if (activeSession) {
+          activeSession.status = status;
+          activeSession.max_players = maxPlayers;
+        }
         players.forEach((player, idx) => {
           const row = document.createElement('div');
           row.className = 'player';
@@ -340,9 +386,22 @@ require __DIR__ . '/config/env.php';
         const readyToDraw = players.length >= 2 && status === 'started';
         startGameBtn.disabled = !(isHost && readyToStart);
         startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
-        drawTurnOrderBtn.disabled = !(isHost && readyToDraw && !turnOrderInFlight);
+        drawTurnOrderBtn.disabled = !(readyToDraw && !turnOrderInFlight);
         drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
         sessionStatus.textContent = `In ${sessionCode} • ${players.length}/${maxPlayers}`;
+
+        const hostName = players.find((player) => player.is_host)?.name || 'the host';
+        if (waitingForHost) {
+          const textEl = waitingForHost.querySelector('.waiting-text');
+          if (status === 'started') {
+            waitingForHost.hidden = true;
+          } else {
+            waitingForHost.hidden = false;
+            if (textEl) {
+              textEl.textContent = `Waiting for ${hostName} to start the game...`;
+            }
+          }
+        }
       };
 
       const logTurn = (text) => {
@@ -446,6 +505,17 @@ require __DIR__ . '/config/env.php';
 
           if (payload.type === 'session.started') {
             lobbyStatus.textContent = 'started';
+            if (activeSession) {
+              activeSession.status = 'started';
+            }
+            if (activeSession?.code) {
+              renderRoster({
+                sessionCode: activeSession.code,
+                players: currentPlayers,
+                status: 'started',
+                maxPlayers: activeSession.max_players || MAX_PLAYERS,
+              });
+            }
           }
 
           if (payload.type === 'turnorder.drawn') {
@@ -566,6 +636,12 @@ require __DIR__ . '/config/env.php';
           lobbyStatus.textContent = 'started';
           activeSession.status = 'started';
           setFlash('Game started. Host can now draw for turn order.', 'success');
+          renderRoster({
+            sessionCode: activeSession.code,
+            players: currentPlayers,
+            status: 'started',
+            maxPlayers: activeSession.max_players || MAX_PLAYERS,
+          });
           if (lobbySocket?.readyState === WebSocket.OPEN) {
             lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
