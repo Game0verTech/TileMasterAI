@@ -12,6 +12,7 @@ use TileMasterAI\Server\Db\GameRepository;
 $host = getenv('LOBBY_WS_HOST') ?: '0.0.0.0';
 $port = (int) (getenv('LOBBY_WS_PORT') ?: 8090);
 $maxPlayers = 4;
+$sessionTtlMinutes = 120;
 
 $server = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr);
 
@@ -106,6 +107,35 @@ $sendRoster = static function (array &$clients, array $session, array $players, 
     @fwrite($socket, $encodeFrame(json_encode($message)));
 };
 
+$sendLobbyList = static function (array &$clients, ?array $targetSockets = null) use ($repository, $encodeFrame, $sessionTtlMinutes, $maxPlayers): void {
+    $sessions = $repository->listOpenSessionsWithCounts($sessionTtlMinutes);
+    $payload = $encodeFrame(json_encode([
+        'type' => 'lobbies.list',
+        'sessions' => $sessions,
+        'maxPlayers' => $maxPlayers,
+    ]));
+
+    if ($targetSockets !== null) {
+        foreach ($targetSockets as $socket) {
+            @fwrite($socket, $payload);
+        }
+        return;
+    }
+
+    foreach ($clients as $index => $client) {
+        if (!($client['watchingLobbyList'] ?? false)) {
+            continue;
+        }
+
+        if (!is_resource($client['socket'])) {
+            unset($clients[$index]);
+            continue;
+        }
+
+        @fwrite($client['socket'], $payload);
+    }
+};
+
 $distanceFromA = static function (string $letter): int {
     $upper = strtoupper($letter);
 
@@ -139,7 +169,7 @@ while (true) {
         $newSocket = @stream_socket_accept($server, 0);
         if ($newSocket) {
             stream_set_blocking($newSocket, false);
-            $clients[] = ['socket' => $newSocket, 'handshake' => false, 'session' => null];
+            $clients[] = ['socket' => $newSocket, 'handshake' => false, 'session' => null, 'watchingLobbyList' => false];
         }
 
         $readSockets = array_filter($readSockets, static fn ($sock) => $sock !== $server);
@@ -195,6 +225,17 @@ while (true) {
         $payload = json_decode($message, true);
 
         if (!is_array($payload) || !isset($payload['type'])) {
+            continue;
+        }
+
+        if (($payload['type'] ?? '') === 'lobbies.subscribe') {
+            $clients[$clientIndex]['watchingLobbyList'] = true;
+            $sendLobbyList($clients, [$socket]);
+            continue;
+        }
+
+        if (($payload['type'] ?? '') === 'lobbies.refresh') {
+            $sendLobbyList($clients);
             continue;
         }
 
@@ -360,6 +401,17 @@ while (true) {
                 'draws' => $drawHistory,
             ]);
 
+            $sequence = array_map(static fn ($entry) => (int) $entry['player']['id'], $finalOrder);
+            if ($sequence !== []) {
+                $repository->saveTurnState($sessionId, $sequence[0], 1, 'idle', $sequence);
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.started',
+                    'sessionCode' => $sessionCode,
+                    'playerId' => $sequence[0],
+                    'turnNumber' => 1,
+                ]);
+            }
+
             $broadcast($clients, $sessionCode, [
                 'type' => 'player.sound',
                 'tone' => 'alert',
@@ -379,6 +431,7 @@ while (true) {
                 'players' => $players,
                 'canStart' => count($players) >= 2,
             ]);
+            $sendLobbyList($clients);
             continue;
         }
 
@@ -388,6 +441,7 @@ while (true) {
                 'sessionCode' => $sessionCode,
                 'by' => $payload['by'] ?? null,
             ]);
+            $sendLobbyList($clients);
             continue;
         }
 
@@ -396,6 +450,72 @@ while (true) {
                 'type' => 'player.sound',
                 'tone' => $payload['tone'] ?? 'accept',
             ]);
+        }
+
+        if (($payload['type'] ?? '') === 'turn.start') {
+            $playerId = (int) ($payload['playerId'] ?? 0);
+            $state = $repository->getTurnState((int) $session['id']);
+            if (!$state || $state['current_player_id'] !== $playerId) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'Not your turn yet.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $repository->saveTurnState((int) $session['id'], $playerId, (int) $state['turn_number'], 'active', $state['sequence']);
+            $broadcast($clients, $sessionCode, [
+                'type' => 'turn.started',
+                'sessionCode' => $sessionCode,
+                'playerId' => $playerId,
+                'turnNumber' => (int) $state['turn_number'],
+            ]);
+            continue;
+        }
+
+        if (($payload['type'] ?? '') === 'turn.complete') {
+            $playerId = (int) ($payload['playerId'] ?? 0);
+            $placements = $payload['placements'] ?? [];
+            if (!is_array($placements) || $placements === []) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'No placements submitted.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $state = $repository->getTurnState((int) $session['id']);
+            if (!$state || $state['current_player_id'] !== $playerId) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'Out of turn submission.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $repository->recordTurn((int) $session['id'], $playerId, (int) $state['turn_number'], $placements, (int) ($payload['score'] ?? 0));
+            $nextState = $repository->advanceTurnState((int) $session['id']);
+
+            $broadcast($clients, $sessionCode, [
+                'type' => 'turn.completed',
+                'sessionCode' => $sessionCode,
+                'playerId' => $playerId,
+                'turnNumber' => (int) $state['turn_number'],
+                'placements' => $placements,
+            ]);
+
+            if ($nextState) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.started',
+                    'sessionCode' => $sessionCode,
+                    'playerId' => $nextState['current_player_id'],
+                    'turnNumber' => $nextState['turn_number'],
+                ]);
+            }
+            continue;
         }
     }
 }

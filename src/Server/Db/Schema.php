@@ -112,6 +112,19 @@ final class Schema
                 FOREIGN KEY (turn_id) REFERENCES turns(id) ON DELETE SET NULL
             );
             SQL,
+            <<<SQL
+            CREATE TABLE IF NOT EXISTS turn_states (
+                id {$idColumn},
+                session_id INTEGER NOT NULL UNIQUE,
+                current_player_id INTEGER NULL,
+                turn_number INTEGER NOT NULL DEFAULT 1,
+                sequence TEXT NULL,
+                phase TEXT NOT NULL DEFAULT 'idle',
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (current_player_id) REFERENCES players(id) ON DELETE SET NULL
+            );
+            SQL,
         ];
 
         foreach ($migrations as $sql) {
