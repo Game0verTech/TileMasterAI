@@ -372,6 +372,7 @@ require __DIR__ . '/config/env.php';
       let activeSession = null;
       let currentPlayer = null;
       let currentPlayers = [];
+      let lastRosterCount = 0;
       let turnOrderInFlight = false;
       let playerHasDrawn = false;
       let turnOrderResolved = false;
@@ -511,6 +512,14 @@ require __DIR__ . '/config/env.php';
           return;
         }
         sessionEmpty.hidden = true;
+        const activeEntry = activeSession?.code
+          ? sessions.find((session) => session.code === activeSession.code)
+          : null;
+
+        if (activeEntry && activeEntry.player_count !== lastRosterCount) {
+          requestSessionRefresh(activeEntry.code);
+        }
+
           sessions.forEach((session) => {
             const row = document.createElement('div');
             row.className = 'lobby-row';
@@ -554,6 +563,7 @@ require __DIR__ . '/config/env.php';
       const renderRoster = ({ sessionCode, players = [], status, maxPlayers, canStart }) => {
         if (!lobbyCard || !lobbyRoster) return;
         currentPlayers = players;
+        lastRosterCount = players.length;
         lobbyCard.hidden = false;
         lobbyTitle.textContent = `Session ${sessionCode}`;
         lobbyStatus.textContent = status;
@@ -941,6 +951,7 @@ require __DIR__ . '/config/env.php';
         }
         activeSession = null;
         currentPlayer = null;
+        lastRosterCount = 0;
         lobbyCard.hidden = true;
         setLobbyMode(false);
         setFlash('Left the lobby.', 'info');
@@ -963,6 +974,7 @@ require __DIR__ . '/config/env.php';
           });
           setFlash('Lobby deleted.', 'success');
           lobbyCard.hidden = true;
+          lastRosterCount = 0;
           setLobbyMode(false);
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
@@ -990,6 +1002,7 @@ require __DIR__ . '/config/env.php';
           setStuckSession(null);
           activeSession = null;
           currentPlayer = null;
+          lastRosterCount = 0;
           lobbyCard.hidden = true;
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
