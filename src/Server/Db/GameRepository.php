@@ -454,6 +454,66 @@ class GameRepository
         ]);
     }
 
+    public function saveTurnState(int $sessionId, ?int $currentPlayerId, int $turnNumber, string $phase, array $sequence): void
+    {
+        $sql = $this->driver === 'mysql'
+            ? 'INSERT INTO turn_states (session_id, current_player_id, turn_number, phase, sequence, updated_at) '
+                . 'VALUES (:session_id, :current_player_id, :turn_number, :phase, :sequence, CURRENT_TIMESTAMP) '
+                . 'ON DUPLICATE KEY UPDATE current_player_id = VALUES(current_player_id), turn_number = VALUES(turn_number), '
+                . 'phase = VALUES(phase), sequence = VALUES(sequence), updated_at = CURRENT_TIMESTAMP'
+            : 'INSERT INTO turn_states (session_id, current_player_id, turn_number, phase, sequence, updated_at) '
+                . 'VALUES (:session_id, :current_player_id, :turn_number, :phase, :sequence, CURRENT_TIMESTAMP) '
+                . 'ON CONFLICT(session_id) DO UPDATE SET current_player_id = excluded.current_player_id, '
+                . 'turn_number = excluded.turn_number, phase = excluded.phase, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':current_player_id' => $currentPlayerId,
+            ':turn_number' => $turnNumber,
+            ':phase' => $phase,
+            ':sequence' => json_encode(array_values($sequence), JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    public function getTurnState(int $sessionId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM turn_states WHERE session_id = :session_id LIMIT 1');
+        $statement->execute([':session_id' => $sessionId]);
+        $state = $statement->fetch();
+
+        if ($state === false) {
+            return null;
+        }
+
+        return [
+            'session_id' => (int) $state['session_id'],
+            'current_player_id' => $state['current_player_id'] !== null ? (int) $state['current_player_id'] : null,
+            'turn_number' => (int) $state['turn_number'],
+            'phase' => (string) $state['phase'],
+            'sequence' => json_decode((string) $state['sequence'], true) ?: [],
+        ];
+    }
+
+    public function advanceTurnState(int $sessionId): ?array
+    {
+        $state = $this->getTurnState($sessionId);
+        if (!$state || $state['sequence'] === []) {
+            return null;
+        }
+
+        $sequence = array_values($state['sequence']);
+        $current = $state['current_player_id'];
+        $index = array_search($current, $sequence, true);
+        $nextIndex = $index === false ? 0 : ($index + 1) % count($sequence);
+        $nextPlayerId = (int) $sequence[$nextIndex];
+        $turnNumber = $state['turn_number'] + 1;
+
+        $this->saveTurnState($sessionId, $nextPlayerId, $turnNumber, 'idle', $sequence);
+
+        return $this->getTurnState($sessionId);
+    }
+
     public function deleteSession(int $sessionId): void
     {
         $statement = $this->pdo->prepare('DELETE FROM sessions WHERE id = :id');

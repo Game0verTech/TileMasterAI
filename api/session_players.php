@@ -74,6 +74,7 @@ try {
                 'player_count' => count($players),
             ],
             'players' => $players,
+            'turn_state' => $repository->getTurnState((int) $session['id']),
         ]);
         exit;
     }
@@ -180,6 +181,7 @@ try {
                     'is_admin' => $isAdminName((string) $player['name']),
                 ],
                 'players' => $players,
+                'turn_state' => $repository->getTurnState($sessionId),
             ]);
             exit;
         }
