@@ -464,10 +464,12 @@ require __DIR__ . '/config/env.php';
         if (lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
           pendingSessionRefresh = null;
-          return;
+        } else {
+          pendingSessionRefresh = code;
         }
 
-        pendingSessionRefresh = code;
+        // Always fetch over HTTP as a fallback so roster updates still land if
+        // the WebSocket push is delayed or interrupted.
         refreshActiveSession();
       };
 
