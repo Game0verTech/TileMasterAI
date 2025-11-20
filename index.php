@@ -1,2056 +1,245 @@
 <?php
 require __DIR__ . '/config/env.php';
-require __DIR__ . '/src/bootstrap.php';
-
-use TileMasterAI\Game\Board;
-use TileMasterAI\Game\Dictionary;
-use TileMasterAI\Game\MoveGenerator;
-use TileMasterAI\Game\Rack;
-use TileMasterAI\Game\Scoring;
-use TileMasterAI\Game\Tile;
-
-$hasOpenAiKey = getenv('OPENAI_API_KEY') !== false && getenv('OPENAI_API_KEY') !== '';
-
-$premiumBoard = [
-  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
-  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
-  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
-  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
-  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
-  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
-  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
-  ['TW', '', '', 'DL', '', '', '', 'DW', '', '', '', 'DL', '', '', 'TW'],
-  ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],
-  ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],
-  ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],
-  ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],
-  ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],
-  ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],
-  ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],
-];
-
-$rowLabels = range('A', 'O');
-$columnLabels = range(1, 15);
-
-$rackLetters = ['T', 'I', 'L', 'E', 'M', 'A', '?'];
-$rackModel = Rack::fromLetters($rackLetters);
-$rackTiles = array_map(static function (Tile $tile) {
-  $letter = $tile->letter();
-  $isBlank = $tile->isBlank();
-
-  return [
-    'letter' => $letter,
-    'value' => $tile->value(),
-    'isBlank' => $isBlank,
-    'displayLetter' => $isBlank && $letter === '?' ? '' : $letter,
-  ];
-}, $rackModel->tiles());
-
-$tileDistribution = Scoring::tileDistribution();
-$totalTiles = array_sum(array_map(static fn ($entry) => $entry['count'], $tileDistribution));
-$blankCount = $tileDistribution['?']['count'] ?? 0;
-$distributionValid = $totalTiles === 100 && $blankCount === 2;
-$tileValuesAligned = array_reduce(array_keys($tileDistribution), static function ($carry, $letter) use ($tileDistribution) {
-  if ($carry === false) {
-    return false;
-  }
-
-  return $tileDistribution[$letter]['value'] === Scoring::tileValue($letter);
-}, true);
-
-$premiumLayout = Board::standardLayout();
-$layoutSymmetric = true;
-for ($r = 0; $r < Board::ROWS; $r++) {
-  for ($c = 0; $c < Board::COLUMNS; $c++) {
-    if ($premiumLayout[$r][$c] !== $premiumLayout[Board::ROWS - $r - 1][Board::COLUMNS - $c - 1]) {
-      $layoutSymmetric = false;
-      break 2;
-    }
-  }
-}
-$centerPremium = $premiumLayout[7][7] ?? '';
-
-$boardModel = Board::standard();
-
-$dictionaryPath = getenv('DICTIONARY_PATH') ?: __DIR__ . '/data/dictionary-mini.txt';
-$dictionary = new Dictionary($dictionaryPath);
-$demoWord = 'ORATION';
-
-$moveGenerator = new MoveGenerator($boardModel, $dictionary);
-$moveSuggestions = $moveGenerator->generateMoves($rackModel, 5);
-
-$normalizeMove = static function (array $move): array {
-  return [
-    'word' => $move['word'] ?? '',
-    'direction' => $move['direction'] ?? '',
-    'start' => $move['start'] ?? '',
-    'score' => $move['score'] ?? 0,
-    'mainWordScore' => $move['mainWordScore'] ?? 0,
-    'crossWords' => array_map(static function ($cross) {
-      return [
-        'word' => $cross['word'] ?? '',
-        'score' => $cross['score'] ?? 0,
-      ];
-    }, $move['crossWords'] ?? []),
-    'placements' => array_map(static function ($placement) {
-      return [
-        'coord' => $placement['coord'] ?? '',
-        'letter' => ($placement['tile']->letter() ?? ''),
-        'isBlank' => $placement['tile']->isBlank() ?? false,
-      ];
-    }, $move['placements'] ?? []),
-  ];
-};
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'suggestions') {
-  $input = json_decode(file_get_contents('php://input'), true) ?? [];
-  $rackLetters = array_map(static fn ($letter) => strtoupper((string) $letter), $input['rack'] ?? []);
-  $boardPayload = $input['board'] ?? [];
-
-  $boardForMoveGen = Board::standard();
-  foreach ($boardPayload as $placement) {
-    $row = (int) ($placement['row'] ?? -1) + 1; // convert 0-index from client
-    $col = (int) ($placement['col'] ?? -1) + 1;
-    $letter = strtoupper((string) ($placement['letter'] ?? ''));
-    $assigned = strtoupper((string) ($placement['assignedLetter'] ?? ''));
-    $isBlank = (bool) ($placement['isBlank'] ?? false);
-
-    if ($row < 1 || $col < 1 || $row > Board::ROWS || $col > Board::COLUMNS || $letter === '') {
-      continue;
-    }
-
-    $tileLetter = $isBlank ? ($assigned ?: '?') : $letter;
-    $tile = Tile::fromLetter($tileLetter, $isBlank);
-    $boardForMoveGen->placeTile($row, $col, $tile);
-  }
-
-  $rackForMoveGen = Rack::fromLetters($rackLetters);
-  $generator = new MoveGenerator($boardForMoveGen, $dictionary);
-  $suggestions = $generator->generateMoves($rackForMoveGen, 10);
-  $normalizedSuggestions = array_map($normalizeMove, $suggestions);
-
-  header('Content-Type: application/json');
-  echo json_encode(['suggestions' => $normalizedSuggestions]);
-  exit;
-}
-
-$demoPlacements = [];
-$demoBoard = Board::standard();
-$demoStartRow = 8;
-$demoStartColumn = 8;
-foreach (str_split($demoWord) as $index => $letter) {
-  $coord = Board::coordinateKey($demoStartRow, $demoStartColumn + $index);
-  $demoPlacements[] = ['coord' => $coord, 'tile' => Tile::fromLetter($letter)];
-}
-
-$demoScore = Scoring::scorePlacements($demoBoard, $demoPlacements);
-$dictionaryHasDemoWord = $dictionary->has($demoWord);
-
-$sanityChecks = [
-  [
-    'label' => 'Tile distribution',
-    'status' => $distributionValid ? '100 tiles accounted for' : 'Check counts',
-    'detail' => "Total {$totalTiles} tiles • {$blankCount} blanks • values " . ($tileValuesAligned ? 'aligned' : 'mismatch'),
-  ],
-  [
-    'label' => 'Premium layout symmetry',
-    'status' => $layoutSymmetric ? 'Mirrors correctly' : 'Needs attention',
-    'detail' => 'Layout mirrors across center; center square is ' . ($centerPremium ?: 'unset'),
-  ],
-  [
-    'label' => 'Center start star',
-    'status' => $centerPremium === 'DW' ? 'DW anchor ready' : 'Center premium off',
-    'detail' => 'H8 is marked as the first play double word.',
-  ],
-  [
-    'label' => 'Dictionary health',
-    'status' => $dictionaryHasDemoWord ? 'Word lookups OK' : 'Dictionary missing samples',
-    'detail' => basename($dictionaryPath) . ' • ' . number_format($dictionary->count()) . ' entries',
-  ],
-  [
-    'label' => 'AI key readiness',
-    'status' => $hasOpenAiKey ? 'OPENAI_API_KEY loaded' : 'Add OPENAI_API_KEY',
-    'detail' => $hasOpenAiKey ? 'Ready to call OpenAI for move advice.' : 'Store the key in .env and keep it server-side.',
-  ],
-];
-
-$aiSetupNotes = [
-  'Keep OPENAI_API_KEY in the server-side .env; never ship it to the browser.',
-  'Expose a POST /api/moves endpoint that validates board/rack payloads before calling OpenAI.',
-  'Use the move generator output as function-call arguments so GPT can rank or explain candidates.',
-  'Cache dictionary lookups and rate-limit the API route to avoid accidental overuse.',
-];
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TileMasterAI | Phase 4 Move Generation Preview</title>
+  <title>TileMasterAI Lobby</title>
   <style>
     :root {
       color-scheme: light;
       font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      --bg: #f8fafc;
-      --card: #ffffff;
       --ink: #0f172a;
       --muted: #475569;
+      --border: #e2e8f0;
+      --card: #ffffff;
+      --bg: #f8fafc;
       --accent: #6366f1;
       --accent-strong: #4f46e5;
-      --border: #e2e8f0;
-      --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)),
-        linear-gradient(115deg, rgba(210, 167, 110, 0.35), rgba(210, 167, 110, 0)),
-        repeating-linear-gradient(
-          22deg,
-          rgba(255, 255, 255, 0.28) 0px,
-          rgba(255, 255, 255, 0.28) 10px,
-          rgba(0, 0, 0, 0.035) 10px,
-          rgba(0, 0, 0, 0.035) 18px
-        ),
-        linear-gradient(135deg, #f2d5a2 0%, #dfbd84 55%, #f3d8a2 100%);
-      --tile-wood-border: #b9874c;
-      --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
-      --radius: 18px;
-      --cell-size: clamp(42px, 4.5vw + 12px, 56px);
-      --cell-gap: clamp(3px, 1vw, 6px);
-      --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 82px;
-      --bottom-dock-height: 116px;
-      --board-toolbar: rgba(15, 23, 42, 0.86);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
+      background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08), transparent 24%),
+        radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.08), transparent 26%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
       min-height: 100vh;
-      background: radial-gradient(circle at 18% 20%, #eef2ff 0, #eef2ff 35%, transparent 50%),
-                  radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
-                  var(--bg);
       color: var(--ink);
-      padding: var(--top-dock-height) 18px var(--bottom-dock-height);
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      overflow: hidden;
+      padding: 32px 18px 48px;
     }
 
     header {
-      display: flex;
-      flex-direction: column;
+      max-width: 1080px;
+      margin: 0 auto 24px;
+      display: grid;
       gap: 12px;
-      max-width: 1200px;
-      margin: 0 auto;
+      align-items: flex-start;
+      grid-template-columns: 1fr auto;
     }
 
-    .eyebrow {
-      display: inline-flex;
+    .brand {
+      display: flex;
+      gap: 10px;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: #eef2ff;
-      color: #312e81;
-      font-weight: 600;
-      width: fit-content;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #4f46e5, #22d3ee);
+      box-shadow: 0 16px 40px rgba(79, 70, 229, 0.22);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 20px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(32px, 5vw, 48px);
-      letter-spacing: -0.6px;
+      font-size: clamp(26px, 4vw, 32px);
     }
 
-    p.lede {
-      margin: 0;
+    p.subtitle { margin: 0; color: var(--muted); }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.85);
       color: var(--muted);
-      font-size: 17px;
-      max-width: 720px;
-      line-height: 1.6;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
     }
 
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: #ecfeff;
-      color: #0f172a;
-      border: 1px solid #67e8f9;
-      border-radius: 999px;
-      padding: 8px 14px;
-      font-weight: 600;
-      box-shadow: 0 14px 30px rgba(14, 165, 233, 0.12);
-    }
-
-    .status-icon {
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      background: <?php echo $hasOpenAiKey ? '#22c55e' : '#f59e0b'; ?>;
-      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.16);
-    }
-
-    .grid {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
+    main { max-width: 1080px; margin: 0 auto; display: grid; gap: 18px; }
 
     .card {
       background: var(--card);
-      border-radius: var(--radius);
       border: 1px solid var(--border);
-      box-shadow: var(--glow);
-      padding: 18px 18px 16px;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
     }
 
-    pre.code {
-      background: #0f172a;
-      color: #e2e8f0;
+    .card h2 { margin: 0 0 8px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; color: var(--muted); font-size: 12px; margin: 0 0 4px; }
+
+    form { display: grid; gap: 10px; }
+
+    label { font-weight: 700; color: var(--muted); font-size: 14px; }
+
+    input, button {
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--border);
       padding: 12px;
-      border-radius: 12px;
-      overflow: auto;
-      font-size: 13px;
-      border: 1px solid #0f172a;
     }
 
-    .layout-shell {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    .board-preview {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
-      border-radius: var(--radius);
-      padding: 12px;
-      border: 1px dashed #cbd5e1;
-      overflow: hidden;
-      width: min(1100px, 100%);
-      display: flex;
-      justify-content: center;
-      max-width: 100%;
-    }
-
-    .board-grid {
-      display: grid;
-      grid-template-columns: repeat(15, var(--cell-size));
-      gap: var(--cell-gap);
-      background: #e2e8f0;
-      padding: 8px;
-      border-radius: 14px;
-      border: 1px solid #cbd5e1;
-      width: max-content;
-      max-width: min(100%, 960px);
-      margin: 0 auto;
-    }
-
-    .cell {
-      position: relative;
-      width: var(--cell-size);
-      height: var(--cell-size);
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      display: grid;
-      place-items: center;
-      font-weight: 700;
-      color: #0f172a;
-      font-size: 12px;
-      text-transform: uppercase;
-      overflow: hidden;
-      grid-template-rows: 1fr;
-    }
-
-    .cell > * { grid-area: 1 / 1 / 2 / 2; }
-
-    .cell::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 8px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-      pointer-events: none;
-    }
-
-    .cell.triple-word { background: #fecdd3; color: #7f1d1d; }
-    .cell.double-word { background: #ffe4e6; color: #9f1239; }
-    .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
-    .cell.double-letter { background: #e0f2fe; color: #075985; }
-    .cell.center-star { background: #ffe4e6; color: #9f1239; }
-
-    .cell.show-premium {
-      grid-template-rows: auto 1fr;
-      align-items: start;
-    }
-
-    .cell.show-premium > .cell-label { align-self: start; }
-    .cell.show-premium > .tile { grid-area: 2 / 1 / 3 / 2; }
-    .cell.premium-used > .cell-label { display: none; }
-
-    .cell-label {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.2px;
-    }
-
-    .tile {
-      width: var(--tile-size);
-      height: var(--tile-size);
-      background: var(--tile-wood);
-      border-radius: 5px;
-      border: 1px solid var(--tile-wood-border);
-      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-      position: relative;
-      display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
-      padding: 6px 8px;
-      color: #0f172a;
-    }
-
-    .tile.blank,
-    .rack-tile.blank {
-      background: var(--tile-wood);
-      border-color: var(--tile-wood-border);
-    }
-
-    .tile .letter,
-    .tile .value {
-      grid-area: stack;
-    }
-
-    .tile .letter {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 0.3px;
-      line-height: 1;
-    }
-
-    .tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .letter.blank-empty { color: transparent; }
-    .letter.blank-assigned { color: #2563eb; }
-
-    .tile.blank .value,
-    .rack-tile.blank .value { display: none; }
-
-    .tile-ghost {
-      position: fixed;
-      z-index: 1200;
-      pointer-events: none;
-      transition: transform 0.38s ease, opacity 0.38s ease;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-    }
-
-    .rack-wrap {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 10px;
-      position: relative;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .dock-help {
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      border: 1px solid rgba(226, 232, 240, 0.6);
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(148, 163, 184, 0.14));
-      color: #e2e8f0;
-      box-shadow: 0 10px 24px rgba(14, 165, 233, 0.22);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-    }
-
-    .dock-help:hover { transform: translateY(-1px); border-color: rgba(125, 211, 252, 0.9); }
-
-    .dock-tooltip {
-      position: absolute;
-      left: 0;
-      bottom: calc(100% + 10px);
-      width: min(320px, 90vw);
-      background: rgba(15, 23, 42, 0.96);
-      color: #e2e8f0;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: 0 14px 32px rgba(79, 70, 229, 0.25);
-      display: grid;
-      gap: 6px;
-      opacity: 0;
-      transform: translateY(-6px);
-      pointer-events: none;
-      transition: opacity 150ms ease, transform 150ms ease;
-      z-index: 20;
-    }
-
-    .dock-tooltip::after {
-      content: '';
-      position: absolute;
-      left: 14px;
-      bottom: -8px;
-      border-width: 8px 8px 0;
-      border-style: solid;
-      border-color: rgba(148, 163, 184, 0.5) transparent transparent transparent;
-      filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.3));
-    }
-
-    .dock-tooltip strong { font-size: 14px; letter-spacing: 0.2px; }
-
-    .dock-tooltip.show {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-
-    .rack-bar {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      flex-wrap: nowrap;
-      padding: 5px 8px;
-      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
-        linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
-      justify-content: center;
-      min-height: 60px;
-      overflow-x: auto;
-      scrollbar-width: thin;
-    }
-
-    .rack-actions {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 10px;
-      margin-top: 6px;
-    }
-
-    .rack-shuffle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      background: linear-gradient(135deg, #0ea5e9, #6366f1);
-      color: #fff;
-      border-color: #0ea5e9;
-      box-shadow: 0 12px 24px rgba(14, 165, 233, 0.28);
-    }
-
-    .rack-shuffle:hover { transform: translateY(-1px); }
-
-    .rack-tile {
-      width: var(--tile-size);
-      height: var(--tile-size);
-      position: relative;
-      display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
-      background: var(--tile-wood);
-      border-radius: 5px;
-      border: 1px solid var(--tile-wood-border);
-      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-      color: #0f172a;
-      font-weight: 800;
-    }
-
-    .rack-tile .letter,
-    .rack-tile .value {
-      grid-area: stack;
-    }
-
-    .rack-tile .letter {
-      font-size: 22px;
-      letter-spacing: 0.3px;
-      line-height: 1;
-    }
-
-    .rack-tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .message {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-    }
-
-    .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
-    .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-
-    .cell.invalid {
-      outline: 2px solid #ef4444;
-      outline-offset: -2px;
-      box-shadow: inset 0 0 0 2px #fee2e2;
-    }
-
-    .cell[data-tooltip]:hover::before {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: #0f172a;
-      color: #fff;
-      padding: 6px 8px;
-      border-radius: 8px;
-      white-space: nowrap;
-      font-size: 12px;
-      z-index: 5;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
-    }
-
-    .cell[data-tooltip]:hover::after { display: none; }
-
-    .score-line { display: flex; align-items: center; gap: 6px; }
-
-    .board-grid .cell.drag-target {
-      border-color: #6366f1;
-      box-shadow: inset 0 0 0 2px #c7d2fe;
-    }
-
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px;
-    }
-
-    .turn-panel {
-      display: grid;
-      gap: 12px;
-    }
-
-    .status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: #f8fafc;
-      border: 1px solid var(--border);
-      font-weight: 700;
-      color: var(--ink);
-    }
-
-    .pill strong { font-size: 15px; }
-
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
+    input { background: #f8fafc; }
 
     .btn {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--ink);
+      background: linear-gradient(135deg, #6366f1, #22d3ee);
       color: #fff;
-      font-weight: 700;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
-    }
-
-    .btn.secondary {
-      background: #f8fafc;
-      color: var(--ink);
-      border-style: dashed;
-    }
-
-    .btn.danger {
-      background: #be123c;
-      border-color: #fecdd3;
-      color: #fff;
-      box-shadow: 0 12px 30px rgba(190, 18, 60, 0.25);
-    }
-
-    .btn[disabled] {
-      opacity: 0.5;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .sessions-card {
-      display: grid;
-      gap: 12px;
-      margin: 18px auto 0;
-      width: min(1200px, 100%);
-    }
-
-    .session-header {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      align-items: start;
-    }
-
-    .session-form {
-      display: grid;
-      gap: 8px;
-    }
-
-    .session-fields {
-      display: grid;
-      gap: 8px;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    }
-
-    .input {
-      width: 100%;
-      padding: 12px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      font-weight: 600;
-      color: var(--ink);
-    }
-
-    .input:focus {
-      outline: 2px solid #a5b4fc;
-      border-color: #818cf8;
-      background: #fff;
-    }
-
-    .session-hint {
-      margin: 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .session-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .session-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .session-meta { display: grid; gap: 4px; }
-
-    .session-title {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 18px;
-    }
-
-    .session-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 10px;
-      background: #eef2ff;
-      color: #312e81;
-      font-weight: 700;
-      font-size: 13px;
-    }
-
-    .session-players {
-      color: var(--muted);
-      margin: 0;
-      font-weight: 700;
-    }
-
-    .session-actions { display: inline-flex; gap: 8px; align-items: center; }
-
-    .btn.small { padding: 10px 12px; font-size: 14px; }
-
-    .btn.ghost {
-      background: #fff;
-      color: var(--ink);
-      border-style: dashed;
-    }
-
-    .btn.ghost.danger {
-      color: #b91c1c;
-      border-color: #fecdd3;
-      background: #fff1f2;
-      box-shadow: none;
-    }
-
-    .session-flash {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 700;
-      display: none;
-    }
-
-    .session-flash.show { display: block; }
-    .session-flash.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-    .session-flash.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
-
-    .session-debug {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid #0f172a;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 10px 0;
-    }
-
-    .session-empty { margin: 0; color: var(--muted); font-weight: 700; }
-
-    .lobby-card {
-      margin-top: 18px;
-      padding: 18px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--card);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    }
-
-    .turnorder-panel {
-      margin-top: 14px;
-      padding: 14px;
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      background: #f8fafc;
-    }
-
-    .turnorder-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .turnorder-label { margin: 0; color: var(--muted); }
-
-    .turnorder-log {
-      margin-top: 10px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: #fff;
-      max-height: 220px;
-      overflow: auto;
-    }
-
-    .turnorder-log .entry {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .turnorder-log .entry:last-child { border-bottom: none; }
-
-    .turnorder-result {
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #eef2ff;
-      color: #312e81;
-      font-weight: 700;
-    }
-
-    .turnorder-result strong { font-size: 15px; }
-
-    .lobby-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .lobby-meta {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      color: var(--muted);
-    }
-
-    .lobby-roster {
-      display: grid;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .lobby-player {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: #f8fafc;
-    }
-
-    .lobby-order {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      background: #e2e8f0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: var(--muted);
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 12px;
-    }
-
-    .badge.host {
-      background: rgba(99, 102, 241, 0.12);
-      color: var(--accent-strong);
-      border: 1px solid rgba(99, 102, 241, 0.24);
-    }
-
-    .badge.self {
-      background: rgba(15, 23, 42, 0.08);
-      color: var(--ink);
-      border: 1px solid rgba(15, 23, 42, 0.12);
-    }
-
-    .badge.admin {
-      background: rgba(239, 68, 68, 0.12);
-      color: #b91c1c;
-      border: 1px solid rgba(239, 68, 68, 0.28);
-    }
-
-    .lobby-actions {
-      margin-top: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .lede.small { font-size: 15px; }
-
-    .list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 8px;
-    }
-
-    .list-item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-    }
-
-    .badge {
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: #eef2ff;
-      color: #312e81;
-      font-weight: 700;
-      font-size: 13px;
-    }
-
-    .subhead {
-      margin: 0 0 8px;
-      font-size: 18px;
-    }
-
-    .note {
-      color: var(--muted);
-      font-size: 14px;
-      margin: 4px 0 0;
-    }
-
-    .flow-grid {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    }
-
-    .flow-step {
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: #f8fafc;
-      border: 1px solid var(--border);
-      display: grid;
-      gap: 6px;
-    }
-
-    .interaction-grid {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    }
-
-    .upload-card {
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px dashed #cbd5e1;
-      background: #f8fafc;
-      display: grid;
-      gap: 6px;
-    }
-
-    .rules-btn {
-      justify-self: start;
-      width: fit-content;
+      font-weight: 800;
       cursor: pointer;
-    }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.16), rgba(15, 23, 42, 0.28)), rgba(15, 23, 42, 0.36);
-      backdrop-filter: blur(3px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-      z-index: 10;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 240ms ease;
-    }
-
-    .modal-backdrop.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal {
-      background: #fff;
-      max-width: 720px;
-      width: min(720px, 100%);
-      max-height: min(880px, calc(100vh - 32px));
-      border-radius: 16px;
-      box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
-      border: 1px solid #e2e8f0;
-      padding: 18px 18px 20px;
-      display: grid;
-      gap: 10px;
-      overflow: hidden;
-      transform: translateY(10px) scale(0.98);
-      opacity: 0;
-      transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;
-    }
-
-    .modal-backdrop.active .modal {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .modal h3 { margin: 0; }
-
-    .modal-close {
-      background: transparent;
       border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: var(--muted);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 12px 28px rgba(79, 70, 229, 0.25);
     }
 
-    .rules-list {
-      padding-left: 18px;
-      margin: 0;
-      display: grid;
-      gap: 8px;
-      color: var(--muted);
-    }
-
-    .rules-highlight {
-      background: #eef2ff;
-      color: #312e81;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid #c7d2fe;
-      font-weight: 600;
-    }
-
-    .modal-footer-note {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .session-error-modal .session-error-body {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 12px;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 13px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-      border: 1px solid #0f172a;
-      max-height: min(620px, calc(80vh - 160px));
-      overflow: auto;
-    }
-
-    .ai-status {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 14px;
-      background: radial-gradient(circle at 20% 30%, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.08)),
-        linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(99, 102, 241, 0.08));
-      border: 1px solid #cbd5e1;
-      font-weight: 600;
-      color: #0f172a;
-      align-items: center;
-    }
-
-    .ai-status.hidden { display: none; }
-
-    .ai-status.ai-complete {
-      background: #f8fafc;
-    }
-
-    .ai-visual {
-      width: 140px;
-      height: 140px;
-      position: relative;
-      display: grid;
-      place-items: center;
-    }
-
-    .ai-visual.hidden { display: none; }
-
-    .ai-orbital {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      border: 1px dashed rgba(99, 102, 241, 0.35);
-      animation: orbit 8s linear infinite;
-    }
-
-    .ai-orbital:nth-child(2) { inset: 10px; animation-duration: 6.5s; animation-direction: reverse; }
-    .ai-orbital:nth-child(3) { inset: 20px; animation-duration: 5.2s; filter: hue-rotate(40deg); }
-
-    .ai-orbital::after {
-      content: '';
-      position: absolute;
-      top: -6px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #22d3ee, #6366f1);
-      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.4);
-    }
-
-    .ai-core {
-      width: 78px;
-      height: 78px;
-      border-radius: 18px;
-      background: conic-gradient(from 45deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.38), rgba(14, 165, 233, 0.16));
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
-      display: grid;
-      place-items: center;
-      position: relative;
-      overflow: hidden;
-      animation: breathe 2.4s ease-in-out infinite;
-    }
-
-    .ai-core::before {
-      content: '';
-      position: absolute;
-      inset: -40%;
-      background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.6), transparent 46%),
-        radial-gradient(circle at 65% 65%, rgba(255, 255, 255, 0.45), transparent 40%);
-      filter: blur(12px);
-      animation: shimmer 2.1s infinite ease-in-out;
-    }
-
-    .ai-core span {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #0f172a;
-      position: relative;
-      z-index: 1;
-    }
-
-    .ai-copy { display: grid; gap: 8px; }
-
-    .ai-step { font-size: 15px; }
-
-    .ai-dots {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .ai-dots span {
-      width: 10px;
-      height: 10px;
-      background: linear-gradient(135deg, #22d3ee, #6366f1);
-      border-radius: 50%;
-      animation: pulse 1.1s infinite ease-in-out;
-      box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
-    }
-
-    .ai-dots span:nth-child(2) { animation-delay: 0.16s; }
-    .ai-dots span:nth-child(3) { animation-delay: 0.32s; }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.2; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-2px); }
-    }
-
-    @keyframes orbit {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-140%); }
-      50% { transform: translateX(20%); }
-      100% { transform: translateX(140%); }
-    }
-
-    @keyframes breathe {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
-    .ai-list {
-      display: grid;
-      gap: 8px;
-      margin: 0;
-      padding: 0 4px 0 0;
-      list-style: none;
-      max-height: 420px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-    }
-
-    .ai-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .ai-list::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 999px;
-    }
-
-    .ai-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 12px;
-      background: #fff;
-      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
-      display: grid;
-      gap: 4px;
-      cursor: pointer;
-      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
-    }
-
-    .ai-card:hover {
-      transform: translateY(-2px);
-      border-color: #cbd5e1;
-      box-shadow: 0 16px 30px rgba(14, 165, 233, 0.16);
-    }
-
-    .ai-card h4 {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-    }
-
-    .ai-meta { color: var(--muted); margin: 0; font-size: 13px; }
-
-    body.modal-open { overflow: hidden; }
-
-    .app-shell {
-      width: min(1200px, 100%);
-      margin: 0 auto;
-      display: grid;
-      gap: 12px;
-      min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      grid-template-rows: 1fr;
-      justify-items: stretch;
-      align-items: stretch;
-    }
-
-    .board-viewport {
-      position: relative;
-      width: 100%;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      touch-action: none;
-      cursor: grab;
-      background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
-      border-radius: 16px;
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 8px;
-      min-height: 320px;
-      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-    }
-
-    .board-viewport.dragging { cursor: grabbing; }
-
-    .board-scale {
-      transform-origin: center;
-      transition: transform 180ms ease;
-      will-change: transform;
-      display: grid;
-      align-items: center;
-      justify-items: center;
-    }
-
-    .board-frame {
-      display: grid;
-      place-items: center;
-      width: max-content;
-      height: max-content;
-      max-width: 100%;
-      max-height: 100%;
-    }
-
-    .board-chrome {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      box-shadow: var(--glow);
-      padding: 12px 12px 10px;
-      display: grid;
-      gap: 12px;
-      justify-items: center;
-      width: max-content;
-      max-width: 100%;
-      max-height: 100%;
-    }
-
-    .hud-dock {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 900;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.9));
-      border-bottom: 1px solid #0ea5e9;
-      box-shadow: 0 14px 30px rgba(14, 165, 233, 0.18);
-      backdrop-filter: blur(12px);
-    }
-
-    .hud-inner {
-      width: min(1200px, 100%);
-      margin: 0 auto;
-      padding: 10px 16px 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .hud-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      margin-left: auto;
-    }
-
-    .hud-menu { flex-shrink: 0; order: 3; }
-    .brand { order: 1; }
-    .hud-right { order: 2; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(79, 70, 229, 0.28); }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-mark {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #4f46e5, #22c55e);
-      display: grid;
-      place-items: center;
-      color: #fff;
-      font-weight: 900;
-      letter-spacing: 0.4px;
-      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.2);
-    }
-
-    .hud-text { display: grid; gap: 3px; }
-
-    .app-title {
-      margin: 0;
-      font-size: clamp(22px, 4vw, 30px);
-      color: #e2e8f0;
-    }
-
-    .hud-eyebrow {
-      margin: 0;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      color: #c7d2fe;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-size: 11px;
-      width: fit-content;
-    }
-
-    .hud-meta {
-      display: inline-flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .hud-menu {
-      position: relative;
-    }
-
-    .menu-toggle {
-      padding: 9px 13px;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.08));
-      color: #e2e8f0;
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 10px 30px rgba(14, 165, 233, 0.18);
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-    }
-
-    .menu-toggle:hover {
-      transform: translateY(-1px);
-      border-color: rgba(125, 211, 252, 0.8);
-      box-shadow: 0 14px 36px rgba(14, 165, 233, 0.24);
-    }
-
-    .menu-toggle .chevron {
-      display: inline-block;
-      transition: transform 150ms ease;
-    }
-
-    .hud-menu.open .menu-toggle .chevron { transform: rotate(180deg); }
-
-    .menu-panel {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 10px);
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      border-radius: 14px;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
-      padding: 10px;
-      min-width: 190px;
-      display: grid;
-      gap: 8px;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-6px);
-      transition: opacity 150ms ease, transform 150ms ease;
-      z-index: 2;
-    }
-
-    .hud-menu.open .menu-panel {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .menu-item {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.18));
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 12px;
-      color: #e2e8f0;
-      padding: 10px 12px;
-      text-align: left;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-    }
-
-    .menu-item:hover {
-      transform: translateY(-1px);
-      border-color: rgba(125, 211, 252, 0.8);
-      box-shadow: 0 12px 28px rgba(14, 165, 233, 0.28);
-    }
-
-    .menu-item.danger {
-      background: linear-gradient(135deg, rgba(248, 113, 113, 0.2), rgba(239, 68, 68, 0.18));
-      border-color: rgba(248, 113, 113, 0.8);
-      color: #fee2e2;
-    }
-
-    .hud-pill {
-      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2));
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 7px 11px;
-      display: inline-flex;
-      gap: 7px;
-      align-items: center;
-      font-weight: 700;
-      box-shadow: 0 12px 26px rgba(14, 165, 233, 0.18);
-    }
-
-      .board-preview {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
-        border-radius: var(--radius);
-        padding: 12px;
-        border: 1px dashed #cbd5e1;
-        overflow: hidden;
-        width: min(1100px, 100%);
-        display: flex;
-        justify-content: center;
-      }
-
-    .turn-dock {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(79, 70, 229, 0.9));
-      backdrop-filter: blur(12px);
-      border-top: 1px solid #0ea5e9;
-      box-shadow: 0 -18px 38px rgba(79, 70, 229, 0.24);
-      z-index: 800;
-    }
-
-    .dock-inner {
-      width: min(1200px, 100%);
-      margin: 0 auto;
-      padding: 8px 12px 10px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .dock-row {
-      display: grid;
-      grid-template-columns: auto auto 1fr;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .dock-cta {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-width: 200px;
-    }
-
-    .ai-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: linear-gradient(135deg, #f97316, #f43f5e);
-      color: #fff;
-      border-color: #ea580c;
-      box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      padding-inline: 12px 14px;
-      border-radius: 12px;
-      margin-left: 0;
-      flex-shrink: 0;
-      justify-self: start;
-    }
-
-    .ai-cta.disabled,
-    .ai-cta:disabled {
-      background: linear-gradient(135deg, #cbd5e1, #94a3b8);
-      border-color: #94a3b8;
-      box-shadow: none;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .ai-cta:hover {
-      background: linear-gradient(135deg, #f43f5e, #e11d48);
-      transform: translateY(-1px);
-      box-shadow: 0 20px 42px rgba(225, 29, 72, 0.36);
-    }
-
-    .ai-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.16);
-      display: grid;
-      place-items: center;
-      font-size: 14px;
-      line-height: 1;
-    }
-
-    .turn-toggle {
-      position: relative;
-      overflow: hidden;
-      min-width: clamp(240px, 52vw, 420px);
-      padding: 12px 20px;
-      border-radius: 14px;
-      font-size: 19px;
-      letter-spacing: 0.3px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: transform 150ms ease, box-shadow 150ms ease;
-      isolation: isolate;
-    }
-
-    .turn-toggle::before,
-    .turn-toggle::after {
-      content: "";
-      position: absolute;
-      inset: -2px;
-      z-index: 0;
-      pointer-events: none;
-    }
-
-    .turn-toggle::before {
-      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.32), transparent 45%),
-        radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.18), transparent 45%);
-      opacity: 0.75;
-      animation: breathe 3s ease-in-out infinite;
-    }
-
-    .turn-toggle::after {
-      background: linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.6) 40%, transparent 70%);
-      transform: translateX(-120%);
-      animation: shimmer 2.6s ease-in-out infinite;
-      mix-blend-mode: screen;
-      opacity: 0.7;
-    }
+    .ghost { background: #fff; color: var(--ink); border: 1px solid var(--border); box-shadow: none; }
+    .danger { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
 
-    .turn-toggle:hover { transform: translateY(-2px); }
+    .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
-    .turn-label {
-      display: grid;
-      gap: 4px;
-      position: relative;
-      z-index: 1;
-      text-align: center;
-    }
-
-    .turn-title { font-size: clamp(18px, 3vw, 20px); }
-
-    .turn-subtitle {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.8);
-      letter-spacing: 0;
-    }
-
-    .turn-toggle.start {
-      background: #16a34a;
-      border-color: #15803d;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(22, 163, 74, 0.35);
-    }
-
-    .turn-toggle.stop {
-      background: #dc2626;
-      border-color: #b91c1c;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 25px rgba(220, 38, 38, 0.35);
-    }
-
-    .btn.ghost {
-      background: #fff;
-      color: var(--ink);
-    }
-
-    .message {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-      width: 100%;
-    }
-
-
-    @media (min-width: 900px) {
-      body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
-      .grid { grid-template-columns: 2fr 1fr; }
-      .grid .card:first-child { grid-column: span 2; }
-    }
-
-    @media (max-width: 720px) {
-      :root {
-        --top-dock-height: 74px;
-        --bottom-dock-height: 104px;
-        --cell-size: clamp(34px, 7vw + 6px, 44px);
-        --cell-gap: 3px;
-      }
+    .roster { display: grid; gap: 10px; margin-top: 12px; }
+    .player { padding: 12px; border: 1px solid var(--border); border-radius: 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: #f8fafc; }
+    .badge { padding: 4px 8px; border-radius: 999px; font-weight: 800; background: rgba(99,102,241,0.12); color: #4f46e5; }
 
-      body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
-      .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
-      .hud-menu { order: 1; }
-      .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
-      .hud-right { order: 3; margin-left: 0; flex: 1; justify-content: flex-end; justify-self: end; }
-      .hud-menu { justify-self: start; }
-      .hud-meta { gap: 6px; }
-      .hud-pill { padding: 6px 9px; font-size: 13px; }
-      .app-title { font-size: clamp(18px, 5vw, 22px); }
-      .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-      .dock-inner { padding: 8px 10px 9px; gap: 10px; }
-      .dock-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-      .dock-cta { min-width: 0; grid-column: 1 / -1; }
-      .turn-toggle { width: 100%; min-width: 0; }
-      .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
-      .rack-wrap { grid-column: 1 / -1; }
+    .log { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 12px; min-height: 180px; display: grid; gap: 6px; font-family: "SFMono", ui-monospace, monospace; }
+    .log .entry { padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 10px; display: flex; gap: 8px; align-items: center; }
+    .log .entry strong { color: #a5b4fc; }
 
-      .tile .letter,
-      .rack-tile .letter { font-size: 18px; }
+    .tile-pop { position: fixed; inset: 0; pointer-events: none; display: grid; place-items: center; }
+    .tile { width: 96px; height: 96px; background: #fef3c7; border: 6px solid #f59e0b; border-radius: 18px; display: grid; place-items: center; font-size: 48px; font-weight: 900; box-shadow: 0 26px 60px rgba(0,0,0,0.24); transform: translateY(30px) scale(0.8); opacity: 0; }
+    .tile.show { animation: pop 520ms ease forwards; }
+    @keyframes pop { 0% { opacity: 0; transform: translateY(30px) scale(0.8); } 40% { opacity: 1; transform: translateY(-8px) scale(1.05); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 
-      .tile .value,
-      .rack-tile .value { font-size: 10px; margin: 0 3px 3px 0; }
+    .flash { padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-weight: 700; }
+    .flash.success { border-color: #bbf7d0; background: #ecfdf3; color: #15803d; }
+    .flash.error { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
 
-      .board-chrome { padding: 10px 10px 8px; }
-      .board-preview { padding: 6px; }
-      .board-viewport { padding: 6px; }
-    }
-
-    @media (max-width: 599px) {
-      .board-preview { padding: 10px; }
-      .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .list-item { grid-template-columns: 1fr; }
-    }
+    footer { text-align: center; color: var(--muted); margin-top: 16px; }
   </style>
 </head>
-<body>
-  <header class="hud-dock" aria-label="Game status dock">
-    <div class="hud-inner">
-      <div class="hud-menu" id="hudMenu">
-        <button class="menu-toggle" type="button" id="menuToggle" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
-          Menu <span class="chevron" aria-hidden="true">▾</span>
-        </button>
-        <div class="menu-panel" id="menuPanel" role="menu">
-          <button class="menu-item" type="button" id="openRules" role="menuitem">Rules</button>
-          <button class="menu-item danger" type="button" id="resetBoardBtn" role="menuitem">Reset board</button>
-        </div>
-      </div>
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">TM</span>
-        <div class="hud-text">
-          <p class="hud-eyebrow">Live play</p>
-          <h1 class="app-title">TileMasterAI</h1>
-        </div>
-      </div>
-      <div class="hud-right">
-        <div class="hud-meta">
-          <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
-        </div>
+<body data-page="lobby">
+  <header>
+    <div class="brand">
+      <div class="logo">TM</div>
+      <div>
+        <h1>TileMasterAI Lobby</h1>
+        <p class="subtitle">Create a room, invite friends, draw tiles to set turn order.</p>
       </div>
     </div>
+    <div class="pill" id="sessionStatus">Waiting to join</div>
   </header>
 
-  <section class="card sessions-card" aria-labelledby="sessionsTitle">
-    <div class="session-header">
-      <div>
-        <p class="eyebrow">Multiplayer lobby</p>
-        <h2 class="subhead" id="sessionsTitle">Sessions</h2>
-        <p class="lede small">Open games ready for up to four players.</p>
-      </div>
-      <form class="session-form" id="createSessionForm" novalidate>
-        <div class="session-fields">
-          <label class="sr-only" for="sessionCode">Session code</label>
-          <input class="input" type="text" id="sessionCode" name="code" placeholder="e.g., ALPHA" required maxlength="12" />
-          <label class="sr-only" for="playerName">Your name</label>
-          <input class="input" type="text" id="playerName" name="playerName" placeholder="Display name" required maxlength="40" />
+  <main>
+    <section class="card">
+      <p class="eyebrow">Join or start</p>
+      <h2>Land in a lobby</h2>
+      <div class="grid">
+        <form id="createSessionForm" aria-label="Create lobby">
+          <label for="sessionCode">Lobby code</label>
+          <input id="sessionCode" name="sessionCode" placeholder="ABCD" maxlength="8" required />
+          <label for="playerName">Your name</label>
+          <input id="playerName" name="playerName" placeholder="Maven" maxlength="20" required />
+          <div class="actions">
+            <button class="btn" type="submit">Create lobby</button>
+            <button class="btn ghost" type="button" id="joinSessionBtn">Join lobby</button>
+          </div>
+        </form>
+
+        <div class="card" style="background:#0f172a;color:#e2e8f0;">
+          <p class="eyebrow" style="color:#cbd5e1;">Live sessions</p>
+          <div id="sessionEmpty">No open lobbies yet.</div>
+          <div id="sessionList" role="list" class="roster"></div>
         </div>
-        <div class="session-actions">
-          <button class="btn small" type="submit">Create session</button>
-          <button class="btn small ghost" type="button" id="joinSessionBtn">Join session</button>
-          <p class="session-hint">Max 4 players per table. Creators are marked as host. Idle lobbies expire after 2 hours.</p>
+      </div>
+      <div id="sessionFlash" class="flash" hidden></div>
+    </section>
+
+    <section class="card" id="lobbyCard" hidden>
+      <p class="eyebrow">Lobby</p>
+      <div class="pill-row">
+        <h2 id="lobbyTitle">Session</h2>
+        <span class="pill" id="lobbyStatus">Waiting</span>
+        <span class="pill" id="lobbyCapacity"></span>
+      </div>
+      <div class="actions" style="margin: 10px 0;">
+        <button class="btn" id="startGameBtn" disabled aria-disabled="true">Start game</button>
+        <button class="btn ghost" id="drawTurnOrderBtn" disabled aria-disabled="true">Draw turn order</button>
+        <button class="btn ghost danger" id="leaveSessionBtn">Leave</button>
+        <button class="btn ghost danger" id="deleteSessionBtn">Delete</button>
+      </div>
+      <div class="roster" id="lobbyRoster"></div>
+      <div class="card" style="margin-top:14px; background:#0f172a; color:#e2e8f0;">
+        <p class="eyebrow" style="color:#cbd5e1;">Turn order</p>
+        <div class="log" id="turnOrderLog"></div>
+        <p id="turnOrderResult"></p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="joinModal">
+    <div class="card" style="max-width:420px; padding:22px;">
+      <p class="eyebrow">Join lobby</p>
+      <h3 id="joinModalTitle" style="margin:0 0 8px;">Enter your name</h3>
+      <form id="joinModalForm" style="display:grid; gap:10px;">
+        <input type="text" id="joinModalName" placeholder="Your name" maxlength="20" required />
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn ghost" id="joinModalCancel">Cancel</button>
+          <button type="submit" class="btn" id="joinModalConfirm">Join</button>
         </div>
       </form>
     </div>
+  </dialog>
 
-    <div class="session-flash" id="sessionFlash" role="status" aria-live="polite"></div>
-    <pre class="session-debug" id="sessionDebug" hidden aria-live="polite"></pre>
-    <div class="session-list" id="sessionList" role="list"></div>
-    <p class="session-empty" id="sessionEmpty">No sessions yet — create one.</p>
-    <div class="lobby-card" id="lobbyCard" hidden>
-      <div class="lobby-header">
-        <div>
-          <p class="eyebrow">Live lobby</p>
-          <h3 class="subhead" id="lobbyTitle">Session lobby</h3>
-        </div>
-        <div class="lobby-meta">
-          <span class="hud-pill" id="lobbyStatus">Waiting for players</span>
-          <span class="hud-pill" id="lobbyCapacity"></span>
-        </div>
-      </div>
-      <div class="lobby-roster" id="lobbyRoster"></div>
-      <div class="turnorder-panel" id="turnOrderPanel">
-        <div class="turnorder-header">
-          <div>
-            <p class="eyebrow">Starting player</p>
-            <p class="turnorder-label">Draw tiles to pick who plays first. Ties redraw automatically.</p>
-          </div>
-          <button class="btn small" type="button" id="drawTurnOrderBtn">Draw tiles</button>
-        </div>
-        <div class="turnorder-log" id="turnOrderLog" role="log" aria-live="polite"></div>
-        <div class="turnorder-result" id="turnOrderResult" aria-live="polite"></div>
-      </div>
-      <div class="lobby-actions">
-        <button class="btn" type="button" id="startGameBtn" disabled aria-disabled="true">Start game</button>
-        <button class="btn ghost" type="button" id="leaveSessionBtn">Leave lobby</button>
-        <button class="btn ghost danger" type="button" id="deleteSessionBtn" hidden>Delete session</button>
-      </div>
-    </div>
-  </section>
+  <div class="tile-pop" aria-hidden="true">
+    <div class="tile" id="tilePop"></div>
+  </div>
 
-  <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="board-viewport" id="boardViewport">
-      <div class="board-scale" id="boardScale">
-        <div class="board-frame" id="boardFrame">
-          <div class="board-chrome" id="boardChrome">
-            <div class="board-preview" aria-label="Game board">
-              <div class="board-grid" role="presentation">
-              <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-                <?php foreach ($row as $colIndex => $cellType):
-                  $rowLabel = $rowLabels[$rowIndex];
-                  $colLabel = $columnLabels[$colIndex];
-                  $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-                  $isCenter = $rowIndex === 7 && $colIndex === 7;
-                  $classes = 'cell';
+  <footer>Host draws tiles to set who goes first. Everyone watches live.</footer>
 
-                  if ($cellType === 'TW') { $classes .= ' triple-word'; }
-                  if ($cellType === 'DW') { $classes .= ' double-word'; }
-                  if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-                  if ($cellType === 'DL') { $classes .= ' double-letter'; }
-                  if ($isCenter) { $classes .= ' center-star'; }
-
-                  $cellName = match ($cellType) {
-                    'TW' => 'triple word',
-                    'DW' => 'double word',
-                    'TL' => 'triple letter',
-                    'DL' => 'double letter',
-                    default => 'regular'
-                  };
-
-                  $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-                  if ($isCenter) { $ariaParts[] = 'start star'; }
-                  if ($tile) {
-                    if ($tile->isBlank()) {
-                      $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                    } else {
-                      $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                    }
-                  }
-                  $ariaLabel = implode(' · ', $ariaParts);
-                ?>
-                <div
-                  class="<?php echo $classes; ?>"
-                  aria-label="<?php echo $ariaLabel; ?>"
-                  data-row="<?php echo $rowIndex; ?>"
-                  data-col="<?php echo $colIndex; ?>"
-                  data-premium="<?php echo $cellType; ?>"
-                  data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-                >
-                  <?php if ($isCenter): ?>
-                    <span class="cell-label">★ DW</span>
-                  <?php elseif ($cellType !== ''): ?>
-                    <span class="cell-label"><?php echo $cellType; ?></span>
-                  <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
-              <?php endforeach; ?>
-              </div>
-            </div>
-
-            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <footer class="turn-dock" aria-label="Turn controls">
-    <div class="dock-inner">
-      <div class="dock-row">
-        <div class="dock-cta">
-          <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
-            <span class="turn-label">
-              <span class="turn-title">Start turn</span>
-              <span class="turn-subtitle">Draw tiles and place your word</span>
-            </span>
-          </button>
-        </div>
-        <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
-          <span class="ai-icon" aria-hidden="true">🤖</span>
-          <span class="ai-text">AI suggested moves</span>
-        </button>
-        <div class="rack-wrap">
-          <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-          <div class="rack-bar" aria-label="Rack" id="rack"></div>
-          <div class="rack-actions">
-            <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-          </div>
-          <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
-            <strong>Rack tips</strong>
-            <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-            <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-<script>
-    const premiumLayout = <?php echo json_encode($premiumBoard); ?>;
-    const tileDistribution = <?php echo json_encode($tileDistribution); ?>;
-    const tileValues = Object.fromEntries(Object.entries(tileDistribution).map(([letter, entry]) => [letter, entry.value]));
-    const dictionaryUrl = <?php echo json_encode(str_replace(__DIR__ . '/', '', $dictionaryPath)); ?>;
-    const serverSuggestions = <?php echo json_encode(array_map($normalizeMove, $moveSuggestions)); ?>;
+  <script>
+    const lobbyWsUrl = <?php
+      $explicitWsUrl = getenv('LOBBY_WS_URL') ?: '';
+      $wsPort = getenv('LOBBY_WS_PORT') ?: '8090';
+      $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'wss' : 'ws';
+      $computed = $protocol . '://' . ($_SERVER['SERVER_NAME'] ?? 'localhost') . ':' . $wsPort;
+      echo json_encode($explicitWsUrl ?: $computed);
+    ?>;
 
     document.addEventListener('DOMContentLoaded', () => {
-      const BOARD_SIZE = 15;
-      const RACK_SIZE = 7;
-      const rackEl = document.getElementById('rack');
-      const messageEl = document.getElementById('turnMessage');
-      const bagCountEl = document.getElementById('bagCount');
-      const scoreEl = document.getElementById('scoreTotal');
-      const toggleBtn = document.getElementById('turnToggleBtn');
-      const turnTitleEl = toggleBtn ? toggleBtn.querySelector('.turn-title') : null;
-      const turnSubtitleEl = toggleBtn ? toggleBtn.querySelector('.turn-subtitle') : null;
-      const resetBtn = document.getElementById('resetBoardBtn');
-      const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
-      const aiBtn = document.getElementById('aiMovesBtn');
-      const shuffleBtn = document.getElementById('shuffleRackBtn');
-      const aiModal = document.getElementById('aiModal');
-      const aiCloseBtn = document.getElementById('closeAi');
-      const aiListEl = document.getElementById('aiList');
-      const aiStatusEl = document.getElementById('aiStatus');
-      const aiAnimationEl = document.getElementById('aiAnimation');
-      const aiStepEl = document.getElementById('aiStep');
-      const aiSubtextEl = document.getElementById('aiSubtext');
-      const rulesBtn = document.getElementById('openRules');
-      const menuToggle = document.getElementById('menuToggle');
-      const menuPanel = document.getElementById('menuPanel');
-      const hudMenu = document.getElementById('hudMenu');
-      const boardViewport = document.getElementById('boardViewport');
-      const boardScaleEl = document.getElementById('boardScale');
-      const boardChromeEl = document.getElementById('boardChrome');
-      const rackHelpBtn = document.getElementById('rackHelp');
-      const rackHelpTip = document.getElementById('rackHelpTip');
-      const sessionListEl = document.getElementById('sessionList');
-      const sessionEmptyEl = document.getElementById('sessionEmpty');
-      const sessionFlashEl = document.getElementById('sessionFlash');
-      const sessionDebugEl = document.getElementById('sessionDebug');
-      const sessionErrorModal = document.getElementById('sessionErrorModal');
-      const sessionErrorBody = document.getElementById('sessionErrorBody');
-      const sessionErrorTitle = document.getElementById('sessionErrorTitle');
-      const sessionErrorClose = document.getElementById('closeSessionError');
-      const sessionErrorAck = document.getElementById('ackSessionError');
-      const sessionErrorCopy = document.getElementById('copySessionError');
       const createSessionForm = document.getElementById('createSessionForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
-      const joinSessionBtn = document.getElementById('joinSessionBtn');
+      const sessionFlash = document.getElementById('sessionFlash');
+      const sessionList = document.getElementById('sessionList');
+      const sessionEmpty = document.getElementById('sessionEmpty');
       const lobbyCard = document.getElementById('lobbyCard');
       const lobbyTitle = document.getElementById('lobbyTitle');
       const lobbyStatus = document.getElementById('lobbyStatus');
@@ -2058,54 +247,54 @@ $aiSetupNotes = [
       const lobbyRoster = document.getElementById('lobbyRoster');
       const startGameBtn = document.getElementById('startGameBtn');
       const leaveSessionBtn = document.getElementById('leaveSessionBtn');
-      const drawTurnOrderBtn = document.getElementById('drawTurnOrderBtn');
       const deleteSessionBtn = document.getElementById('deleteSessionBtn');
-      const turnOrderLogEl = document.getElementById('turnOrderLog');
-      const turnOrderResultEl = document.getElementById('turnOrderResult');
+      const drawTurnOrderBtn = document.getElementById('drawTurnOrderBtn');
+      const turnOrderLog = document.getElementById('turnOrderLog');
+      const turnOrderResult = document.getElementById('turnOrderResult');
+      const sessionStatus = document.getElementById('sessionStatus');
+      const tilePop = document.getElementById('tilePop');
+      const joinSessionBtn = document.getElementById('joinSessionBtn');
+      const joinModal = document.getElementById('joinModal');
+      const joinModalForm = document.getElementById('joinModalForm');
+      const joinModalName = document.getElementById('joinModalName');
+      const joinModalTitle = document.getElementById('joinModalTitle');
+      const joinModalCancel = document.getElementById('joinModalCancel');
+
+      const SESSION_STORAGE_KEY = 'tilemaster.session';
+      const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
       const MAX_PLAYERS = 4;
-      const lobbyWsUrl = <?php
-        $explicitWsUrl = getenv('LOBBY_WS_URL') ?: '';
-        $wsPort = getenv('LOBBY_WS_PORT') ?: '8090';
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'wss' : 'ws';
-        $computed = $protocol . '://' . ($_SERVER['SERVER_NAME'] ?? 'localhost') . ':' . $wsPort;
-        echo json_encode($explicitWsUrl ?: $computed);
-      ?>;
+      const ADMIN_NAME = 'TomAdmin';
+
       let lobbySocket = null;
       let lobbyConnected = false;
       let activeSession = null;
       let currentPlayer = null;
-      let sessionErrorDetail = '';
-      const SESSION_STORAGE_KEY = 'tilemaster.session';
-      const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
-      const ADMIN_NAME = 'TomAdmin';
       let turnOrderInFlight = false;
+      let pendingJoinCode = null;
+      let countdownTimer = null;
 
-      const setSessionFlash = (message, tone = 'info') => {
-        if (!sessionFlashEl) return;
-
-        const classes = ['session-flash'];
-        if (message) classes.push('show');
-        if (tone === 'success') classes.push('success');
-        if (tone === 'error') classes.push('error');
-
-        sessionFlashEl.className = classes.join(' ');
-        sessionFlashEl.textContent = message;
+      const setFlash = (text, tone = 'info') => {
+        if (!sessionFlash) return;
+        sessionFlash.hidden = !text;
+        sessionFlash.textContent = text;
+        sessionFlash.className = `flash ${tone === 'error' ? 'error' : tone === 'success' ? 'success' : ''}`;
       };
 
-      const setSessionDebug = (detail = '') => {
-        if (!sessionDebugEl) return;
-
-        const hasDetail = Boolean(detail && detail.trim());
-        sessionDebugEl.hidden = !hasDetail;
-        sessionDebugEl.textContent = hasDetail ? detail : '';
+      const persistIdentity = (playerName, clientToken) => {
+        if (!clientToken) return;
+        localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify({ playerName, clientToken }));
       };
 
-      const isAdminName = (name) => (name || '').trim().toLowerCase() === ADMIN_NAME.toLowerCase();
-
-      const generateClientToken = () => {
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      const persistSession = (session, player) => {
+        if (!session?.code || !player?.id) return;
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+          sessionCode: session.code,
+          sessionId: session.id,
+          playerId: player.id,
+          playerName: player.name,
+          clientToken: player.client_token,
+        }));
+        persistIdentity(player.name, player.client_token);
       };
 
       const loadSavedSession = () => {
@@ -2113,7 +302,6 @@ $aiSetupNotes = [
           const raw = localStorage.getItem(SESSION_STORAGE_KEY);
           return raw ? JSON.parse(raw) : null;
         } catch (error) {
-          console.warn('Unable to parse saved session', error);
           return null;
         }
       };
@@ -2123,2608 +311,403 @@ $aiSetupNotes = [
           const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
           return raw ? JSON.parse(raw) : null;
         } catch (error) {
-          console.warn('Unable to parse stored identity', error);
           return null;
         }
       };
 
-      const persistIdentity = (playerName, clientToken) => {
-        if (!clientToken) return;
-        const payload = {
-          playerName: (playerName || '').trim(),
-          clientToken,
-        };
-        localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(payload));
-      };
-
-      const persistSessionState = (session, player) => {
-        if (!session?.code || !player?.id || !player?.client_token) return;
-        const payload = {
-          sessionCode: session.code,
-          sessionId: session.id,
-          playerId: player.id,
-          playerName: player.name,
-          clientToken: player.client_token,
-        };
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
-        persistIdentity(player.name, player.client_token);
-      };
-
-      const clearSavedSession = () => {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-      };
-
-      const resolveIdentity = (nameHint = '') => {
-        const trimmedName = (nameHint || '').trim();
-
-        if (currentPlayer?.client_token) {
-          const actorName = trimmedName || currentPlayer.name || '';
-          persistIdentity(actorName, currentPlayer.client_token);
-          return { playerName: actorName, clientToken: currentPlayer.client_token };
-        }
-
-        const savedSession = loadSavedSession();
-        if (savedSession?.clientToken) {
-          const actorName = trimmedName || savedSession.playerName || '';
-          persistIdentity(actorName, savedSession.clientToken);
-          return { playerName: actorName, clientToken: savedSession.clientToken };
-        }
-
-        const storedIdentity = loadIdentity();
-        if (storedIdentity?.clientToken) {
-          const actorName = trimmedName || storedIdentity.playerName || '';
-          persistIdentity(actorName, storedIdentity.clientToken);
-          return { playerName: actorName, clientToken: storedIdentity.clientToken };
-        }
-
-        const clientToken = generateClientToken();
-        const actorName = trimmedName || (playerNameInput?.value?.trim() || '');
-        persistIdentity(actorName, clientToken);
-        return { playerName: actorName, clientToken };
-      };
-
-      const closeSessionErrorModal = () => {
-        if (!sessionErrorModal) return;
-
-        sessionErrorModal.classList.remove('active');
-        sessionErrorModal.setAttribute('aria-hidden', 'true');
-
-        const aiOpen = aiModal?.classList.contains('active');
-        const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
-        if (!aiOpen && !rulesOpen) {
-          document.body.classList.remove('modal-open');
-        }
-      };
-
-      const clearSessionErrors = () => {
-        sessionErrorDetail = '';
-        setSessionFlash('');
-        setSessionDebug('');
-
-        if (sessionErrorBody) {
-          sessionErrorBody.textContent = '';
-        }
-
-        if (sessionErrorTitle) {
-          sessionErrorTitle.textContent = '';
-        }
-
-        if (sessionErrorModal?.classList.contains('active')) {
-          closeSessionErrorModal();
-        }
-      };
-
-      const presentSessionError = (summary, detail) => {
-        clearSessionErrors();
-
-        const fallbackSummary = summary || 'Unable to load sessions.';
-        const fallbackDetail = detail || fallbackSummary;
-
-        setSessionFlash(fallbackSummary, 'error');
-        sessionErrorDetail = fallbackDetail;
-        setSessionDebug(fallbackDetail);
-
-        if (sessionErrorTitle) {
-          sessionErrorTitle.textContent = fallbackSummary;
-        }
-
-        if (sessionErrorBody) {
-          sessionErrorBody.textContent = fallbackDetail;
-          sessionErrorBody.scrollTop = 0;
-        }
-
-        if (sessionErrorModal) {
-          sessionErrorModal.classList.add('active');
-          sessionErrorModal.setAttribute('aria-hidden', 'false');
-          document.body.classList.add('modal-open');
-        }
-      };
-
-      const describeHttpResponse = ({ requestLabel, response, reason, bodyText, contentType }) =>
-        [
-          requestLabel,
-          `Status: ${response?.status ?? 'network error'} ${response?.statusText ?? ''}`.trim(),
-          `Content-Type: ${contentType || 'none'}`,
-          reason ? `Reason: ${reason}` : null,
-          'Body preview:',
-          bodyText ? bodyText : '(empty response body)',
-        ]
-          .filter(Boolean)
-          .join('\n');
-
-      const parseJsonResponse = async (response, { requestLabel }) => {
-        const contentType = response.headers.get('content-type') || '';
-        const bodyText = await response.text();
-        const isJson = contentType.toLowerCase().includes('application/json');
-
-        if (!isJson) {
-          const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
-          error.detail = describeHttpResponse({
-            requestLabel,
-            response,
-            reason: 'Non-JSON response',
-            bodyText,
-            contentType,
-          });
-          throw error;
-        }
-
-        try {
-          const payload = JSON.parse(bodyText);
-          return { payload, bodyText, contentType, detail: describeHttpResponse({ requestLabel, response, bodyText, contentType }) };
-        } catch (parseError) {
-          const error = new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
-          error.detail = describeHttpResponse({
-            requestLabel,
-            response,
-            reason: 'Invalid JSON received',
-            bodyText,
-            contentType,
-          });
-          throw error;
-        }
-      };
-
-      if (sessionErrorClose) {
-        sessionErrorClose.addEventListener('click', () => closeSessionErrorModal());
-      }
-
-      if (sessionErrorAck) {
-        sessionErrorAck.addEventListener('click', () => closeSessionErrorModal());
-      }
-
-      if (sessionErrorCopy) {
-        sessionErrorCopy.addEventListener('click', async () => {
-          const text = (sessionErrorBody?.textContent || sessionErrorDetail || '').trim();
-          if (!text) return;
-
-          const original = sessionErrorCopy.textContent;
-          try {
-            await navigator.clipboard.writeText(text);
-            sessionErrorCopy.textContent = 'Copied!';
-          } catch (copyError) {
-            console.error(copyError);
-            sessionErrorCopy.textContent = 'Copy failed';
-          } finally {
-            setTimeout(() => {
-              sessionErrorCopy.textContent = original;
-            }, 1600);
-          }
-        });
-      }
-
-      if (sessionErrorModal) {
-        sessionErrorModal.addEventListener('click', (event) => {
-          if (event.target === sessionErrorModal) {
-            closeSessionErrorModal();
-          }
-        });
-      }
-
-      const openLobbySocket = () => {
-        if (lobbySocket && lobbyConnected) {
-          return lobbySocket;
-        }
-
-        try {
-          lobbySocket = new WebSocket(lobbyWsUrl);
-        } catch (error) {
-          console.error('Unable to connect to lobby WebSocket', error);
-          return null;
-        }
-
-        lobbySocket.addEventListener('open', () => {
-          lobbyConnected = true;
-          if (activeSession?.code) {
-            lobbySocket?.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
-            lobbySocket?.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-          }
-        });
-
-        lobbySocket.addEventListener('close', () => {
-          lobbyConnected = false;
-          setTimeout(() => {
-            lobbySocket = null;
-            if (activeSession?.code) {
-              openLobbySocket();
-            }
-          }, 800);
-        });
-
-        lobbySocket.addEventListener('message', (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'session.roster') {
-              renderRoster(payload);
-            }
-            if (payload.type === 'session.started') {
-              renderLobbyStatus('started');
-              playFx('accept');
-            }
-            if (payload.type === 'turnorder.drawn' && payload.sessionCode === activeSession?.code) {
-              logTurnOrderEvent(`${payload.player.name} drew ${payload.tile.letter}.`);
-            }
-            if (payload.type === 'turnorder.tie' && payload.sessionCode === activeSession?.code) {
-              const names = (payload.players || []).map((player) => player.name).join(', ');
-              logTurnOrderEvent(`Tie on ${payload.distance} — redraw for ${names}.`, 'Tie');
-            }
-            if (payload.type === 'turnorder.resolved' && payload.sessionCode === activeSession?.code) {
-              turnOrderInFlight = false;
-              renderTurnOrderResult(payload.order || []);
-              if (drawTurnOrderBtn) {
-                drawTurnOrderBtn.disabled = !(Boolean(currentPlayer?.is_host) && (payload.order?.length ?? 0) >= 2);
-                drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
-              }
-            }
-            if (payload.type === 'turnorder.error' && payload.sessionCode === activeSession?.code) {
-              turnOrderInFlight = false;
-              logTurnOrderEvent(payload.message || 'Unable to draw turn order.', 'Error');
-              if (drawTurnOrderBtn) {
-                drawTurnOrderBtn.disabled = false;
-                drawTurnOrderBtn.setAttribute('aria-disabled', 'false');
-              }
-              setSessionFlash(payload.message || 'Unable to draw tiles for order.', 'error');
-            }
-            if (payload.type === 'player.sound' && payload.tone) {
-              playFx(payload.tone, { rate: 1.05 });
-            }
-          } catch (error) {
-            console.error('WS message error', error);
-          }
-        });
-
-        lobbySocket.addEventListener('error', (event) => {
-          console.error('Lobby WebSocket error', event);
-        });
-
-        return lobbySocket;
-      };
-
-      const renderLobbyStatus = (status) => {
-        if (!lobbyStatus || !activeSession) return;
-        const tone = status === 'started' ? 'In progress' : 'Waiting for players';
-        lobbyStatus.textContent = tone;
-      };
-
-      const updateLobbyActions = () => {
-        const isHost = Boolean(currentPlayer?.is_host);
-        const isAdmin = Boolean(
-          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(loadIdentity()?.playerName)
-        );
-
-        if (deleteSessionBtn) {
-          const canDelete = Boolean(activeSession?.code && (isHost || isAdmin));
-          deleteSessionBtn.hidden = !canDelete;
-          deleteSessionBtn.disabled = !canDelete;
-          deleteSessionBtn.setAttribute('aria-disabled', canDelete ? 'false' : 'true');
-        }
-      };
-
-      const renderRoster = (payload) => {
-        if (!lobbyCard || !lobbyRoster || !payload?.players) return;
-
-        const { players, sessionCode, canStart, status = 'pending' } = payload;
+      const renderRoster = ({ sessionCode, players = [], status, maxPlayers }) => {
+        if (!lobbyCard || !lobbyRoster) return;
         lobbyCard.hidden = false;
         lobbyTitle.textContent = `Session ${sessionCode}`;
-        lobbyCapacity.textContent = `${players.length}/${payload.maxPlayers} players`;
-        renderLobbyStatus(status);
-        if (activeSession) {
-          activeSession.status = status;
-        }
-
+        lobbyStatus.textContent = status;
+        lobbyCapacity.textContent = `${players.length}/${maxPlayers} players`;
         lobbyRoster.innerHTML = '';
-
-        players.forEach((player) => {
+        players.forEach((player, idx) => {
           const row = document.createElement('div');
-          row.className = 'lobby-player';
-
-          const order = document.createElement('span');
-          order.className = 'lobby-order';
-          order.textContent = player.join_order;
-
-          const name = document.createElement('div');
-          name.innerHTML = `<strong>${player.name}</strong>`;
-
-          const badges = document.createElement('div');
-          badges.className = 'lobby-meta';
-
+          row.className = 'player';
+          row.innerHTML = `<div class="badge">${idx + 1}</div><div><strong>${player.name}</strong><br/><small>${player.is_host ? 'Host' : 'Guest'}</small></div>`;
           if (player.is_host) {
-            const hostBadge = document.createElement('span');
-            hostBadge.className = 'badge host';
-            hostBadge.textContent = 'Host';
-            badges.appendChild(hostBadge);
+            const host = document.createElement('span');
+            host.className = 'badge';
+            host.textContent = 'Host';
+            row.appendChild(host);
           }
-
-          if (currentPlayer?.id === player.id) {
-            const selfBadge = document.createElement('span');
-            selfBadge.className = 'badge self';
-            selfBadge.textContent = 'You';
-            badges.appendChild(selfBadge);
-            currentPlayer.is_host = !!player.is_host;
-            currentPlayer.join_order = player.join_order;
-          }
-
-          if (isAdminName(player.name)) {
-            const adminBadge = document.createElement('span');
-            adminBadge.className = 'badge admin';
-            adminBadge.textContent = 'Admin';
-            badges.appendChild(adminBadge);
-          }
-
-          row.appendChild(order);
-          row.appendChild(name);
-          row.appendChild(badges);
-
           lobbyRoster.appendChild(row);
         });
 
-        if (startGameBtn) {
-          const isHost = Boolean(currentPlayer?.is_host);
-          const readyToStart = canStart && status !== 'started';
-          startGameBtn.disabled = !(isHost && readyToStart);
-          startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
-        }
-
         const isHost = Boolean(currentPlayer?.is_host);
-        const canDraw = isHost && players.length >= 2 && status !== 'started';
-        if (drawTurnOrderBtn) {
-          drawTurnOrderBtn.disabled = !(canDraw && !turnOrderInFlight);
-          drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
-        }
+        const readyToStart = players.length >= 2 && status !== 'started';
+        const readyToDraw = players.length >= 2 && status === 'started';
+        startGameBtn.disabled = !(isHost && readyToStart);
+        startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
+        drawTurnOrderBtn.disabled = !(isHost && readyToDraw && !turnOrderInFlight);
+        drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
+        sessionStatus.textContent = `In ${sessionCode} • ${players.length}/${maxPlayers}`;
+      };
 
-        updateLobbyActions();
+      const logTurn = (text) => {
+        if (!turnOrderLog) return;
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+        entry.textContent = text;
+        turnOrderLog.appendChild(entry);
+        turnOrderLog.scrollTop = turnOrderLog.scrollHeight;
+      };
+
+      const showTilePop = (letter, playerName) => {
+        if (!tilePop) return;
+        tilePop.textContent = letter;
+        tilePop.classList.remove('show');
+        void tilePop.offsetWidth;
+        tilePop.classList.add('show');
+        if (playerName) {
+          logTurn(`${playerName} drew ${letter}`);
+        }
+      };
+
+      const resetTurnOrderUi = () => {
+        turnOrderLog.innerHTML = '';
+        logTurn('Waiting to draw…');
+        turnOrderResult.textContent = '';
+      };
+
+      const stopCountdown = () => {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
       };
 
       const setActiveSession = (session, player) => {
         activeSession = session;
         currentPlayer = player;
-        if (currentPlayer) {
-          currentPlayer.is_admin = Boolean(player?.is_admin || isAdminName(player?.name));
+        persistSession(session, player);
+        renderRoster({ sessionCode: session.code, players: [], status: session.status, maxPlayers: session.max_players || MAX_PLAYERS });
+        if (lobbySocket?.readyState === WebSocket.OPEN) {
+          lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: session.code }));
+          lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: session.code }));
         }
-        if (player?.client_token) {
-          persistSessionState(session, player);
-        }
-        if (playerNameInput && player?.name) {
-          playerNameInput.value = player.name;
-        }
-        resetTurnOrderUi();
-        openLobbySocket();
-        updateLobbyActions();
-        if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN) {
-          lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
-          lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-        }
-      };
-
-      const refreshLobby = async (code) => {
-        try {
-          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(code)}`);
-          const data = await response.json();
-
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to load lobby.');
-          }
-
-          renderRoster({
-            sessionCode: data.session.code,
-            status: data.session.status,
-            maxPlayers: data.session.max_players,
-            players: data.players,
-            canStart: data.players.length >= 2,
-          });
-
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: data.session.code }));
-          }
-        } catch (error) {
-          console.error(error);
-          setSessionFlash('Unable to load lobby roster.', 'error');
-        }
-      };
-
-      const resetTurnOrderUi = (message = 'Waiting to draw tiles…') => {
-        if (turnOrderLogEl) {
-          turnOrderLogEl.innerHTML = '';
-          const placeholder = document.createElement('div');
-          placeholder.className = 'entry placeholder';
-          placeholder.textContent = message;
-          turnOrderLogEl.appendChild(placeholder);
-        }
-
-        if (turnOrderResultEl) {
-          turnOrderResultEl.textContent = '';
-        }
-
-        turnOrderInFlight = false;
-      };
-
-      const logTurnOrderEvent = (text, accent = '') => {
-        if (!turnOrderLogEl) return;
-        if (turnOrderLogEl.firstChild?.classList.contains('placeholder')) {
-          turnOrderLogEl.innerHTML = '';
-        }
-        const entry = document.createElement('div');
-        entry.className = 'entry';
-        entry.textContent = text;
-        if (accent) {
-          const badge = document.createElement('span');
-          badge.className = 'badge';
-          badge.textContent = accent;
-          entry.appendChild(badge);
-        }
-        turnOrderLogEl.appendChild(entry);
-        turnOrderLogEl.scrollTop = turnOrderLogEl.scrollHeight;
-      };
-
-      const renderTurnOrderResult = (order = []) => {
-        if (!turnOrderResultEl) return;
-        if (!order.length) {
-          turnOrderResultEl.textContent = '';
-          return;
-        }
-
-        const [first, ...rest] = order;
-        const leader = `${first.player.name} (drew ${first.tile.letter})`;
-        const runners = rest.map((entry) => `${entry.player.name} (${entry.tile.letter})`).join(', ');
-        turnOrderResultEl.innerHTML = `<strong>${leader}</strong> will start. ${runners ? `Then: ${runners}.` : ''}`;
-      };
-
-      const startTurnOrderDraw = () => {
-        if (!activeSession?.code || !drawTurnOrderBtn) {
-          setSessionFlash('Join a session to draw turn order.', 'error');
-          return;
-        }
-
-        if (!currentPlayer?.is_host) {
-          setSessionFlash('Only the host can draw for turn order.', 'error');
-          return;
-        }
-
-        if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
-          setSessionFlash('Reconnecting to the lobby…', 'error');
-          openLobbySocket();
-          return;
-        }
-
-        turnOrderInFlight = true;
-        drawTurnOrderBtn.disabled = true;
-        drawTurnOrderBtn.setAttribute('aria-disabled', 'true');
-        resetTurnOrderUi('Drawing tiles…');
-        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code }));
-      };
-
-      const renderSessions = (sessions = []) => {
-        if (!sessionListEl || !sessionEmptyEl) return;
-
-        sessionListEl.innerHTML = '';
-
-        const storedIdentity = loadIdentity();
-        const canAdminDelete = Boolean(
-          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(storedIdentity?.playerName)
-        );
-
-        if (!sessions.length) {
-          sessionListEl.hidden = true;
-          sessionEmptyEl.hidden = false;
-          return;
-        }
-
-        sessionListEl.hidden = false;
-        sessionEmptyEl.hidden = true;
-
-        sessions.forEach((session) => {
-          const row = document.createElement('div');
-          row.className = 'session-row';
-          row.setAttribute('role', 'listitem');
-
-          const meta = document.createElement('div');
-          meta.className = 'session-meta';
-
-          const title = document.createElement('h3');
-          title.className = 'session-title';
-          title.textContent = session.code;
-
-          const status = document.createElement('span');
-          status.className = 'session-status';
-          status.textContent = session.status;
-
-          const players = document.createElement('p');
-          players.className = 'session-players';
-          players.textContent = `${session.player_count}/${MAX_PLAYERS} players`;
-
-          meta.appendChild(title);
-          meta.appendChild(status);
-          meta.appendChild(players);
-
-          const actions = document.createElement('div');
-          actions.className = 'session-actions';
-
-          const joinBtn = document.createElement('button');
-          joinBtn.type = 'button';
-          joinBtn.className = 'btn small';
-          joinBtn.textContent = session.player_count >= MAX_PLAYERS ? 'Full' : 'Join';
-          joinBtn.disabled = session.player_count >= MAX_PLAYERS;
-          joinBtn.addEventListener('click', () => {
-            if (sessionCodeInput) sessionCodeInput.value = session.code;
-            if (playerNameInput) playerNameInput.focus();
-            if (createSessionForm) {
-              const { top } = createSessionForm.getBoundingClientRect();
-              window.scrollTo({ top: window.scrollY + top - 80, behavior: 'smooth' });
-            }
-            setSessionFlash(`Joining ${session.code}? Add your name to continue.`, 'success');
-          });
-
-          actions.appendChild(joinBtn);
-
-          if (canAdminDelete) {
-            const deleteBtn = document.createElement('button');
-            deleteBtn.type = 'button';
-            deleteBtn.className = 'btn small ghost danger';
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => {
-              const confirmed = window.confirm(`Delete session ${session.code}?`);
-              if (!confirmed) return;
-              deleteSessionByCode(session.code);
-            });
-            actions.appendChild(deleteBtn);
-          }
-
-          row.appendChild(meta);
-          row.appendChild(actions);
-          sessionListEl.appendChild(row);
-        });
       };
 
       const fetchSessions = async () => {
-        if (!sessionListEl || !sessionEmptyEl) return;
-
         try {
           const response = await fetch('/api/sessions.php');
-          const contentType = response.headers.get('content-type') || '';
-          const bodyText = await response.text();
-          const isJson = contentType.toLowerCase().includes('application/json');
-          const describePayload = {
-            requestLabel: 'Request: GET /api/sessions.php',
-            response,
-            contentType,
-            bodyText,
-          };
-
-          if (!isJson) {
-            const looksLikeHtml = /<(!doctype html|html)/i.test(bodyText.trim().slice(0, 50));
-            const detail = describeHttpResponse({ ...describePayload, reason: 'Non-JSON response' });
-            if (response.ok && (contentType.includes('text/html') || looksLikeHtml)) {
-              renderSessions([]);
-              clearSessionErrors();
-              setSessionFlash('No sessions yet — start a session below to begin.', 'info');
-              setSessionDebug(
-                'Sessions endpoint responded with HTML (likely the app shell). Treated as an empty lobby.\n' +
-                  detail,
-              );
-              return;
-            }
-
-            const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
-            error.detail = detail;
-            throw error;
-          }
-
-          let payload;
-          try {
-            payload = JSON.parse(bodyText);
-          } catch (parseError) {
-            const error = new Error(
-              `Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`,
-            );
-            error.detail = describeHttpResponse({ ...describePayload, reason: 'Invalid JSON received' });
-            throw error;
-          }
-
-          if (!response.ok || !payload) {
-            const message =
-              payload && typeof payload.message === 'string'
-                ? payload.message
-                : `Unable to load sessions (HTTP ${response.status || 'network error'})`;
-            const error = new Error(message);
-            error.detail = payload?.detail || describeHttpResponse(describePayload);
-            throw error;
-          }
-
-          const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
-          if (payload.success === false) {
-            const error = new Error(payload?.message || 'Unable to load sessions.');
-            error.detail = payload?.detail || describeHttpResponse(describePayload);
-            throw error;
-          }
-
-          renderSessions(sessions);
-          clearSessionErrors();
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load sessions');
+          const sessions = data.sessions || [];
+          sessionList.innerHTML = '';
           if (!sessions.length) {
-            setSessionFlash('No sessions yet — start a session below to begin.', 'info');
+            sessionEmpty.hidden = false;
+            return;
           }
+          sessionEmpty.hidden = true;
+          sessions.forEach((session) => {
+            const row = document.createElement('div');
+            row.className = 'player';
+            row.innerHTML = `<strong>${session.code}</strong><div class="badge">${session.status}</div><div>${session.player_count}/${MAX_PLAYERS}</div>`;
+            row.addEventListener('click', () => {
+              sessionCodeInput.value = session.code;
+              setFlash(`Joining ${session.code}? Enter your name.`, 'info');
+              playerNameInput.focus();
+            });
+            sessionList.appendChild(row);
+          });
         } catch (error) {
-          sessionEmptyEl.hidden = false;
-          sessionListEl.hidden = true;
-          const message = error instanceof Error ? error.message : 'Unable to load sessions right now.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : [
-                  `Error: ${error instanceof Error ? error.message : String(error)}`,
-                  error instanceof Error && error.stack ? `Stack: ${error.stack}` : null,
-                ]
-                  .filter(Boolean)
-                  .join('\n');
-
-          presentSessionError(`${message} See details below.`, detail);
-          console.error(error);
+          sessionEmpty.hidden = false;
         }
+      };
+
+      const openLobbySocket = () => {
+        if (lobbySocket && lobbyConnected) return lobbySocket;
+        lobbySocket = new WebSocket(lobbyWsUrl);
+        lobbySocket.addEventListener('open', () => {
+          lobbyConnected = true;
+          if (activeSession?.code) {
+            lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
+          }
+        });
+
+        lobbySocket.addEventListener('close', () => {
+          lobbyConnected = false;
+          setTimeout(openLobbySocket, 1000);
+        });
+
+        lobbySocket.addEventListener('message', (event) => {
+          const payload = JSON.parse(event.data || '{}');
+          if (payload.type === 'session.roster') {
+            renderRoster({
+              sessionCode: payload.sessionCode,
+              players: payload.players,
+              status: payload.status,
+              maxPlayers: payload.maxPlayers,
+            });
+          }
+
+          if (payload.type === 'session.started') {
+            lobbyStatus.textContent = 'started';
+          }
+
+          if (payload.type === 'turnorder.drawn') {
+            showTilePop(payload.tile?.letter || '?', payload.player?.name || 'Player');
+          }
+
+          if (payload.type === 'turnorder.tie') {
+            logTurn(`Tie on letter ${String.fromCharCode(65 + (payload.distance || 0))} — redraw for ${payload.players.map((p) => p.name).join(', ')}`);
+          }
+
+        if (payload.type === 'turnorder.resolved') {
+          const order = payload.order || [];
+          if (order.length) {
+            const lead = order[0];
+            const countdownSeconds = 4;
+            turnOrderResult.innerHTML = `<strong>${lead.player.name}</strong> will start. Then ${order.slice(1).map((o) => o.player.name).join(', ')}`;
+            setFlash(`Turn order set! Launching game in ${countdownSeconds}s`, 'success');
+            let remaining = countdownSeconds;
+            stopCountdown();
+            countdownTimer = setInterval(() => {
+              remaining -= 1;
+              setFlash(`Turn order set! Launching game in ${remaining}s`, 'success');
+              if (remaining <= 0) {
+                stopCountdown();
+                window.location.href = `/game.php?code=${encodeURIComponent(payload.sessionCode)}`;
+              }
+            }, 1000);
+          }
+          turnOrderInFlight = false;
+          drawTurnOrderBtn.disabled = false;
+        }
+
+          if (payload.type === 'turnorder.error') {
+            setFlash(payload.message || 'Unable to draw turn order', 'error');
+            turnOrderInFlight = false;
+            drawTurnOrderBtn.disabled = false;
+          }
+        });
+        return lobbySocket;
       };
 
       const handleCreateSession = async (event) => {
         event.preventDefault();
-
-        if (!sessionCodeInput || !playerNameInput) {
+        const code = (sessionCodeInput.value || '').toUpperCase();
+        const playerName = (playerNameInput.value || '').trim();
+        resolveIdentity();
+        if (!code || !playerName) {
+          setFlash('Add a code and your name.', 'error');
           return;
         }
-
-        const code = sessionCodeInput.value.trim();
-        const playerName = playerNameInput.value.trim();
-
-        if (code === '' || playerName === '') {
-          setSessionFlash('Enter a session code and your name to create a game.', 'error');
-          return;
-        }
-
-        setSessionFlash('Creating session…');
-
         try {
-          const identity = resolveIdentity(playerName);
           const response = await fetch('/api/sessions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
+            body: JSON.stringify({ code, playerName }),
           });
-
-          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions.php' });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to create session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Session ${payload.session.code} created. You're the host.`, 'success');
-          sessionCodeInput.value = '';
-          playerNameInput.value = '';
-          setActiveSession(
-            {
-              id: payload.session.id,
-              code: payload.session.code,
-              status: payload.session.status,
-              max_players: payload.session.max_players ?? MAX_PLAYERS,
-            },
-            {
-              id: payload.player?.id ?? payload.session.host?.id,
-              name: payload.player?.name || payload.session.host?.name || playerName,
-              client_token: payload.player?.client_token ?? payload.session.host?.client_token,
-              is_host: true,
-              is_admin: payload.player?.is_admin ?? isAdminName(playerName),
-            }
-          );
-          refreshLobby(payload.session.code);
-          fetchSessions();
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to create session');
+          setFlash('Lobby created.', 'success');
+          setActiveSession(data.session, data.player);
+          renderRoster({
+            sessionCode: data.session.code,
+            status: data.session.status,
+            players: [data.player],
+            maxPlayers: data.session.max_players,
+          });
+          openLobbySocket();
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to create session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
+          setFlash(error.message, 'error');
         }
       };
 
       const handleJoinSession = async () => {
-        if (!sessionCodeInput || !playerNameInput) return;
-
-        const code = sessionCodeInput.value.trim();
-        const playerName = playerNameInput.value.trim();
-
-        if (code === '' || playerName === '') {
-          setSessionFlash('Enter a session code and your name to join.', 'error');
+        const code = (pendingJoinCode || sessionCodeInput.value || '').toUpperCase();
+        const playerName = (joinModalName?.value || playerNameInput.value || '').trim();
+        const storedIdentity = loadIdentity();
+        const clientToken = storedIdentity?.clientToken || undefined;
+        resolveIdentity();
+        if (!code || !playerName) {
+          setFlash('Enter code and name to join.', 'error');
           return;
         }
-
-        setSessionFlash('Joining session…');
-
+        playerNameInput.value = playerName;
+        sessionCodeInput.value = code;
         try {
-          const identity = resolveIdentity(playerName);
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
+            body: JSON.stringify({ action: 'join', code, playerName, clientToken }),
           });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to join session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Joined ${payload.session.code}.`, 'success');
-          setActiveSession({
-            id: payload.session.id,
-            code: payload.session.code,
-            status: payload.session.status,
-            max_players: payload.session.max_players ?? MAX_PLAYERS,
-          }, {
-            id: payload.player.id,
-            name: payload.player.name,
-            client_token: payload.player.client_token,
-            is_host: false,
-            is_admin: payload.player?.is_admin ?? isAdminName(playerName),
-          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to join');
+          setFlash(`Joined ${data.session.code}.`, 'success');
+          setActiveSession(data.session, data.player);
+          closeJoinModal();
           renderRoster({
-            sessionCode: payload.session.code,
-            status: payload.session.status,
-            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
-            players: payload.players,
-            canStart: payload.players.length >= 2,
+            sessionCode: data.session.code,
+            status: data.session.status,
+            players: data.players,
+            maxPlayers: data.session.max_players,
           });
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: payload.session.code, tone: 'accept' }));
-          }
-          fetchSessions();
+          openLobbySocket();
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to join session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
-        }
-      };
-
-      const resetLobbyState = (flashMessage = '') => {
-        activeSession = null;
-        currentPlayer = null;
-        clearSavedSession();
-        resetTurnOrderUi('Not in a lobby.');
-        if (lobbyCard) {
-          lobbyCard.hidden = true;
-        }
-        if (lobbyRoster) {
-          lobbyRoster.innerHTML = '';
-        }
-        updateLobbyActions();
-
-        if (flashMessage) {
-          setSessionFlash(flashMessage, 'success');
-        }
-      };
-
-      const deleteSessionByCode = async (code) => {
-        const nameFromForm = playerNameInput?.value?.trim() || currentPlayer?.name || '';
-        const identity = resolveIdentity(nameFromForm);
-        const actorName = (nameFromForm || identity.playerName || '').trim();
-
-        if (!actorName) {
-          setSessionFlash('Enter your name to manage sessions. TomAdmin can delete any lobby.', 'error');
-          return;
-        }
-
-        setSessionFlash(`Deleting session ${code}…`);
-
-        try {
-          const response = await fetch('/api/sessions.php', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName: actorName, clientToken: identity.clientToken }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: DELETE /api/sessions.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to delete session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          if (activeSession?.code === code) {
-            resetLobbyState('Session deleted.');
-          } else {
-            setSessionFlash(`Session ${code} deleted.`, 'success');
-          }
-
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to delete session.';
-          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
-          presentSessionError(message, detail || `Request to delete ${code} failed.`);
-        }
-      };
-
-      const handleLeaveSession = async () => {
-        if (!activeSession?.code || !currentPlayer?.id) {
-          return;
-        }
-
-        try {
-          const code = activeSession.code;
-          const response = await fetch('/api/session_players.php', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: activeSession.code, playerId: currentPlayer.id }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: DELETE /api/session_players.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to leave session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: code, tone: 'reset' }));
-            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
-          }
-
-          clearSessionErrors();
-          resetLobbyState('Left the lobby.');
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to leave session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
+          setFlash(error.message, 'error');
         }
       };
 
       const handleStartGame = async () => {
         if (!activeSession?.code || !currentPlayer?.id) return;
-
         try {
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
           });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php (start)',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to start game.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          activeSession.status = payload.session.status;
-          renderLobbyStatus('started');
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
+          lobbyStatus.textContent = 'started';
+          activeSession.status = 'started';
+          setFlash('Game started. Host can now draw for turn order.', 'success');
           if (lobbySocket?.readyState === WebSocket.OPEN) {
             lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: activeSession.code, tone: 'accept' }));
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
           }
-          clearSessionErrors();
-          setSessionFlash('Game started.', 'success');
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to start game.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
+          setFlash(error.message, 'error');
         }
       };
 
-      const attemptResumeSession = async () => {
-        const saved = loadSavedSession();
-
-        if (!saved?.clientToken || !saved.sessionCode) {
+      const startTurnOrderDraw = () => {
+        if (!activeSession?.code || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+          setFlash('Connect to lobby first.', 'error');
           return;
         }
+        turnOrderInFlight = true;
+        drawTurnOrderBtn.disabled = true;
+        resetTurnOrderUi();
+        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code }));
+        logTurn('Drawing tiles…');
+      };
 
-        setSessionFlash('Restoring your last lobby…');
+      const leaveSession = async () => {
+        const saved = loadSavedSession();
+        if (!saved?.clientToken) return;
+        try {
+          await fetch('/api/session_players.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: activeSession?.code, clientToken: saved.clientToken, playerName: playerNameInput.value }),
+          });
+        } catch (error) {
+          // ignore
+        }
+        activeSession = null;
+        currentPlayer = null;
+        lobbyCard.hidden = true;
+        setFlash('Left the lobby.', 'info');
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      };
 
+      const deleteSession = async () => {
+        const saved = loadSavedSession();
+        if (!saved?.clientToken || !activeSession?.code) return;
+        const confirmed = window.confirm(`Delete session ${activeSession.code}?`);
+        if (!confirmed) return;
+        try {
+          await fetch('/api/sessions.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: activeSession.code, clientToken: saved.clientToken, playerName: playerNameInput.value || currentPlayer?.name }),
+          });
+          setFlash('Lobby deleted.', 'success');
+          lobbyCard.hidden = true;
+          localStorage.removeItem(SESSION_STORAGE_KEY);
+        } catch (error) {
+          setFlash('Unable to delete lobby.', 'error');
+        }
+      };
+
+      const attemptResume = async () => {
+        const saved = loadSavedSession();
+        if (!saved?.sessionCode || !saved.clientToken) return;
         try {
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'rejoin', code: saved.sessionCode, clientToken: saved.clientToken }),
           });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php (rejoin)',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to restore session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Rejoined ${payload.session.code}.`, 'success');
-          setActiveSession(
-            {
-              id: payload.session.id,
-              code: payload.session.code,
-              status: payload.session.status,
-              max_players: payload.session.max_players ?? MAX_PLAYERS,
-            },
-            {
-              id: payload.player.id,
-              name: payload.player.name,
-              client_token: payload.player.client_token,
-              is_host: Boolean(payload.player.is_host),
-              join_order: payload.player.join_order,
-              is_admin: payload.player?.is_admin ?? isAdminName(payload.player?.name),
-            }
-          );
-          renderRoster({
-            sessionCode: payload.session.code,
-            status: payload.session.status,
-            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
-            players: payload.players,
-            canStart: payload.players.length >= 2,
-          });
-        } catch (error) {
-          console.error(error);
-          clearSavedSession();
-          const message = error instanceof Error ? error.message : 'Unable to restore session.';
-          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
-          presentSessionError(message, detail);
-        }
-      };
-
-      if (createSessionForm) {
-        createSessionForm.addEventListener('submit', handleCreateSession);
-      }
-
-      if (joinSessionBtn) {
-        joinSessionBtn.addEventListener('click', handleJoinSession);
-      }
-
-      if (leaveSessionBtn) {
-        leaveSessionBtn.addEventListener('click', handleLeaveSession);
-      }
-
-      if (startGameBtn) {
-        startGameBtn.addEventListener('click', handleStartGame);
-      }
-
-      if (drawTurnOrderBtn) {
-        drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
-      }
-
-      if (deleteSessionBtn) {
-        deleteSessionBtn.addEventListener('click', () => {
-          if (!activeSession?.code) {
-            setSessionFlash('No active lobby to delete.', 'error');
-            return;
-          }
-
-          const confirmed = window.confirm(`Delete session ${activeSession.code}?`);
-          if (!confirmed) return;
-          deleteSessionByCode(activeSession.code);
-        });
-      }
-
-      updateLobbyActions();
-      attemptResumeSession();
-
-      let tileId = 0;
-      let bag = [];
-      let rack = [];
-      let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
-      let totalScore = 0;
-      let firstTurn = true;
-      let turnActive = false;
-      let dictionaryReady = false;
-      let dictionary = new Set();
-      let aiStepInterval;
-      let aiRevealTimeout;
-      let aiAudioInterval;
-      let audioCtx;
-      let baseScale = 1;
-      let userZoom = 1;
-      let pinchDistance = null;
-      let panX = 0;
-      let panY = 0;
-      let isPanning = false;
-      let panOrigin = { x: 0, y: 0 };
-      let touchDragTileId = null;
-      let touchDragLastPosition = null;
-
-      const initAudio = () => {
-        if (audioCtx) return audioCtx;
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return null;
-        audioCtx = new AudioContextClass();
-        return audioCtx;
-      };
-
-      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-      const scheduleTone = (ctx, {
-        frequency,
-        type = 'sine',
-        gainValue = 0.06,
-        start = 0,
-        duration = 0.18,
-        attack = 0.01,
-        decayEnd = 0.0001,
-      }) => {
-        if (!frequency || !ctx) return;
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscillator.type = type;
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-        gain.gain.exponentialRampToValueAtTime(gainValue, ctx.currentTime + start + attack);
-        gain.gain.exponentialRampToValueAtTime(decayEnd, ctx.currentTime + start + duration);
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(ctx.currentTime + start);
-        oscillator.stop(ctx.currentTime + start + duration + 0.05);
-      };
-
-      const createSynthFx = ({ steps = [], jitter = 0.05 }) => ({ rate = 1 } = {}) => {
-        const ctx = initAudio();
-        if (!ctx) return;
-        if (ctx.state === 'suspended') {
-          ctx.resume();
-        }
-        const pitchJitter = 1 + (Math.random() * jitter * 2 - jitter);
-        const baseRate = clamp(rate, 0.6, 1.6) * pitchJitter;
-        steps.forEach(step => {
-          scheduleTone(ctx, {
-            ...step,
-            frequency: step.frequency * baseRate,
-          });
-        });
-      };
-
-      const fx = {
-        place: createSynthFx({
-          steps: [
-            { frequency: 620, duration: 0.12, type: 'triangle', gainValue: 0.07 },
-            { frequency: 760, start: 0.08, duration: 0.09, type: 'sine', gainValue: 0.05 },
-          ],
-          jitter: 0.04,
-        }),
-        accept: createSynthFx({
-          steps: [
-            { frequency: 480, duration: 0.22, type: 'sine', gainValue: 0.06 },
-            { frequency: 640, start: 0.05, duration: 0.22, type: 'triangle', gainValue: 0.05 },
-            { frequency: 800, start: 0.1, duration: 0.2, type: 'square', gainValue: 0.04 },
-            { frequency: 960, start: 0.24, duration: 0.12, type: 'triangle', gainValue: 0.045 },
-          ],
-          jitter: 0.03,
-        }),
-        reset: createSynthFx({
-          steps: [
-            { frequency: 360, duration: 0.22, type: 'sawtooth', gainValue: 0.06 },
-            { frequency: 240, start: 0.12, duration: 0.2, type: 'triangle', gainValue: 0.05 },
-          ],
-          jitter: 0.02,
-        }),
-        invalid: createSynthFx({
-          steps: [
-            { frequency: 180, duration: 0.16, type: 'square', gainValue: 0.07 },
-            { frequency: 320, start: 0.02, duration: 0.12, type: 'triangle', gainValue: 0.045 },
-            { frequency: 160, start: 0.1, duration: 0.18, type: 'sawtooth', gainValue: 0.05 },
-          ],
-          jitter: 0.06,
-        }),
-        shuffle: createSynthFx({
-          steps: [
-            { frequency: 380, duration: 0.14, type: 'triangle', gainValue: 0.05 },
-            { frequency: 520, start: 0.08, duration: 0.14, type: 'sine', gainValue: 0.05 },
-            { frequency: 660, start: 0.16, duration: 0.14, type: 'triangle', gainValue: 0.045 },
-            { frequency: 820, start: 0.24, duration: 0.12, type: 'square', gainValue: 0.04 },
-          ],
-          jitter: 0.05,
-        }),
-      };
-
-      const playFx = (name, { rate = 1 } = {}) => {
-        const effect = fx[name];
-        if (!effect) return;
-        effect({ rate });
-      };
-
-      const stopAiAudioLoop = () => {
-        if (aiAudioInterval) {
-          clearInterval(aiAudioInterval);
-          aiAudioInterval = null;
-        }
-      };
-
-      const startAiAudioLoop = () => {
-        const ctx = initAudio();
-        if (!ctx) return;
-        stopAiAudioLoop();
-        if (ctx.state === 'suspended') {
-          ctx.resume();
-        }
-
-        aiAudioInterval = setInterval(() => {
-          const shimmer = 420 + Math.random() * 120;
-          const bass = 240 + Math.random() * 90;
-          scheduleTone(ctx, { frequency: shimmer, duration: 0.3, type: 'sine', gainValue: 0.04 });
-          scheduleTone(ctx, { frequency: bass, start: 0.14, duration: 0.32, type: 'triangle', gainValue: 0.035 });
-        }, 620);
-      };
-
-      const centerBoard = () => {
-        if (!boardViewport || !boardScaleEl) return;
-        const centerCell = document.querySelector('.cell[data-center="true"]');
-        if (!centerCell) return;
-
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const cellRect = centerCell.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-
-        const viewportCenterX = viewportRect.width / 2;
-        const viewportCenterY = viewportRect.height / 2;
-        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
-        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
-        const finalScale = getFinalScale();
-
-        panX = (viewportCenterX - cellCenterX) / finalScale;
-        panY = (viewportCenterY - cellCenterY) / finalScale;
-        applyBoardTransform();
-      };
-
-      const getFinalScale = () => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
-        return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
-      };
-
-      const clampPanToViewport = (finalScale) => {
-        if (!boardViewport || !boardChromeEl || !boardScaleEl) return;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const scaledWidth = boardRect.width * finalScale;
-        const scaledHeight = boardRect.height * finalScale;
-
-        const minPanX = Math.min(0, viewportRect.width - scaledWidth);
-        const minPanY = Math.min(0, viewportRect.height - scaledHeight);
-
-        panX = clamp(panX, minPanX, 0);
-        panY = clamp(panY, minPanY, 0);
-      };
-
-      const applyBoardTransform = () => {
-        if (!boardScaleEl) return;
-        const finalScale = getFinalScale();
-        clampPanToViewport(finalScale);
-        boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
-      };
-
-      const resizeBoardToViewport = ({ resetView = false } = {}) => {
-        if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
-        const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
-        const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
-
-        boardViewport.style.height = `${availableHeight}px`;
-
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-
-        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
-        const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
-        baseScale = Math.min(heightScale, widthScale, 1);
-        if (resetView) {
-          panX = 0;
-          panY = 0;
-          userZoom = 1;
-          centerBoard();
-        } else {
-          applyBoardTransform();
-        }
-      };
-
-      const adjustZoom = (factor) => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
-        const minFactor = MIN_ZOOM / (baseScale || 1);
-        const maxFactor = MAX_ZOOM / (baseScale || 1);
-        userZoom = clamp(userZoom * factor, minFactor, maxFactor);
-        applyBoardTransform();
-      };
-
-      const resetBoardView = () => {
-        panX = 0;
-        panY = 0;
-        userZoom = 1;
-        centerBoard();
-      };
-
-      const fitBoard = () => {
-        resizeBoardToViewport({ resetView: true });
-      };
-
-      const handleWheelZoom = (event) => {
-        if (!boardScaleEl || !boardViewport) return;
-        if (event.ctrlKey || event.metaKey) return;
-        event.preventDefault();
-        const direction = Math.sign(event.deltaY);
-        adjustZoom(direction > 0 ? 0.92 : 1.08);
-      };
-
-      const touchDistance = (touches) => {
-        if (touches.length < 2) return 0;
-        const [t1, t2] = touches;
-        const dx = t1.clientX - t2.clientX;
-        const dy = t1.clientY - t2.clientY;
-        return Math.hypot(dx, dy);
-      };
-
-      const handleTouchStart = (event) => {
-        if (!boardViewport) return;
-        if (event.touches.length === 2) {
-          isPanning = false;
-          boardViewport.classList.remove('dragging');
-          pinchDistance = touchDistance(event.touches);
-          return;
-        }
-
-        const [touch] = event.touches;
-        const target = event.target;
-        if (!touch || (target.closest('.tile') || target.closest('.rack-tile'))) return;
-
-        isPanning = true;
-        panOrigin = { x: touch.clientX - panX, y: touch.clientY - panY };
-        boardViewport.classList.add('dragging');
-      };
-
-      const handleTouchMove = (event) => {
-        if (!boardScaleEl) return;
-
-        if (event.touches.length >= 2) {
-          if (pinchDistance === null) return;
-          event.preventDefault();
-          const newDistance = touchDistance(event.touches);
-          if (newDistance > 0) {
-            const factor = newDistance / (pinchDistance || newDistance);
-            adjustZoom(factor);
-            pinchDistance = newDistance;
-          }
-          return;
-        }
-
-        if (!isPanning || !event.touches.length) return;
-        const [touch] = event.touches;
-        if (!touch) return;
-        event.preventDefault();
-        panX = touch.clientX - panOrigin.x;
-        panY = touch.clientY - panOrigin.y;
-        applyBoardTransform();
-      };
-
-      const handleTouchEnd = () => {
-        if (pinchDistance !== null) {
-          pinchDistance = null;
-        }
-
-        if (isPanning) {
-          endBoardPan();
-        }
-      };
-
-      const startBoardPan = (event) => {
-        if (!boardViewport || event.button !== 0) return;
-        const target = event.target;
-        if (target.closest('.tile') || target.closest('.rack-tile')) return;
-        event.preventDefault();
-        isPanning = true;
-        panOrigin = { x: event.clientX - panX, y: event.clientY - panY };
-        boardViewport.classList.add('dragging');
-      };
-
-      const continueBoardPan = (event) => {
-        if (!isPanning) return;
-        panX = event.clientX - panOrigin.x;
-        panY = event.clientY - panOrigin.y;
-        applyBoardTransform();
-      };
-
-      const endBoardPan = () => {
-        if (!isPanning) return;
-        isPanning = false;
-        boardViewport.classList.remove('dragging');
-      };
-
-      const buildBag = () => {
-        bag = [];
-        Object.entries(tileDistribution).forEach(([letter, entry]) => {
-          for (let i = 0; i < entry.count; i += 1) {
-            bag.push(letter);
-          }
-        });
-      };
-
-      const pickTileFromBag = () => {
-        if (!bag.length) return null;
-        const index = Math.floor(Math.random() * bag.length);
-        const [letter] = bag.splice(index, 1);
-        return letter;
-      };
-
-      const createTile = (letter) => {
-        const isBlank = letter === '?';
-        const id = `tile-${++tileId}`;
-        const tile = {
-          id,
-          letter,
-          assignedLetter: isBlank ? '' : letter,
-          isBlank,
-          value: isBlank ? 0 : (tileValues[letter] || 0),
-          locked: false,
-          justPlaced: false,
-          invalidReason: ''
-        };
-        return tile;
-      };
-
-      const setMessage = (text, tone = '') => {
-        messageEl.textContent = text;
-        messageEl.classList.remove('error', 'success');
-        if (tone) {
-          messageEl.classList.add(tone);
-          if (tone === 'error') {
-            playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
-          }
-        }
-      };
-
-      const closeHudMenu = () => {
-        if (!hudMenu || !menuToggle) return;
-        hudMenu.classList.remove('open');
-        menuToggle.setAttribute('aria-expanded', 'false');
-      };
-
-      const toggleHudMenu = () => {
-        if (!hudMenu || !menuToggle) return;
-        const isOpen = hudMenu.classList.toggle('open');
-        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      };
-
-      const closeRackHelp = () => {
-        if (!rackHelpTip || !rackHelpBtn) return;
-        rackHelpTip.classList.remove('show');
-        rackHelpBtn.setAttribute('aria-expanded', 'false');
-      };
-
-      const toggleRackHelp = () => {
-        if (!rackHelpTip || !rackHelpBtn) return;
-        const shouldShow = rackHelpTip.classList.toggle('show');
-        rackHelpBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
-
-        if (shouldShow) {
-          rackHelpTip.style.left = '0';
-          rackHelpTip.style.right = 'auto';
-          const tipRect = rackHelpTip.getBoundingClientRect();
-          const viewportWidth = document.documentElement.clientWidth;
-          if (tipRect.right > viewportWidth - 12) {
-            rackHelpTip.style.left = 'auto';
-            rackHelpTip.style.right = '0';
-          }
-        }
-      };
-
-      const updateTurnButton = () => {
-        if (!toggleBtn) return;
-        toggleBtn.classList.toggle('start', !turnActive);
-        toggleBtn.classList.toggle('stop', turnActive);
-        if (turnTitleEl) {
-          turnTitleEl.textContent = turnActive ? 'Submit move' : 'Start turn';
-        }
-        if (turnSubtitleEl) {
-          turnSubtitleEl.textContent = turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word';
-        }
-        toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
-      };
-
-      const updateAiButton = () => {
-        if (!aiBtn) return;
-        const disabled = !turnActive;
-        aiBtn.disabled = disabled;
-        aiBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-        aiBtn.classList.toggle('disabled', disabled);
-      };
-
-      const updateBagCount = () => {
-        bagCountEl.textContent = bag.length;
-      };
-
-      const renderRack = () => {
-        rackEl.innerHTML = '';
-        rack.forEach((tile) => {
-          const tileEl = document.createElement('div');
-          tileEl.className = `rack-tile${tile.isBlank ? ' blank' : ''}`;
-          tileEl.draggable = true;
-          tileEl.dataset.tileId = tile.id;
-          tileEl.dataset.location = 'rack';
-          tileEl.addEventListener('dragstart', handleTileDragStart);
-          tileEl.addEventListener('touchstart', handleTileTouchStart, { passive: false });
-          tileEl.addEventListener('touchmove', handleTileTouchMove, { passive: false });
-          tileEl.addEventListener('touchend', handleTileTouchEnd);
-          tileEl.addEventListener('touchcancel', handleTileTouchEnd);
-
-          const letterEl = document.createElement('span');
-          letterEl.className = `letter${tile.isBlank && tile.assignedLetter === '' ? ' blank-empty' : tile.isBlank ? ' blank-assigned' : ''}`;
-          letterEl.textContent = tile.isBlank ? (tile.assignedLetter || '·') : tile.letter;
-
-          const valueEl = document.createElement('span');
-          valueEl.className = 'value';
-          valueEl.textContent = tile.isBlank ? '' : tile.value;
-
-          tileEl.appendChild(letterEl);
-          tileEl.appendChild(valueEl);
-          rackEl.appendChild(tileEl);
-        });
-      };
-
-      const renderBoard = () => {
-        cells.forEach((cell) => {
-          const row = Number(cell.dataset.row);
-          const col = Number(cell.dataset.col);
-          const tile = board[row][col];
-          const premium = premiumLayout[row][col];
-          const labelEl = cell.querySelector('.cell-label');
-          cell.classList.remove('invalid', 'drag-target');
-          cell.classList.toggle('show-premium', Boolean(tile && tile.justPlaced && premium));
-          cell.classList.toggle('premium-used', Boolean(tile && tile.locked && premium));
-          cell.removeAttribute('data-tooltip');
-          const existingTile = cell.querySelector('.tile');
-          if (existingTile) {
-            existingTile.remove();
-          }
-
-          if (labelEl) {
-            const hideLabel = Boolean(tile && tile.locked && premium);
-            labelEl.style.display = hideLabel ? 'none' : '';
-          }
-
-          if (!tile) return;
-
-          if (tile.invalidReason) {
-            cell.classList.add('invalid');
-            cell.dataset.tooltip = tile.invalidReason;
-          }
-
-          const tileEl = document.createElement('div');
-          tileEl.className = `tile${tile.isBlank ? ' blank' : ''}`;
-          tileEl.draggable = !tile.locked;
-          tileEl.dataset.tileId = tile.id;
-          tileEl.dataset.location = 'board';
-          tileEl.addEventListener('dragstart', handleTileDragStart);
-          tileEl.addEventListener('touchstart', handleTileTouchStart, { passive: false });
-          tileEl.addEventListener('touchmove', handleTileTouchMove, { passive: false });
-          tileEl.addEventListener('touchend', handleTileTouchEnd);
-          tileEl.addEventListener('touchcancel', handleTileTouchEnd);
-          tileEl.addEventListener('dblclick', () => moveTileToRack(tile.id));
-
-          const letterEl = document.createElement('span');
-          const letterClass = tile.isBlank && !tile.assignedLetter ? 'letter blank-empty' : tile.isBlank ? 'letter blank-assigned' : 'letter';
-          letterEl.className = letterClass;
-          letterEl.textContent = tile.isBlank ? (tile.assignedLetter || '·') : tile.letter;
-
-          const valueEl = document.createElement('span');
-          valueEl.className = 'value';
-          valueEl.textContent = tile.isBlank ? '' : tile.value;
-
-          tileEl.appendChild(letterEl);
-          tileEl.appendChild(valueEl);
-          cell.appendChild(tileEl);
-        });
-      };
-
-      const resetInvalidMarkers = () => {
-        board.forEach((row) => row.forEach((tile) => {
-          if (tile) tile.invalidReason = '';
-        }));
-      };
-
-      const handleTileDragStart = (event) => {
-        const tileId = event.target.dataset.tileId;
-        event.dataTransfer.setData('text/plain', tileId);
-        event.dataTransfer.effectAllowed = 'move';
-      };
-
-      const handleTileTouchStart = (event) => {
-        const touch = event.touches[0];
-        if (!touch) return;
-        touchDragTileId = event.currentTarget.dataset.tileId;
-        touchDragLastPosition = { x: touch.clientX, y: touch.clientY };
-        event.preventDefault();
-        event.stopPropagation();
-      };
-
-      const handleTileTouchMove = (event) => {
-        if (!touchDragTileId) return;
-        const touch = event.touches[0];
-        if (!touch) return;
-        touchDragLastPosition = { x: touch.clientX, y: touch.clientY };
-        event.preventDefault();
-      };
-
-      const handleTileTouchEnd = (event) => {
-        if (!touchDragTileId || !touchDragLastPosition) {
-          touchDragTileId = null;
-          touchDragLastPosition = null;
-          return;
-        }
-
-        const touch = event.changedTouches?.[0];
-        const point = touch ? { x: touch.clientX, y: touch.clientY } : touchDragLastPosition;
-        const dropTarget = document.elementFromPoint(point.x, point.y);
-
-        if (dropTarget) {
-          const cell = dropTarget.closest('.cell');
-          const rackTarget = dropTarget.closest('.rack');
-          if (cell) {
-            const row = Number(cell.dataset.row);
-            const col = Number(cell.dataset.col);
-            moveTileToBoard(touchDragTileId, row, col);
-          } else if (rackTarget) {
-            moveTileToRack(touchDragTileId);
-          }
-        }
-
-        touchDragTileId = null;
-        touchDragLastPosition = null;
-      };
-
-      const moveTileToBoard = (tileId, row, col) => {
-        const tile = findTile(tileId);
-        if (!tile || tile.locked) return;
-
-        if (board[row][col] && board[row][col].locked) {
-          setMessage('That square already holds a locked tile.', 'error');
-          return;
-        }
-
-        if (tile.isBlank && !tile.assignedLetter) {
-          const letter = prompt('Assign a letter to this blank tile (A-Z):', '');
-          if (!letter || !letter.match(/^[a-zA-Z]$/)) {
-            setMessage('Blank tiles must be assigned A–Z before placing.', 'error');
-            return;
-          }
-          tile.assignedLetter = letter.toUpperCase();
-        }
-
-        removeTileFromCurrentPosition(tile);
-        tile.justPlaced = true;
-        tile.invalidReason = '';
-        board[row][col] = tile;
-        tile.position = { type: 'board', row, col };
-        renderBoard();
-        renderRack();
-        playFx('place', { rate: 0.94 + Math.random() * 0.12 });
-      };
-
-      const moveTileToRack = (tileId) => {
-        const tile = findTile(tileId);
-        if (!tile || tile.locked) return;
-        const projectedRackSize = rack.length - (tile.position?.type === 'rack' ? 1 : 0);
-        if (projectedRackSize >= RACK_SIZE) {
-          setMessage('Your rack can only hold seven tiles.', 'error');
-          return;
-        }
-        removeTileFromCurrentPosition(tile);
-        tile.justPlaced = false;
-        if (tile.isBlank) {
-          tile.assignedLetter = '';
-        }
-        tile.position = { type: 'rack' };
-        rack.push(tile);
-        renderRack();
-        renderBoard();
-      };
-
-      const removeTileFromCurrentPosition = (tile) => {
-        if (tile.position?.type === 'board') {
-          const { row, col } = tile.position;
-          if (board[row][col]?.id === tile.id) {
-            board[row][col] = null;
-          }
-        }
-        if (tile.position?.type === 'rack') {
-          rack = rack.filter((t) => t.id !== tile.id);
-        }
-      };
-
-      const findTile = (tileId) => {
-        const fromRack = rack.find((tile) => tile.id === tileId);
-        if (fromRack) return fromRack;
-        for (let r = 0; r < BOARD_SIZE; r += 1) {
-          for (let c = 0; c < BOARD_SIZE; c += 1) {
-            const tile = board[r][c];
-            if (tile && tile.id === tileId) {
-              return tile;
-            }
-          }
-        }
-        return null;
-      };
-
-      const returnLooseTilesToRack = (announce = true) => {
-        const movable = [];
-        for (let r = 0; r < BOARD_SIZE; r += 1) {
-          for (let c = 0; c < BOARD_SIZE; c += 1) {
-            const tile = board[r][c];
-            if (tile && !tile.locked) {
-              movable.push(tile.id);
-            }
-          }
-        }
-
-        movable.forEach((id) => moveTileToRack(id));
-        if (movable.length && announce) {
-          setMessage('Tiles returned to your rack for the new AI run.', 'success');
-        }
-      };
-
-      let latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
-
-      const parseCoordinate = (coord) => {
-        const match = /^([A-Oa-o])(\d{1,2})$/.exec((coord || '').trim());
-        if (!match) return null;
-        const row = match[1].toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
-        const col = Number(match[2]) - 1;
-        if (Number.isNaN(row) || Number.isNaN(col) || row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) {
-          return null;
-        }
-        return { row, col };
-      };
-
-      const rackInventory = () => {
-        const letters = {};
-        let blanks = 0;
-
-        rack.forEach((tile) => {
-          if (tile.isBlank) {
-            blanks += 1;
-            return;
-          }
-          const letter = (tile.assignedLetter || tile.letter || '').toUpperCase();
-          if (letter) {
-            letters[letter] = (letters[letter] || 0) + 1;
-          }
-        });
-
-        return { letters, blanks };
-      };
-
-      const rackLettersForServer = () => rack.map((tile) => {
-        if (tile.isBlank && tile.assignedLetter) {
-          return tile.assignedLetter;
-        }
-        if (tile.isBlank) {
-          return '?';
-        }
-        return tile.letter;
-      });
-
-      const boardStateForServer = () => {
-        const placements = [];
-        for (let r = 0; r < BOARD_SIZE; r += 1) {
-          for (let c = 0; c < BOARD_SIZE; c += 1) {
-            const tile = board[r][c];
-            if (!tile) continue;
-            placements.push({
-              row: r,
-              col: c,
-              letter: tile.letter,
-              assignedLetter: tile.assignedLetter,
-              isBlank: tile.isBlank,
-              locked: tile.locked,
-            });
-          }
-        }
-        return placements;
-      };
-
-      const suggestionPlayable = (move) => {
-        if (!move || !move.word) return false;
-
-        const start = parseCoordinate(move.start || 'H8');
-        if (!start) return false;
-
-        const direction = move.direction === 'vertical' ? 'vertical' : 'horizontal';
-        const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
-        const word = (move.word || '').toUpperCase();
-        const pool = rackInventory();
-
-        for (let i = 0; i < word.length; i += 1) {
-          const row = start.row + delta.dr * i;
-          const col = start.col + delta.dc * i;
-          if (row >= BOARD_SIZE || col >= BOARD_SIZE) {
-            return false;
-          }
-
-          const targetTile = board[row][col];
-          if (targetTile && targetTile.locked) {
-            const lockedLetter = targetTile.isBlank ? (targetTile.assignedLetter || targetTile.letter) : targetTile.letter;
-            if ((lockedLetter || '').toUpperCase() !== word[i]) {
-              return false;
-            }
-            continue;
-          }
-
-          if ((pool.letters[word[i]] || 0) > 0) {
-            pool.letters[word[i]] -= 1;
-            continue;
-          }
-
-          if (pool.blanks > 0) {
-            pool.blanks -= 1;
-            continue;
-          }
-
-          return false;
-        }
-
-        return true;
-      };
-
-      const fetchAiSuggestions = async () => {
-        try {
-          const response = await fetch('index.php?action=suggestions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              rack: rackLettersForServer(),
-              board: boardStateForServer(),
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Suggestion fetch failed');
-          }
-
           const data = await response.json();
-          latestSuggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to resume');
+          setActiveSession(data.session, data.player);
+          renderRoster({ sessionCode: data.session.code, status: data.session.status, players: data.players, maxPlayers: data.session.max_players });
+          setFlash(`Rejoined ${data.session.code}.`, 'success');
+          openLobbySocket();
         } catch (error) {
-          latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
+          setFlash('No saved lobby.', 'info');
         }
       };
 
-      const findCell = (row, col) => cells.find((cell) => Number(cell.dataset.row) === row && Number(cell.dataset.col) === col);
-
-      const animateTileToCell = (tile, cell, row, col) => {
-        if (!tile) return;
-        const source = document.querySelector(`[data-tile-id="${tile.id}"][data-location="rack"]`);
-        const targetRect = cell?.getBoundingClientRect();
-        const sourceRect = source?.getBoundingClientRect();
-
-        if (sourceRect && targetRect) {
-          const ghost = (source?.cloneNode(true) || document.createElement('div'));
-          ghost.classList.add('tile-ghost');
-          ghost.style.width = `${sourceRect.width}px`;
-          ghost.style.height = `${sourceRect.height}px`;
-          ghost.style.top = `${sourceRect.top}px`;
-          ghost.style.left = `${sourceRect.left}px`;
-          ghost.style.transform = 'translate(0, 0) scale(1)';
-          ghost.style.opacity = '1';
-          document.body.appendChild(ghost);
-
-          requestAnimationFrame(() => {
-            const targetX = targetRect.left + (targetRect.width - sourceRect.width) / 2;
-            const targetY = targetRect.top + (targetRect.height - sourceRect.height) / 2;
-            ghost.style.transform = `translate(${targetX - sourceRect.left}px, ${targetY - sourceRect.top}px) scale(1.05)`;
-            ghost.style.opacity = '0.1';
-          });
-
-          setTimeout(() => {
-            moveTileToBoard(tile.id, row, col);
-            ghost.remove();
-          }, 380);
-          return;
+      const resolveIdentity = () => {
+        const name = (playerNameInput.value || '').trim();
+        const stored = loadIdentity();
+        const clientToken = stored?.clientToken || crypto.randomUUID().replace(/-/g, '');
+        if (name) {
+          persistIdentity(name, clientToken);
         }
-
-        moveTileToBoard(tile.id, row, col);
+        return { playerName: name, clientToken };
       };
 
-      const applySuggestedMove = (move) => {
-        if (!move || !move.word) {
-          setMessage('No suggestion to place right now.', 'error');
-          return;
+      const populateIdentity = () => {
+        const stored = loadIdentity();
+        if (stored?.playerName && playerNameInput) {
+          playerNameInput.value = stored.playerName;
         }
-
-        returnLooseTilesToRack(false);
-        renderBoard();
-        renderRack();
-
-        const start = parseCoordinate(move.start || 'H8');
-        if (!start) {
-          setMessage('Unable to read that suggestion position.', 'error');
-          return;
-        }
-
-        const direction = move.direction === 'vertical' ? 'vertical' : 'horizontal';
-        const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
-        const word = (move.word || '').toUpperCase();
-        const availableIds = rack.map((tile) => tile.id);
-        const placements = [];
-        const placementLetters = new Map();
-        const blankPositions = new Set();
-
-        if (Array.isArray(move.placements)) {
-          move.placements.forEach((placement) => {
-            const coord = parseCoordinate(placement.coord || '');
-            if (!coord) return;
-            const key = `${coord.row}-${coord.col}`;
-            placementLetters.set(key, (placement.letter || '').toUpperCase());
-            if (placement.isBlank) {
-              blankPositions.add(key);
-            }
-          });
-        }
-
-        for (let i = 0; i < word.length; i += 1) {
-          const row = start.row + delta.dr * i;
-          const col = start.col + delta.dc * i;
-          if (row >= BOARD_SIZE || col >= BOARD_SIZE) {
-            setMessage('That suggestion would run off the board.', 'error');
-            return;
-          }
-
-          const targetTile = board[row][col];
-          if (targetTile && targetTile.locked) {
-            const lockedLetter = targetTile.isBlank ? (targetTile.assignedLetter || targetTile.letter) : targetTile.letter;
-            if (lockedLetter.toUpperCase() !== word[i]) {
-              setMessage('A locked tile blocks part of that suggestion.', 'error');
-              return;
-            }
-            continue;
-          }
-
-          if (targetTile && !targetTile.locked) {
-            moveTileToRack(targetTile.id);
-          }
-
-          const key = `${row}-${col}`;
-          const recordedLetter = placementLetters.get(key);
-          const letterForPosition = recordedLetter && recordedLetter !== '?' ? recordedLetter : word[i];
-          const needsBlank = blankPositions.has(key);
-          const foundId = availableIds.find((id) => {
-            const candidate = findTile(id);
-            if (!candidate) return false;
-            if (needsBlank) return candidate.isBlank;
-            if (!candidate.isBlank && candidate.letter.toUpperCase() === letterForPosition) return true;
-            if (candidate.isBlank) return true;
-            return false;
-          });
-
-          if (!foundId) {
-            setMessage(`Missing the tile “${letterForPosition}” to build ${word}.`, 'error');
-            return;
-          }
-
-          availableIds.splice(availableIds.indexOf(foundId), 1);
-          placements.push({ tileId: foundId, letter: letterForPosition, row, col, needsBlank });
-        }
-
-        if (!placements.length) {
-          setMessage('No movable tiles needed for that suggestion.', 'error');
-          return;
-        }
-
-        placements.forEach((placement, index) => {
-          const tile = findTile(placement.tileId);
-          if (tile && tile.isBlank) {
-            tile.assignedLetter = placement.letter;
-          }
-          const cell = findCell(placement.row, placement.col);
-          setTimeout(() => {
-            animateTileToCell(tile, cell, placement.row, placement.col);
-          }, index * 160);
-        });
-
-        const finalDelay = (placements.length - 1) * 160 + 420;
-        setTimeout(() => {
-          setMessage(`Placed “${word}” from AI suggestions.`, 'success');
-        }, finalDelay);
-
-        closeAiModal();
-      };
-
-      const clearAiTimers = () => {
-        if (aiStepInterval) clearInterval(aiStepInterval);
-        if (aiRevealTimeout) clearTimeout(aiRevealTimeout);
-        aiStepInterval = null;
-        aiRevealTimeout = null;
-        stopAiAudioLoop();
-      };
-
-      const setAiAnimationActive = (active) => {
-        const hasResults = aiListEl && aiListEl.children.length > 0;
-        if (aiStatusEl) {
-          aiStatusEl.classList.toggle('ai-complete', !active);
-          aiStatusEl.classList.toggle('hidden', !active && hasResults);
-          if (active) {
-            aiStatusEl.classList.remove('hidden');
-          }
-        }
-        if (aiAnimationEl) {
-          aiAnimationEl.classList.toggle('hidden', !active);
-        }
-        if (active) {
-          startAiAudioLoop();
-        } else {
-          stopAiAudioLoop();
+        if (stored?.playerName && joinModalName) {
+          joinModalName.value = stored.playerName;
         }
       };
 
-      const openAiModal = () => {
-        if (!aiModal) return;
-        aiModal.classList.add('active');
-        aiModal.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('modal-open');
-        if (aiCloseBtn) {
-          aiCloseBtn.focus();
+      const openJoinModal = (code) => {
+        pendingJoinCode = code;
+        sessionCodeInput.value = code;
+        if (joinModalTitle) joinModalTitle.textContent = `Join lobby ${code}`;
+        populateIdentity();
+        if (typeof joinModal?.showModal === 'function') {
+          joinModal.showModal();
+        }
+        if (joinModalName) {
+          joinModalName.focus();
+          joinModalName.select();
         }
       };
 
-      const closeAiModal = () => {
-        if (!aiModal) return;
-        aiModal.classList.remove('active');
-        aiModal.setAttribute('aria-hidden', 'true');
-        const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
-        const sessionErrorOpen = sessionErrorModal?.classList.contains('active');
-        if (!rulesOpen && !sessionErrorOpen) {
-          document.body.classList.remove('modal-open');
-        }
-        clearAiTimers();
-        setAiAnimationActive(false);
-        if (aiListEl) {
-          aiListEl.innerHTML = '';
+      const closeJoinModal = () => {
+        pendingJoinCode = null;
+        if (typeof joinModal?.close === 'function') {
+          joinModal.close();
         }
       };
 
-      const renderAiSuggestions = (list) => {
-        if (!aiListEl) return;
-        aiListEl.innerHTML = '';
-
-        list.slice(0, 5).forEach((move, index) => {
-          const li = document.createElement('li');
-          li.className = 'ai-card';
-          li.dataset.word = move.word;
-
-          const crossCount = (move.crossWords || []).length;
-          const directionLabel = move.direction === 'vertical' ? 'Vertical' : 'Horizontal';
-
-          li.innerHTML = `
-            <h4><span aria-hidden="true">#${index + 1}</span> ${move.word} <span style="color:#0ea5e9; font-size:14px;">${move.score} pts</span></h4>
-            <p class="ai-meta">${directionLabel} from ${move.start || 'H8'} • Main word ${move.mainWordScore} pts${crossCount ? ` • +${crossCount} cross` : ''}</p>
-          `;
-
-          li.addEventListener('click', () => {
-            applySuggestedMove(move);
-          });
-
-          aiListEl.appendChild(li);
-        });
-      };
-
-      const showAiThinking = async () => {
-        if (!aiStatusEl || !aiStepEl) return;
-        const steps = [
-          'Scanning premiums and openings…',
-          'Shuffling rack tiles into patterns…',
-          'Checking cross words for legality…',
-          'Ranking plays by score and coverage…',
-        ];
-
-        if (aiListEl) {
-          aiListEl.innerHTML = '';
+      if (createSessionForm) createSessionForm.addEventListener('submit', handleCreateSession);
+      if (joinSessionBtn) joinSessionBtn.addEventListener('click', handleJoinSession);
+      if (playerNameInput) playerNameInput.addEventListener('change', resolveIdentity);
+      if (joinModalForm) joinModalForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (joinModalName) {
+          playerNameInput.value = joinModalName.value;
         }
-
-        setAiAnimationActive(true);
-        aiStepEl.textContent = steps[0];
-        if (aiSubtextEl) {
-          aiSubtextEl.textContent = 'Returning tiles and brainstorming the best openings for you…';
-        }
-
-        clearAiTimers();
-        aiRevealTimeout = setTimeout(async () => {
-          await fetchAiSuggestions();
-          const playable = (latestSuggestions || []).filter((move) => suggestionPlayable(move));
-          const topFive = playable.slice(0, 5);
-          renderAiSuggestions(topFive);
-          setAiAnimationActive(false);
-          if (aiSubtextEl) {
-            aiSubtextEl.textContent = topFive.length
-              ? 'Suggestions ready! Showing the top five playable moves—scroll and tap to load one.'
-              : 'No playable suggestions with your current rack—draw or adjust tiles and try again.';
-          }
-          clearAiTimers();
-        }, 2600);
-
-        let idx = 0;
-        aiStepInterval = setInterval(() => {
-          idx = (idx + 1) % steps.length;
-          aiStepEl.textContent = steps[idx];
-        }, 900);
-      };
-
-      const startTurn = () => {
-        let drewTiles = false;
-
-        while (rack.length < RACK_SIZE) {
-          const letter = pickTileFromBag();
-          if (!letter) break;
-          const tile = createTile(letter);
-          tile.position = { type: 'rack' };
-          rack.push(tile);
-          drewTiles = true;
-        }
-
-        updateBagCount();
-        renderRack();
-
-        if (rack.length === RACK_SIZE) {
-          setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
-          if (drewTiles) {
-            playFx('accept', { rate: 1.08 });
-          }
-        } else {
-          setMessage('Bag is empty—continue with the tiles you have.', 'success');
-        }
-
-        return true;
-      };
-
-      const tilesPlacedThisTurn = () => {
-        const placed = [];
-        for (let r = 0; r < BOARD_SIZE; r += 1) {
-          for (let c = 0; c < BOARD_SIZE; c += 1) {
-            const tile = board[r][c];
-            if (tile && tile.justPlaced) {
-              placed.push({ row: r, col: c, tile });
-            }
-          }
-        }
-        return placed;
-      };
-
-      const contiguousLine = (coords) => {
-        const rows = coords.map((c) => c.row);
-        const cols = coords.map((c) => c.col);
-        const sameRow = rows.every((r) => r === rows[0]);
-        const sameCol = cols.every((c) => c === cols[0]);
-        if (!sameRow && !sameCol) return { ok: false, reason: 'Tiles must share one row or column.' };
-
-        if (sameRow) {
-          const min = Math.min(...cols);
-          const max = Math.max(...cols);
-          for (let c = min; c <= max; c += 1) {
-            if (!board[rows[0]][c]) return { ok: false, reason: 'Main word cannot have gaps.' };
-          }
-          return { ok: true, axis: 'row', fixed: rows[0], start: min, end: max };
-        }
-
-        const min = Math.min(...rows);
-        const max = Math.max(...rows);
-        for (let r = min; r <= max; r += 1) {
-          if (!board[r][cols[0]]) return { ok: false, reason: 'Main word cannot have gaps.' };
-        }
-        return { ok: true, axis: 'col', fixed: cols[0], start: min, end: max };
-      };
-
-      const wordCoordinates = (row, col, dRow, dCol) => {
-        let r = row;
-        let c = col;
-        while (r - dRow >= 0 && r - dRow < BOARD_SIZE && c - dCol >= 0 && c - dCol < BOARD_SIZE && board[r - dRow][c - dCol]) {
-          r -= dRow;
-          c -= dCol;
-        }
-
-        const coords = [];
-        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c]) {
-          coords.push({ row: r, col: c });
-          r += dRow;
-          c += dCol;
-        }
-        return coords;
-      };
-
-      const wordFromCoords = (coords) => coords.map(({ row, col }) => {
-        const tile = board[row][col];
-        return tile.isBlank ? tile.assignedLetter : tile.letter;
-      }).join('');
-
-      const wordScore = (coords) => {
-        let total = 0;
-        let wordMultiplier = 1;
-
-        coords.forEach(({ row, col }) => {
-          const tile = board[row][col];
-          const premium = premiumLayout[row][col];
-          let letterScore = tile.isBlank ? 0 : tile.value;
-
-          if (tile.justPlaced) {
-            if (premium === 'DL') letterScore *= 2;
-            if (premium === 'TL') letterScore *= 3;
-            if (premium === 'DW') wordMultiplier *= 2;
-            if (premium === 'TW') wordMultiplier *= 3;
-          }
-
-          total += letterScore;
-        });
-
-        return total * wordMultiplier;
-      };
-
-      const hasAdjacentLocked = (coords) => coords.some(({ row, col }) => {
-        const deltas = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        return deltas.some(([dr, dc]) => {
-          const nr = row + dr;
-          const nc = col + dc;
-          if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) return false;
-          const neighbor = board[nr][nc];
-          return neighbor && neighbor.locked;
-        });
+        handleJoinSession();
       });
+      if (joinModalCancel) joinModalCancel.addEventListener('click', closeJoinModal);
+      if (startGameBtn) startGameBtn.addEventListener('click', handleStartGame);
+      if (drawTurnOrderBtn) drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
+      if (leaveSessionBtn) leaveSessionBtn.addEventListener('click', leaveSession);
+      if (deleteSessionBtn) deleteSessionBtn.addEventListener('click', deleteSession);
 
-      const validateTurn = () => {
-        resetInvalidMarkers();
-        const placements = tilesPlacedThisTurn();
-        if (placements.length === 0) {
-          setMessage('Place at least one tile before submitting.', 'error');
-          renderBoard();
-          return false;
-        }
-
-        if (placements.some((p) => p.tile.isBlank && !p.tile.assignedLetter)) {
-          setMessage('Assign letters to all blanks.', 'error');
-          return false;
-        }
-
-        const centerCell = placements.find(({ row, col }) => row === 7 && col === 7);
-        const contiguity = contiguousLine(placements);
-        if (!contiguity.ok) {
-          placements.forEach(({ tile }) => { tile.invalidReason = contiguity.reason; });
-          renderBoard();
-          setMessage(contiguity.reason, 'error');
-          return false;
-        }
-
-        if (firstTurn && !centerCell) {
-          placements.forEach(({ tile }) => { tile.invalidReason = 'Opening move must use the center star.'; });
-          renderBoard();
-          setMessage('Opening move must touch the center star.', 'error');
-          return false;
-        }
-
-        if (!firstTurn && !hasAdjacentLocked(placements)) {
-          placements.forEach(({ tile }) => { tile.invalidReason = 'New tiles must connect to existing words.'; });
-          renderBoard();
-          setMessage('New tiles have to connect to an existing word.', 'error');
-          return false;
-        }
-
-        const mainCoords = contiguity.axis === 'row'
-          ? wordCoordinates(contiguity.fixed, contiguity.start, 0, 1)
-          : wordCoordinates(contiguity.start, contiguity.fixed, 1, 0);
-
-        const wordsToCheck = [mainCoords];
-        placements.forEach(({ row, col }) => {
-          const perpendicular = contiguity.axis === 'row'
-            ? wordCoordinates(row, col, 1, 0)
-            : wordCoordinates(row, col, 0, 1);
-          if (perpendicular.length > 1) {
-            wordsToCheck.push(perpendicular);
-          }
-        });
-
-        const invalidWords = wordsToCheck.filter((coords) => {
-          if (coords.length <= 1) return false;
-          const word = wordFromCoords(coords);
-          return !dictionaryReady || !dictionary.has(word);
-        });
-
-        if (invalidWords.length) {
-          invalidWords.forEach((coords) => {
-            coords.forEach(({ row, col }) => {
-              const tile = board[row][col];
-              if (tile.justPlaced) {
-                tile.invalidReason = '“' + wordFromCoords(coords) + '” is not in the dictionary.';
-              }
-            });
-          });
-          renderBoard();
-          setMessage('Every formed word must appear in the dictionary.', 'error');
-          return false;
-        }
-
-        if (mainCoords.length === 1) {
-          placements.forEach(({ tile }) => { tile.invalidReason = 'A word must use at least two tiles.'; });
-          renderBoard();
-          setMessage('A valid move needs a word of length two or more.', 'error');
-          return false;
-        }
-
-        const total = wordsToCheck.reduce((sum, coords) => sum + wordScore(coords), 0) + (placements.length === 7 ? 50 : 0);
-        finalizeTurn(total, placements.length === 7);
-        return true;
-      };
-
-      const finalizeTurn = (turnScore, bingo) => {
-        tilesPlacedThisTurn().forEach(({ tile }) => {
-          tile.locked = true;
-          tile.justPlaced = false;
-        });
-        totalScore += turnScore;
-        scoreEl.textContent = totalScore;
-        firstTurn = false;
-        turnActive = false;
-        updateTurnButton();
-        updateAiButton();
-        renderBoard();
-        const scoreNote = bingo ? ' + 50-point bingo!' : '';
-        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
-        playFx('accept', { rate: 1.02 });
-      };
-
-      const resetBoard = () => {
-        tileId = 0;
-        rack = [];
-        board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
-        totalScore = 0;
-        firstTurn = true;
-        turnActive = false;
-        buildBag();
-        updateBagCount();
-        renderRack();
-        renderBoard();
-        scoreEl.textContent = '0';
-        setMessage('Board reset. Start a turn to draw tiles.', 'success');
-        updateTurnButton();
-        updateAiButton();
-        playFx('reset', { rate: 0.96 });
-      };
-
-      const setupDragAndDrop = () => {
-        cells.forEach((cell) => {
-          cell.addEventListener('dragover', (event) => {
-            event.preventDefault();
-            cell.classList.add('drag-target');
-          });
-          cell.addEventListener('dragleave', () => cell.classList.remove('drag-target'));
-          cell.addEventListener('drop', (event) => {
-            event.preventDefault();
-            cell.classList.remove('drag-target');
-            const tileId = event.dataTransfer.getData('text/plain');
-            const row = Number(cell.dataset.row);
-            const col = Number(cell.dataset.col);
-            if (tileId) {
-              moveTileToBoard(tileId, row, col);
-            }
-          });
-        });
-
-        rackEl.addEventListener('dragover', (event) => {
-          event.preventDefault();
-          rackEl.classList.add('drag-target');
-        });
-        rackEl.addEventListener('dragleave', () => rackEl.classList.remove('drag-target'));
-        rackEl.addEventListener('drop', (event) => {
-          event.preventDefault();
-          rackEl.classList.remove('drag-target');
-          const tileId = event.dataTransfer.getData('text/plain');
-          if (tileId) {
-            moveTileToRack(tileId);
-          }
-        });
-      };
-
-      const loadDictionary = async () => {
-        try {
-          const response = await fetch(dictionaryUrl);
-          const text = await response.text();
-          text.split(/\r?\n/).forEach((word) => {
-            if (word.trim()) dictionary.add(word.trim().toUpperCase());
-          });
-          dictionaryReady = true;
-          setMessage('Dictionary loaded. You can now validate moves.', 'success');
-        } catch (error) {
-          dictionaryReady = false;
-          setMessage('Dictionary failed to load; validation will block plays.', 'error');
-        }
-      };
-
-        const handleToggleClick = () => {
-          if (!turnActive) {
-            const started = startTurn();
-            if (started) {
-              turnActive = true;
-              updateTurnButton();
-              updateAiButton();
-            }
-            return;
-          }
-
-          if (!dictionaryReady) {
-            setMessage('Dictionary still loading. Try again in a moment.', 'error');
-            return;
-          }
-
-          const valid = validateTurn();
-          if (valid) {
-            turnActive = false;
-            updateTurnButton();
-            updateAiButton();
-          }
-        };
-
-        const handleAiClick = async () => {
-          if (!turnActive) {
-            setMessage('Start your turn to request AI suggestions.', 'error');
-            return;
-          }
-          returnLooseTilesToRack();
-          renderBoard();
-          renderRack();
-          openAiModal();
-          await showAiThinking();
-        };
-
-        const shuffleRack = () => {
-          if (!rack.length) {
-            setMessage('No tiles to shuffle yet.', 'error');
-            return;
-          }
-          for (let i = rack.length - 1; i > 0; i -= 1) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [rack[i], rack[j]] = [rack[j], rack[i]];
-          }
-          renderRack();
-          setMessage('Rack shuffled.', 'success');
-          playFx('shuffle', { rate: 0.94 + Math.random() * 0.1 });
-        };
-
-        const handleAiClose = () => {
-          closeAiModal();
-        };
-
-      if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
-      if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
-      if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
-      if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
-      if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleRack);
-      if (aiModal) {
-        aiModal.addEventListener('click', (event) => {
-          if (event.target === aiModal) {
-            closeAiModal();
-          }
-        });
-        document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape') {
-            if (aiModal.classList.contains('active')) {
-              closeAiModal();
-            }
-            if (sessionErrorModal?.classList.contains('active')) {
-              closeSessionErrorModal();
-            }
-            closeHudMenu();
-            closeRackHelp();
-          }
-        });
-      }
-
-      if (menuToggle) {
-        menuToggle.addEventListener('click', (event) => {
-          event.stopPropagation();
-          toggleHudMenu();
-        });
-      }
-
-      if (rackHelpBtn) {
-        rackHelpBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          toggleRackHelp();
-        });
-      }
-
-      document.addEventListener('click', (event) => {
-        if (hudMenu && !hudMenu.contains(event.target) && event.target !== menuToggle) {
-          closeHudMenu();
-        }
-        if (rackHelpTip && rackHelpTip.classList.contains('show') && !rackHelpTip.contains(event.target) && event.target !== rackHelpBtn) {
-          closeRackHelp();
-        }
-      });
-
-      if (rulesBtn) {
-        rulesBtn.addEventListener('click', () => closeHudMenu());
-      }
-
-      if (boardViewport) {
-        boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
-        boardViewport.addEventListener('mousedown', startBoardPan);
-        boardViewport.addEventListener('mouseleave', endBoardPan);
-        window.addEventListener('mousemove', continueBoardPan);
-        window.addEventListener('mouseup', endBoardPan);
-        boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
-        boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
-        boardViewport.addEventListener('touchend', handleTouchEnd);
-        boardViewport.addEventListener('touchcancel', handleTouchEnd);
-        boardViewport.addEventListener('dblclick', (event) => {
-          event.preventDefault();
-          centerBoard();
-        });
-      }
-
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
-
-      buildBag();
-      updateBagCount();
-      renderRack();
-      renderBoard();
-      updateTurnButton();
-      updateAiButton();
-      resizeBoardToViewport({ resetView: true });
-      setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
-      setupDragAndDrop();
-      loadDictionary();
+      populateIdentity();
       fetchSessions();
+      attemptResume();
+      openLobbySocket();
+      resetTurnOrderUi();
     });
-  </script>
-
-  <div class="modal-backdrop" id="sessionErrorModal" aria-hidden="true">
-    <div class="modal session-error-modal" role="dialog" aria-modal="true" aria-labelledby="sessionErrorTitle">
-      <div class="modal-header">
-        <h3 id="sessionErrorTitle">Session error</h3>
-        <button class="modal-close" type="button" id="closeSessionError" aria-label="Close error dialog">×</button>
-      </div>
-      <div class="session-error-body" id="sessionErrorBody" tabindex="0">No additional details available.</div>
-      <div class="modal-actions">
-        <button class="btn small ghost" type="button" id="copySessionError">Copy details</button>
-        <button class="btn small" type="button" id="ackSessionError">Got it</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="aiModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
-      <div class="modal-header">
-        <h3 id="aiTitle">AI suggested moves</h3>
-        <button class="modal-close" type="button" id="closeAi" aria-label="Close AI suggestions">×</button>
-      </div>
-      <div class="ai-status" id="aiStatus">
-        <div class="ai-visual" id="aiAnimation" aria-hidden="true">
-          <div class="ai-orbital"></div>
-          <div class="ai-orbital"></div>
-          <div class="ai-orbital"></div>
-          <div class="ai-core"><span>thinking</span></div>
-        </div>
-        <div class="ai-copy">
-          <span class="ai-step" id="aiStep">Warming up the move engine…</span>
-          <span class="ai-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-          <p class="ai-meta" id="aiSubtext">We’ll surface the top five playable words—scroll to review them once ready.</p>
-        </div>
-      </div>
-      <ul class="ai-list" id="aiList" aria-live="polite"></ul>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="rulesModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
-      <div class="modal-header">
-        <h3 id="rulesTitle">Rules for the word tile game</h3>
-        <button class="modal-close" type="button" id="closeRules" aria-label="Close rules">×</button>
-      </div>
-      <div class="rules-highlight">
-        Tile pool: 100 total tiles. Counts: 12 E, 9 A, 9 I, 8 O, 6 each N R T, 4 each D L S U, 3 G, 2 each B C F H M P V W Y, and 1 each J K Q X Z. Two blanks score 0 and start empty until assigned.
-      </div>
-      <ol class="rules-list">
-        <li><strong>Objective.</strong> Score the most points by forming valid words horizontally or vertically on the 15x15 board.</li>
-        <li><strong>Setup.</strong> Each player draws seven tiles from the facedown pool. The first play must use the center double word square.</li>
-        <li><strong>Tile placement.</strong> Words read left to right or top to bottom and must connect to the existing chain after the opening turn.</li>
-        <li><strong>Premium squares.</strong> Double and triple letter or word squares affect only newly placed tiles; multiple word bonuses in a single play multiply together.</li>
-        <li><strong>Blank tiles.</strong> Two blanks act as wild letters. Choose a value when played; the tile shows a blue letter and always scores 0 points.</li>
-        <li><strong>Scoring a turn.</strong> Add letter values with any letter bonuses, then apply word bonuses. Include scores for every new cross word formed. Playing all seven tiles in one turn adds a 50 point bonus.</li>
-        <li><strong>Exchanging tiles.</strong> On your turn you may swap any number of tiles with the pool if at least seven tiles remain, but you forfeit scoring that turn.</li>
-        <li><strong>Challenging words.</strong> A play can be challenged before the next turn. Invalid words are removed and score zero; valid plays stand.</li>
-        <li><strong>Ending the game.</strong> Play ends when the pool is empty and a player uses all tiles or when every player passes twice. Subtract leftover rack points from each player; add the opponent totals to the score of the player who went out.</li>
-      </ol>
-      <p class="modal-footer-note">A blank tile appears as an empty face until you assign it, at which point the blue letter reminds everyone it still carries no points.</p>
-    </div>
-  </div>
-
-  <script>
-    (() => {
-      const modal = document.getElementById('rulesModal');
-      const openBtn = document.getElementById('openRules');
-      const closeBtn = document.getElementById('closeRules');
-
-      if (!modal || !openBtn || !closeBtn) {
-        return;
-      }
-
-      const setModalState = (open) => {
-        modal.classList.toggle('active', open);
-        modal.setAttribute('aria-hidden', open ? 'false' : 'true');
-        if (open) {
-          document.body.classList.add('modal-open');
-        } else {
-          const aiOpen = document.getElementById('aiModal')?.classList.contains('active');
-          const sessionErrorOpen = document.getElementById('sessionErrorModal')?.classList.contains('active');
-          if (!aiOpen && !sessionErrorOpen) {
-            document.body.classList.remove('modal-open');
-          }
-        }
-
-        if (open) {
-          closeBtn.focus();
-        }
-      };
-
-      openBtn.addEventListener('click', () => setModalState(true));
-      closeBtn.addEventListener('click', () => setModalState(false));
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) {
-          setModalState(false);
-        }
-      });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && modal.classList.contains('active')) {
-          setModalState(false);
-        }
-      });
-    })();
   </script>
 </body>
 </html>

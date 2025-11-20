@@ -360,6 +360,17 @@ while (true) {
                 'draws' => $drawHistory,
             ]);
 
+            $sequence = array_map(static fn ($entry) => (int) $entry['player']['id'], $finalOrder);
+            if ($sequence !== []) {
+                $repository->saveTurnState($sessionId, $sequence[0], 1, 'idle', $sequence);
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.started',
+                    'sessionCode' => $sessionCode,
+                    'playerId' => $sequence[0],
+                    'turnNumber' => 1,
+                ]);
+            }
+
             $broadcast($clients, $sessionCode, [
                 'type' => 'player.sound',
                 'tone' => 'alert',
@@ -396,6 +407,72 @@ while (true) {
                 'type' => 'player.sound',
                 'tone' => $payload['tone'] ?? 'accept',
             ]);
+        }
+
+        if (($payload['type'] ?? '') === 'turn.start') {
+            $playerId = (int) ($payload['playerId'] ?? 0);
+            $state = $repository->getTurnState((int) $session['id']);
+            if (!$state || $state['current_player_id'] !== $playerId) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'Not your turn yet.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $repository->saveTurnState((int) $session['id'], $playerId, (int) $state['turn_number'], 'active', $state['sequence']);
+            $broadcast($clients, $sessionCode, [
+                'type' => 'turn.started',
+                'sessionCode' => $sessionCode,
+                'playerId' => $playerId,
+                'turnNumber' => (int) $state['turn_number'],
+            ]);
+            continue;
+        }
+
+        if (($payload['type'] ?? '') === 'turn.complete') {
+            $playerId = (int) ($payload['playerId'] ?? 0);
+            $placements = $payload['placements'] ?? [];
+            if (!is_array($placements) || $placements === []) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'No placements submitted.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $state = $repository->getTurnState((int) $session['id']);
+            if (!$state || $state['current_player_id'] !== $playerId) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.invalid_move',
+                    'reason' => 'Out of turn submission.',
+                    'playerId' => $playerId,
+                ]);
+                continue;
+            }
+
+            $repository->recordTurn((int) $session['id'], $playerId, (int) $state['turn_number'], $placements, (int) ($payload['score'] ?? 0));
+            $nextState = $repository->advanceTurnState((int) $session['id']);
+
+            $broadcast($clients, $sessionCode, [
+                'type' => 'turn.completed',
+                'sessionCode' => $sessionCode,
+                'playerId' => $playerId,
+                'turnNumber' => (int) $state['turn_number'],
+                'placements' => $placements,
+            ]);
+
+            if ($nextState) {
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turn.started',
+                    'sessionCode' => $sessionCode,
+                    'playerId' => $nextState['current_player_id'],
+                    'turnNumber' => $nextState['turn_number'],
+                ]);
+            }
+            continue;
         }
     }
 }
