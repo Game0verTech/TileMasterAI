@@ -8,6 +8,8 @@ use PDO;
 use PDOException;
 use RuntimeException;
 
+require_once __DIR__ . '/Schema.php';
+
 /**
  * Lightweight PDO connection manager.
  * Defaults to a SQLite database under data/ but can switch to MySQL via env vars.
@@ -34,7 +36,7 @@ class Connection
             $charset = 'utf8mb4';
             $dsn = $dsn ?: sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $database, $charset);
         } else {
-            $databasePath = getenv('DB_DATABASE') ?: dirname(__DIR__, 2) . '/data/tilemaster.sqlite';
+            $databasePath = getenv('DB_DATABASE') ?: dirname(__DIR__, 3) . '/data/tilemaster.sqlite';
             $dsn = $dsn ?: 'sqlite:' . $databasePath;
             $user = null;
             $password = null;
@@ -55,6 +57,8 @@ class Connection
             if ($driver === 'sqlite') {
                 $pdo->exec('PRAGMA foreign_keys = ON');
             }
+
+            Schema::ensureSessionsTable($pdo);
         } catch (PDOException $exception) {
             throw new RuntimeException('Database connection failed: ' . $exception->getMessage(), 0, $exception);
         }

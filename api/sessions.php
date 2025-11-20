@@ -5,8 +5,10 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/config/env.php';
 require dirname(__DIR__) . '/src/Server/Db/Connection.php';
 require dirname(__DIR__) . '/src/Server/Db/GameRepository.php';
+require dirname(__DIR__) . '/src/Server/Support/ErrorLogger.php';
 
 use TileMasterAI\Server\Db\GameRepository;
+use TileMasterAI\Server\Support\ErrorLogger;
 
 header('Content-Type: application/json');
 
@@ -84,10 +86,11 @@ try {
     echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
     exit;
 } catch (Throwable $exception) {
+    $logPath = ErrorLogger::log($exception, 'sessions');
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Server error: ' . $exception->getMessage(),
+        'message' => 'An internal error occurred. Please review ' . basename($logPath) . '.',
     ]);
     exit;
 }

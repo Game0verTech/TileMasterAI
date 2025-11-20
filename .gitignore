@@ -7,3 +7,9 @@
 
 # Build outputs
 /dist/
+
+# Local databases
+/data/*.sqlite
+
+# Error logs
+/data/error-log.txt
