@@ -519,6 +519,7 @@ require __DIR__ . '/config/env.php';
 
         if (activeEntry && activeEntry.player_count !== lastRosterCount) {
           requestSessionRefresh(activeEntry.code);
+          refreshActiveSession();
         }
 
           sessions.forEach((session) => {
@@ -661,7 +662,7 @@ require __DIR__ . '/config/env.php';
 
       const fetchSessions = async () => {
         try {
-          const response = await fetch('/api/sessions.php');
+          const response = await fetch('/api/sessions.php', { cache: 'no-store' });
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load sessions');
           const sessions = data.sessions || [];
@@ -676,7 +677,9 @@ require __DIR__ . '/config/env.php';
       const refreshActiveSession = async () => {
         if (!activeSession?.code) return;
         try {
-          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(activeSession.code)}`);
+          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(activeSession.code)}`, {
+            cache: 'no-store',
+          });
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to sync lobby');
           renderRoster({
