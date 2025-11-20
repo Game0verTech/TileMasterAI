@@ -341,11 +341,15 @@ require __DIR__ . '/config/env.php';
           : 'Leave previous lobby';
       };
 
+      let pendingLobbyRefresh = false;
+
       const requestLobbyRefresh = () => {
         if (lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'lobbies.refresh' }));
+          pendingLobbyRefresh = false;
           return;
         }
+        pendingLobbyRefresh = true;
         fetchSessions();
       };
 
@@ -417,7 +421,7 @@ require __DIR__ . '/config/env.php';
         return null;
       };
 
-      const renderRoster = ({ sessionCode, players = [], status, maxPlayers }) => {
+      const renderRoster = ({ sessionCode, players = [], status, maxPlayers, canStart }) => {
         if (!lobbyCard || !lobbyRoster) return;
         currentPlayers = players;
         lobbyCard.hidden = false;
@@ -442,8 +446,9 @@ require __DIR__ . '/config/env.php';
           lobbyRoster.appendChild(row);
         });
 
-        const isHost = Boolean(currentPlayer?.is_host);
-        const readyToStart = players.length >= 2 && status !== 'started';
+        const hostPlayer = players.find((player) => player.is_host);
+        const isHost = Boolean(currentPlayer?.is_host || (hostPlayer && currentPlayer?.id === hostPlayer.id));
+        const readyToStart = (typeof canStart === 'boolean' ? canStart : players.length >= 2) && status !== 'started';
         const readyToDraw = players.length >= 2 && status === 'started';
         startGameBtn.disabled = !(isHost && readyToStart);
         startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
@@ -528,6 +533,10 @@ require __DIR__ . '/config/env.php';
         lobbySocket.addEventListener('open', () => {
           lobbyConnected = true;
           lobbySocket.send(JSON.stringify({ type: 'lobbies.subscribe' }));
+          if (pendingLobbyRefresh) {
+            lobbySocket.send(JSON.stringify({ type: 'lobbies.refresh' }));
+            pendingLobbyRefresh = false;
+          }
           if (activeSession?.code) {
             lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));

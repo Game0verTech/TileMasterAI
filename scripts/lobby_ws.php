@@ -431,6 +431,7 @@ while (true) {
                 'players' => $players,
                 'canStart' => count($players) >= 2,
             ]);
+            $sendLobbyList($clients);
             continue;
         }
 
@@ -440,6 +441,7 @@ while (true) {
                 'sessionCode' => $sessionCode,
                 'by' => $payload['by'] ?? null,
             ]);
+            $sendLobbyList($clients);
             continue;
         }
 
