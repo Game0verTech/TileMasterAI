@@ -51,12 +51,54 @@ class GameRepository
         return $session !== false ? $session : null;
     }
 
-    public function createPlayer(string $name): int
+    public function createPlayer(string $name, ?string $clientToken = null): int
     {
-        $statement = $this->pdo->prepare('INSERT INTO players (name) VALUES (:name)');
-        $statement->execute([':name' => $name]);
+        $statement = $this->pdo->prepare('INSERT INTO players (name, client_token) VALUES (:name, :client_token)');
+        $statement->execute([
+            ':name' => $name,
+            ':client_token' => $clientToken,
+        ]);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    public function findPlayerByToken(string $clientToken): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM players WHERE client_token = :client_token LIMIT 1');
+        $statement->execute([':client_token' => $clientToken]);
+        $player = $statement->fetch();
+
+        return $player !== false ? $player : null;
+    }
+
+    public function syncPlayerIdentity(string $name, string $clientToken): array
+    {
+        $existing = $this->findPlayerByToken($clientToken);
+
+        if ($existing) {
+            if ((string) $existing['name'] !== $name) {
+                $update = $this->pdo->prepare('UPDATE players SET name = :name WHERE id = :id');
+                $update->execute([
+                    ':name' => $name,
+                    ':id' => $existing['id'],
+                ]);
+                $existing['name'] = $name;
+            }
+
+            return [
+                'id' => (int) $existing['id'],
+                'name' => (string) $existing['name'],
+                'client_token' => (string) $existing['client_token'],
+            ];
+        }
+
+        $id = $this->createPlayer($name, $clientToken);
+
+        return [
+            'id' => $id,
+            'name' => $name,
+            'client_token' => $clientToken,
+        ];
     }
 
     public function getPlayer(int $playerId): ?array
@@ -149,6 +191,20 @@ class GameRepository
             'join_order' => (int) $result['join_order'],
             'is_host' => (bool) $result['is_host'],
         ];
+    }
+
+    public function getActiveSessionForPlayer(int $playerId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT s.* FROM sessions s '
+            . 'JOIN session_players sp ON sp.session_id = s.id '
+            . 'WHERE sp.player_id = :player_id AND s.status IN ("pending", "active", "started") '
+            . 'ORDER BY s.updated_at DESC, s.created_at DESC LIMIT 1'
+        );
+        $statement->execute([':player_id' => $playerId]);
+        $session = $statement->fetch();
+
+        return $session !== false ? $session : null;
     }
 
     public function assignNextHost(int $sessionId): void

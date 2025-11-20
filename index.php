@@ -847,6 +847,55 @@ $aiSetupNotes = [
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
+    .turnorder-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .turnorder-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .turnorder-label { margin: 0; color: var(--muted); }
+
+    .turnorder-log {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .turnorder-log .entry {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .turnorder-log .entry:last-child { border-bottom: none; }
+
+    .turnorder-result {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #eef2ff;
+      color: #312e81;
+      font-weight: 700;
+    }
+
+    .turnorder-result strong { font-size: 15px; }
+
     .lobby-header {
       display: flex;
       align-items: center;
@@ -1815,6 +1864,17 @@ $aiSetupNotes = [
         </div>
       </div>
       <div class="lobby-roster" id="lobbyRoster"></div>
+      <div class="turnorder-panel" id="turnOrderPanel">
+        <div class="turnorder-header">
+          <div>
+            <p class="eyebrow">Starting player</p>
+            <p class="turnorder-label">Draw tiles to pick who plays first. Ties redraw automatically.</p>
+          </div>
+          <button class="btn small" type="button" id="drawTurnOrderBtn">Draw tiles</button>
+        </div>
+        <div class="turnorder-log" id="turnOrderLog" role="log" aria-live="polite"></div>
+        <div class="turnorder-result" id="turnOrderResult" aria-live="polite"></div>
+      </div>
       <div class="lobby-actions">
         <button class="btn" type="button" id="startGameBtn" disabled aria-disabled="true">Start game</button>
         <button class="btn ghost" type="button" id="leaveSessionBtn">Leave lobby</button>
@@ -1977,6 +2037,9 @@ $aiSetupNotes = [
       const lobbyRoster = document.getElementById('lobbyRoster');
       const startGameBtn = document.getElementById('startGameBtn');
       const leaveSessionBtn = document.getElementById('leaveSessionBtn');
+      const drawTurnOrderBtn = document.getElementById('drawTurnOrderBtn');
+      const turnOrderLogEl = document.getElementById('turnOrderLog');
+      const turnOrderResultEl = document.getElementById('turnOrderResult');
       const MAX_PLAYERS = 4;
       const lobbyWsUrl = <?php
         $explicitWsUrl = getenv('LOBBY_WS_URL') ?: '';
@@ -1990,6 +2053,8 @@ $aiSetupNotes = [
       let activeSession = null;
       let currentPlayer = null;
       let sessionErrorDetail = '';
+      const SESSION_STORAGE_KEY = 'tilemaster.session';
+      let turnOrderInFlight = false;
 
       const setSessionFlash = (message, tone = 'info') => {
         if (!sessionFlashEl) return;
@@ -2009,6 +2074,32 @@ $aiSetupNotes = [
         const hasDetail = Boolean(detail && detail.trim());
         sessionDebugEl.hidden = !hasDetail;
         sessionDebugEl.textContent = hasDetail ? detail : '';
+      };
+
+      const loadSavedSession = () => {
+        try {
+          const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          console.warn('Unable to parse saved session', error);
+          return null;
+        }
+      };
+
+      const persistSessionState = (session, player) => {
+        if (!session?.code || !player?.id || !player?.client_token) return;
+        const payload = {
+          sessionCode: session.code,
+          sessionId: session.id,
+          playerId: player.id,
+          playerName: player.name,
+          clientToken: player.client_token,
+        };
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      };
+
+      const clearSavedSession = () => {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
       };
 
       const closeSessionErrorModal = () => {
@@ -2189,6 +2280,30 @@ $aiSetupNotes = [
               renderLobbyStatus('started');
               playFx('accept');
             }
+            if (payload.type === 'turnorder.drawn' && payload.sessionCode === activeSession?.code) {
+              logTurnOrderEvent(`${payload.player.name} drew ${payload.tile.letter}.`);
+            }
+            if (payload.type === 'turnorder.tie' && payload.sessionCode === activeSession?.code) {
+              const names = (payload.players || []).map((player) => player.name).join(', ');
+              logTurnOrderEvent(`Tie on ${payload.distance} — redraw for ${names}.`, 'Tie');
+            }
+            if (payload.type === 'turnorder.resolved' && payload.sessionCode === activeSession?.code) {
+              turnOrderInFlight = false;
+              renderTurnOrderResult(payload.order || []);
+              if (drawTurnOrderBtn) {
+                drawTurnOrderBtn.disabled = !(Boolean(currentPlayer?.is_host) && (payload.order?.length ?? 0) >= 2);
+                drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
+              }
+            }
+            if (payload.type === 'turnorder.error' && payload.sessionCode === activeSession?.code) {
+              turnOrderInFlight = false;
+              logTurnOrderEvent(payload.message || 'Unable to draw turn order.', 'Error');
+              if (drawTurnOrderBtn) {
+                drawTurnOrderBtn.disabled = false;
+                drawTurnOrderBtn.setAttribute('aria-disabled', 'false');
+              }
+              setSessionFlash(payload.message || 'Unable to draw tiles for order.', 'error');
+            }
             if (payload.type === 'player.sound' && payload.tone) {
               playFx(payload.tone, { rate: 1.05 });
             }
@@ -2267,11 +2382,25 @@ $aiSetupNotes = [
           startGameBtn.disabled = !(isHost && readyToStart);
           startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
         }
+
+        const isHost = Boolean(currentPlayer?.is_host);
+        const canDraw = isHost && players.length >= 2 && status !== 'started';
+        if (drawTurnOrderBtn) {
+          drawTurnOrderBtn.disabled = !(canDraw && !turnOrderInFlight);
+          drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
+        }
       };
 
       const setActiveSession = (session, player) => {
         activeSession = session;
         currentPlayer = player;
+        if (player?.client_token) {
+          persistSessionState(session, player);
+        }
+        if (playerNameInput && player?.name) {
+          playerNameInput.value = player.name;
+        }
+        resetTurnOrderUi();
         openLobbySocket();
         if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
@@ -2303,6 +2432,77 @@ $aiSetupNotes = [
           console.error(error);
           setSessionFlash('Unable to load lobby roster.', 'error');
         }
+      };
+
+      const resetTurnOrderUi = (message = 'Waiting to draw tiles…') => {
+        if (turnOrderLogEl) {
+          turnOrderLogEl.innerHTML = '';
+          const placeholder = document.createElement('div');
+          placeholder.className = 'entry placeholder';
+          placeholder.textContent = message;
+          turnOrderLogEl.appendChild(placeholder);
+        }
+
+        if (turnOrderResultEl) {
+          turnOrderResultEl.textContent = '';
+        }
+
+        turnOrderInFlight = false;
+      };
+
+      const logTurnOrderEvent = (text, accent = '') => {
+        if (!turnOrderLogEl) return;
+        if (turnOrderLogEl.firstChild?.classList.contains('placeholder')) {
+          turnOrderLogEl.innerHTML = '';
+        }
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+        entry.textContent = text;
+        if (accent) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = accent;
+          entry.appendChild(badge);
+        }
+        turnOrderLogEl.appendChild(entry);
+        turnOrderLogEl.scrollTop = turnOrderLogEl.scrollHeight;
+      };
+
+      const renderTurnOrderResult = (order = []) => {
+        if (!turnOrderResultEl) return;
+        if (!order.length) {
+          turnOrderResultEl.textContent = '';
+          return;
+        }
+
+        const [first, ...rest] = order;
+        const leader = `${first.player.name} (drew ${first.tile.letter})`;
+        const runners = rest.map((entry) => `${entry.player.name} (${entry.tile.letter})`).join(', ');
+        turnOrderResultEl.innerHTML = `<strong>${leader}</strong> will start. ${runners ? `Then: ${runners}.` : ''}`;
+      };
+
+      const startTurnOrderDraw = () => {
+        if (!activeSession?.code || !drawTurnOrderBtn) {
+          setSessionFlash('Join a session to draw turn order.', 'error');
+          return;
+        }
+
+        if (!currentPlayer?.is_host) {
+          setSessionFlash('Only the host can draw for turn order.', 'error');
+          return;
+        }
+
+        if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+          setSessionFlash('Reconnecting to the lobby…', 'error');
+          openLobbySocket();
+          return;
+        }
+
+        turnOrderInFlight = true;
+        drawTurnOrderBtn.disabled = true;
+        drawTurnOrderBtn.setAttribute('aria-disabled', 'true');
+        resetTurnOrderUi('Drawing tiles…');
+        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code }));
       };
 
       const renderSessions = (sessions = []) => {
@@ -2473,10 +2673,11 @@ $aiSetupNotes = [
         setSessionFlash('Creating session…');
 
         try {
+          const saved = loadSavedSession();
           const response = await fetch('/api/sessions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName }),
+            body: JSON.stringify({ code, playerName, clientToken: saved?.clientToken || '' }),
           });
 
           const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions.php' });
@@ -2491,16 +2692,20 @@ $aiSetupNotes = [
           setSessionFlash(`Session ${payload.session.code} created. You're the host.`, 'success');
           sessionCodeInput.value = '';
           playerNameInput.value = '';
-          setActiveSession({
-            id: payload.session.id,
-            code: payload.session.code,
-            status: payload.session.status,
-            max_players: payload.session.max_players ?? MAX_PLAYERS,
-          }, {
-            id: payload.session.host?.id,
-            name: payload.session.host?.name || playerName,
-            is_host: true,
-          });
+          setActiveSession(
+            {
+              id: payload.session.id,
+              code: payload.session.code,
+              status: payload.session.status,
+              max_players: payload.session.max_players ?? MAX_PLAYERS,
+            },
+            {
+              id: payload.player?.id ?? payload.session.host?.id,
+              name: payload.player?.name || payload.session.host?.name || playerName,
+              client_token: payload.player?.client_token ?? payload.session.host?.client_token,
+              is_host: true,
+            }
+          );
           refreshLobby(payload.session.code);
           fetchSessions();
         } catch (error) {
@@ -2527,10 +2732,11 @@ $aiSetupNotes = [
         setSessionFlash('Joining session…');
 
         try {
+          const saved = loadSavedSession();
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName }),
+            body: JSON.stringify({ code, playerName, clientToken: saved?.clientToken || '' }),
           });
 
           const { payload, detail } = await parseJsonResponse(response, {
@@ -2553,6 +2759,7 @@ $aiSetupNotes = [
           }, {
             id: payload.player.id,
             name: payload.player.name,
+            client_token: payload.player.client_token,
             is_host: false,
           });
           renderRoster({
@@ -2607,6 +2814,8 @@ $aiSetupNotes = [
           clearSessionErrors();
           activeSession = null;
           currentPlayer = null;
+          clearSavedSession();
+          resetTurnOrderUi('Not in a lobby.');
           if (lobbyCard) {
             lobbyCard.hidden = true;
           }
@@ -2663,6 +2872,65 @@ $aiSetupNotes = [
         }
       };
 
+      const attemptResumeSession = async () => {
+        const saved = loadSavedSession();
+
+        if (!saved?.clientToken || !saved.sessionCode) {
+          return;
+        }
+
+        setSessionFlash('Restoring your last lobby…');
+
+        try {
+          const response = await fetch('/api/session_players.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'rejoin', code: saved.sessionCode, clientToken: saved.clientToken }),
+          });
+
+          const { payload, detail } = await parseJsonResponse(response, {
+            requestLabel: 'Request: POST /api/session_players.php (rejoin)',
+          });
+
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to restore session.');
+            error.detail = payload?.detail || detail;
+            throw error;
+          }
+
+          clearSessionErrors();
+          setSessionFlash(`Rejoined ${payload.session.code}.`, 'success');
+          setActiveSession(
+            {
+              id: payload.session.id,
+              code: payload.session.code,
+              status: payload.session.status,
+              max_players: payload.session.max_players ?? MAX_PLAYERS,
+            },
+            {
+              id: payload.player.id,
+              name: payload.player.name,
+              client_token: payload.player.client_token,
+              is_host: Boolean(payload.player.is_host),
+              join_order: payload.player.join_order,
+            }
+          );
+          renderRoster({
+            sessionCode: payload.session.code,
+            status: payload.session.status,
+            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
+            players: payload.players,
+            canStart: payload.players.length >= 2,
+          });
+        } catch (error) {
+          console.error(error);
+          clearSavedSession();
+          const message = error instanceof Error ? error.message : 'Unable to restore session.';
+          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
+          presentSessionError(message, detail);
+        }
+      };
+
       if (createSessionForm) {
         createSessionForm.addEventListener('submit', handleCreateSession);
       }
@@ -2678,6 +2946,12 @@ $aiSetupNotes = [
       if (startGameBtn) {
         startGameBtn.addEventListener('click', handleStartGame);
       }
+
+      if (drawTurnOrderBtn) {
+        drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
+      }
+
+      attemptResumeSession();
 
       let tileId = 0;
       let bag = [];

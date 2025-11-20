@@ -61,6 +61,11 @@ try {
 
         $action = $payload['action'] ?? 'join';
         $code = strtoupper(trim((string) ($payload['code'] ?? '')));
+        $clientToken = trim((string) ($payload['clientToken'] ?? ''));
+
+        if ($clientToken === '') {
+            $clientToken = bin2hex(random_bytes(16));
+        }
 
         if ($code === '') {
             $sendError(422, 'Session code is required.');
@@ -108,10 +113,91 @@ try {
             exit;
         }
 
+        if ($action === 'rejoin') {
+            $player = $repository->findPlayerByToken($clientToken);
+
+            if (!$player) {
+                $sendError(404, 'No saved player found for this browser.');
+            }
+
+            $role = $repository->getPlayerSessionRole($sessionId, (int) $player['id']);
+
+            if (!$role) {
+                $sendError(404, 'Saved player is not part of this session.');
+            }
+
+            $players = $repository->listPlayersForSession($sessionId);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Session restored.',
+                'session' => [
+                    'id' => $sessionId,
+                    'code' => $session['code'],
+                    'status' => $session['status'],
+                    'player_count' => count($players),
+                    'max_players' => $maxPlayers,
+                ],
+                'player' => [
+                    'id' => (int) $player['id'],
+                    'name' => (string) $player['name'],
+                    'client_token' => (string) $player['client_token'],
+                    'is_host' => (bool) ($role['is_host'] ?? false),
+                    'join_order' => (int) ($role['join_order'] ?? 0),
+                ],
+                'players' => $players,
+            ]);
+            exit;
+        }
+
         $playerName = trim((string) ($payload['playerName'] ?? ''));
 
         if ($playerName === '') {
             $sendError(422, 'Player name is required.');
+        }
+
+        $player = $repository->syncPlayerIdentity($playerName, $clientToken);
+        $activeSession = $repository->getActiveSessionForPlayer($player['id']);
+
+        if ($activeSession && (int) $activeSession['id'] !== $sessionId) {
+            http_response_code(409);
+            echo json_encode([
+                'success' => false,
+                'message' => 'You are already in another active session. Leave it before joining a new one.',
+                'session' => [
+                    'id' => (int) $activeSession['id'],
+                    'code' => (string) $activeSession['code'],
+                    'status' => (string) $activeSession['status'],
+                ],
+            ]);
+            exit;
+        }
+
+        $role = $repository->getPlayerSessionRole($sessionId, $player['id']);
+
+        if ($role) {
+            $players = $repository->listPlayersForSession($sessionId);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Rejoined session.',
+                'session' => [
+                    'id' => $sessionId,
+                    'code' => $session['code'],
+                    'status' => $session['status'],
+                    'player_count' => count($players),
+                    'max_players' => $maxPlayers,
+                ],
+                'player' => [
+                    'id' => $player['id'],
+                    'name' => $player['name'],
+                    'client_token' => $player['client_token'],
+                    'is_host' => (bool) $role['is_host'],
+                    'join_order' => (int) $role['join_order'],
+                ],
+                'players' => $players,
+            ]);
+            exit;
         }
 
         if (($session['status'] ?? '') === 'started') {
@@ -124,8 +210,7 @@ try {
             $sendError(409, 'This session is already full.');
         }
 
-        $playerId = $repository->createPlayer($playerName);
-        $repository->addPlayerToSession($sessionId, $playerId, $currentCount + 1, false);
+        $repository->addPlayerToSession($sessionId, $player['id'], $currentCount + 1, false);
 
         $players = $repository->listPlayersForSession($sessionId);
 
@@ -140,8 +225,9 @@ try {
                 'max_players' => $maxPlayers,
             ],
             'player' => [
-                'id' => $playerId,
-                'name' => $playerName,
+                'id' => $player['id'],
+                'name' => $player['name'],
+                'client_token' => $player['client_token'],
             ],
             'players' => $players,
         ]);

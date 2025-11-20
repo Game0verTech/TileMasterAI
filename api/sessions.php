@@ -38,6 +38,11 @@ try {
 
         $code = strtoupper(trim((string) ($payload['code'] ?? '')));
         $playerName = trim((string) ($payload['playerName'] ?? ''));
+        $clientToken = trim((string) ($payload['clientToken'] ?? ''));
+
+        if ($clientToken === '') {
+            $clientToken = bin2hex(random_bytes(16));
+        }
 
         if ($code === '' || $playerName === '') {
             http_response_code(422);
@@ -51,8 +56,24 @@ try {
             exit;
         }
 
+        $player = $repository->syncPlayerIdentity($playerName, $clientToken);
+        $existingSession = $repository->getActiveSessionForPlayer($player['id']);
+
+        if ($existingSession) {
+            http_response_code(409);
+            echo json_encode([
+                'success' => false,
+                'message' => 'You are already seated in another session.',
+                'session' => [
+                    'id' => (int) $existingSession['id'],
+                    'code' => (string) $existingSession['code'],
+                    'status' => (string) $existingSession['status'],
+                ],
+            ]);
+            exit;
+        }
+
         $sessionId = $repository->createSession($code, 'active');
-        $playerId = $repository->createPlayer($playerName);
         $currentCount = $repository->countPlayersInSession($sessionId);
 
         if ($currentCount >= $maxPlayers) {
@@ -61,7 +82,7 @@ try {
             exit;
         }
 
-        $repository->addPlayerToSession($sessionId, $playerId, $currentCount + 1, true);
+        $repository->addPlayerToSession($sessionId, $player['id'], $currentCount + 1, true);
 
         echo json_encode([
             'success' => true,
@@ -73,9 +94,16 @@ try {
                 'player_count' => $currentCount + 1,
                 'max_players' => $maxPlayers,
                 'host' => [
-                    'id' => $playerId,
-                    'name' => $playerName,
+                    'id' => $player['id'],
+                    'name' => $player['name'],
+                    'client_token' => $player['client_token'],
                 ],
+            ],
+            'player' => [
+                'id' => $player['id'],
+                'name' => $player['name'],
+                'client_token' => $player['client_token'],
+                'is_host' => true,
             ],
         ]);
         exit;
