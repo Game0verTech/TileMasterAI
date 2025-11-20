@@ -267,6 +267,24 @@ while (true) {
         if (($payload['type'] ?? '') === 'turnorder.draw') {
             $sessionId = (int) $session['id'];
             $players = $repository->listPlayersForSession($sessionId);
+            $playerId = (int) ($payload['playerId'] ?? 0);
+            $player = null;
+
+            foreach ($players as $member) {
+                if ($member['id'] === $playerId) {
+                    $player = $member;
+                    break;
+                }
+            }
+
+            if (!$player) {
+                @fwrite($socket, $encodeFrame(json_encode([
+                    'type' => 'turnorder.error',
+                    'sessionCode' => $sessionCode,
+                    'message' => 'Only seated players can draw a tile.',
+                ])));
+                continue;
+            }
 
             if (count($players) < 2) {
                 @fwrite($socket, $encodeFrame(json_encode([
@@ -277,145 +295,119 @@ while (true) {
                 continue;
             }
 
-            $repository->seedStandardTileBag($sessionId);
+            if ($repository->countTilesInBag($sessionId) === 0) {
+                $repository->seedStandardTileBag($sessionId);
+            }
 
-            $drawHistory = [];
-            $finalOrder = [];
+            $existingDraws = $repository->listDrawnTiles($sessionId);
 
-            $resolveGroup = function (array $group) use (
-                &$resolveGroup,
-                &$finalOrder,
-                &$drawHistory,
-                $repository,
-                $sessionId,
-                $sessionCode,
-                &$clients,
-                $broadcast,
-                $distanceFromA,
-                $encodeFrame,
-                $socket
-            ): bool {
-                $roundDraws = [];
-
-                foreach ($group as $player) {
-                    $tile = $repository->drawTileFromBag($sessionId, (int) $player['id']);
-
-                    if ($tile === null) {
-                        @fwrite($socket, $encodeFrame(json_encode([
-                            'type' => 'turnorder.error',
-                            'sessionCode' => $sessionCode,
-                            'message' => 'Tile bag is empty; cannot determine order.',
-                        ])));
-
-                        return false;
-                    }
-
-                    $draw = [
-                        'player' => [
-                            'id' => (int) $player['id'],
-                            'name' => $player['name'],
-                        ],
-                        'tile' => [
-                            'id' => (int) $tile['id'],
-                            'letter' => $tile['letter'],
-                            'value' => (int) $tile['value'],
-                        ],
-                    ];
-
+            $existingDraws = array_map(
+                static function ($draw) use ($distanceFromA) {
                     $draw['distance'] = $distanceFromA($draw['tile']['letter']);
-                    $drawHistory[] = $draw;
-                    $roundDraws[] = $draw;
+                    $draw['drawn_at'] = isset($draw['drawn_at']) && $draw['drawn_at'] !== ''
+                        ? strtotime((string) $draw['drawn_at'])
+                        : time();
 
-                    $broadcast($clients, $sessionCode, [
-                        'type' => 'turnorder.drawn',
+                    return $draw;
+                },
+                $existingDraws
+            );
+
+            foreach ($existingDraws as $drawn) {
+                if ($drawn['player']['id'] === $playerId) {
+                    @fwrite($socket, $encodeFrame(json_encode([
+                        'type' => 'turnorder.error',
                         'sessionCode' => $sessionCode,
-                        'player' => $draw['player'],
-                        'tile' => $draw['tile'],
-                        'distance' => $draw['distance'],
-                    ]);
-
-                    $broadcast($clients, $sessionCode, [
-                        'type' => 'player.sound',
-                        'tone' => 'draw',
-                    ]);
+                        'message' => 'You already drew a tile.',
+                    ])));
+                    continue 2;
                 }
+            }
 
-                $byDistance = [];
-                foreach ($roundDraws as $draw) {
-                    $byDistance[$draw['distance']][] = $draw;
-                }
+            $tile = $repository->drawTileFromBag($sessionId, $playerId);
 
-                ksort($byDistance, SORT_NUMERIC);
+            if ($tile === null) {
+                @fwrite($socket, $encodeFrame(json_encode([
+                    'type' => 'turnorder.error',
+                    'sessionCode' => $sessionCode,
+                    'message' => 'Tile bag is empty; cannot determine order.',
+                ])));
 
-                foreach ($byDistance as $distance => $entries) {
-                    if (count($entries) === 1) {
-                        $finalOrder[] = $entries[0];
-                        continue;
-                    }
-
-                    $broadcast($clients, $sessionCode, [
-                        'type' => 'turnorder.tie',
-                        'sessionCode' => $sessionCode,
-                        'distance' => $distance,
-                        'players' => array_map(static fn ($entry) => $entry['player'], $entries),
-                    ]);
-
-                    $broadcast($clients, $sessionCode, [
-                        'type' => 'player.sound',
-                        'tone' => 'alert',
-                    ]);
-
-                    foreach ($entries as $entry) {
-                        $repository->recordTileReturn((int) $entry['tile']['id']);
-                    }
-
-                    $tiedPlayers = array_map(static fn ($entry) => $entry['player'], $entries);
-
-                    if (!$resolveGroup($tiedPlayers)) {
-                        return false;
-                    }
-                }
-
-                return true;
-            };
-
-            if (!$resolveGroup($players)) {
                 continue;
             }
 
-            foreach ($finalOrder as $entry) {
-                $repository->recordTileReturn((int) $entry['tile']['id']);
-            }
+            $draw = [
+                'player' => [
+                    'id' => (int) $player['id'],
+                    'name' => $player['name'],
+                ],
+                'tile' => [
+                    'id' => (int) $tile['id'],
+                    'letter' => $tile['letter'],
+                    'value' => (int) $tile['value'],
+                ],
+                'distance' => $distanceFromA($tile['letter']),
+                'drawn_at' => (int) (time()),
+            ];
+
+            $existingDraws[] = $draw;
 
             $broadcast($clients, $sessionCode, [
-                'type' => 'turnorder.resolved',
+                'type' => 'turnorder.drawn',
                 'sessionCode' => $sessionCode,
-                'order' => array_map(
-                    static fn ($entry) => [
-                        'player' => $entry['player'],
-                        'tile' => $entry['tile'],
-                        'distance' => $entry['distance'],
-                    ],
-                    $finalOrder
-                ),
-                'draws' => $drawHistory,
+                'player' => $draw['player'],
+                'tile' => $draw['tile'],
+                'distance' => $draw['distance'],
             ]);
-
-            $sequence = array_map(static fn ($entry) => (int) $entry['player']['id'], $finalOrder);
-            if ($sequence !== []) {
-                $repository->saveTurnState($sessionId, $sequence[0], 1, 'idle', $sequence);
-                $broadcast($clients, $sessionCode, [
-                    'type' => 'turn.started',
-                    'sessionCode' => $sessionCode,
-                    'playerId' => $sequence[0],
-                    'turnNumber' => 1,
-                ]);
-            }
 
             $broadcast($clients, $sessionCode, [
                 'type' => 'player.sound',
-                'tone' => 'alert',
+                'tone' => 'draw',
             ]);
+
+            if (count($existingDraws) >= count($players)) {
+                usort($existingDraws, static function ($left, $right) {
+                    if ($left['distance'] === $right['distance']) {
+                        return $left['drawn_at'] <=> $right['drawn_at'];
+                    }
+
+                    return $left['distance'] <=> $right['distance'];
+                });
+
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'turnorder.resolved',
+                    'sessionCode' => $sessionCode,
+                    'order' => array_map(
+                        static fn ($entry) => [
+                            'player' => $entry['player'],
+                            'tile' => $entry['tile'],
+                            'distance' => $entry['distance'],
+                        ],
+                        $existingDraws
+                    ),
+                    'draws' => $existingDraws,
+                ]);
+
+                $sequence = array_map(static fn ($entry) => (int) $entry['player']['id'], $existingDraws);
+                if ($sequence !== []) {
+                    $repository->saveTurnState($sessionId, $sequence[0], 1, 'idle', $sequence);
+                    $broadcast($clients, $sessionCode, [
+                        'type' => 'turn.started',
+                        'sessionCode' => $sessionCode,
+                        'playerId' => $sequence[0],
+                        'turnNumber' => 1,
+                    ]);
+                }
+
+                foreach ($existingDraws as $entry) {
+                    $repository->recordTileReturn((int) $entry['tile']['id']);
+                }
+
+                $broadcast($clients, $sessionCode, [
+                    'type' => 'player.sound',
+                    'tone' => 'alert',
+                ]);
+            }
 
             continue;
         }

@@ -27,17 +27,14 @@ require __DIR__ . '/config/env.php';
 
     body {
       margin: 0;
-      background:
-        radial-gradient(circle at 12% 24%, rgba(99, 102, 241, 0.08), transparent 26%),
-        radial-gradient(circle at 82% 10%, rgba(14, 165, 233, 0.12), transparent 26%),
-        linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+      background: var(--bg);
       min-height: 100vh;
       color: var(--ink);
       padding: 28px 18px 48px;
     }
 
     header {
-      max-width: 1180px;
+      max-width: 960px;
       margin: 0 auto 20px;
       display: grid;
       gap: 14px;
@@ -95,7 +92,7 @@ require __DIR__ . '/config/env.php';
     .pill.warning { background: #fffbeb; color: #92400e; border-color: #fef3c7; box-shadow: none; }
     .pill.danger { background: #fff1f2; color: #b91c1c; border-color: #fecaca; box-shadow: none; }
 
-    main { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+    main { max-width: 960px; margin: 0 auto; display: grid; gap: 18px; }
 
     .card {
       background: var(--card);
@@ -117,19 +114,7 @@ require __DIR__ . '/config/env.php';
       color: var(--muted);
     }
 
-    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-
-    .panel {
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      background: #f8fafc;
-    }
-
-    .panel.highlight {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(34, 211, 238, 0.08));
-      border-color: rgba(99, 102, 241, 0.25);
-    }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 
     form { display: grid; gap: 10px; }
     label { font-weight: 700; color: var(--muted); font-size: 14px; }
@@ -164,7 +149,7 @@ require __DIR__ . '/config/env.php';
     .stack { display: grid; gap: 10px; }
 
     .lobby-list { display: grid; gap: 10px; }
-    .lobby-row { padding: 12px; border: 1px solid var(--border); border-radius: 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: #f8fafc; }
+    .lobby-row { padding: 12px; border: 1px solid var(--border); border-radius: 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: #f8fafc; cursor: pointer; }
     .lobby-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     .roster { display: grid; gap: 10px; margin-top: 12px; }
@@ -172,48 +157,7 @@ require __DIR__ . '/config/env.php';
     .badge { padding: 4px 8px; border-radius: 999px; font-weight: 800; background: rgba(99,102,241,0.12); color: #4f46e5; }
     .subtext { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
-    .progress-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-    .step { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f8fafc; display: grid; gap: 6px; }
-    .step .label { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 12px; }
-    .step.active { border-color: #c7d2fe; background: #eef2ff; }
-    .step.complete { border-color: #bbf7d0; background: #ecfdf3; }
-
-    .waiting-banner {
-      margin-top: 10px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px dashed var(--border);
-      background: linear-gradient(120deg, rgba(99, 102, 241, 0.12), rgba(34, 211, 238, 0.08));
-      color: var(--ink);
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      animation: waitPulse 1.6s ease-in-out infinite;
-    }
-
-    .waiting-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
-      animation: dotBeat 1.4s ease-in-out infinite;
-    }
-
-    @keyframes waitPulse {
-      0% { transform: translateY(0); }
-      50% { transform: translateY(-2px); }
-      100% { transform: translateY(0); }
-    }
-
-    @keyframes dotBeat {
-      0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-      50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
-      100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-    }
-
-    .log { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 12px; min-height: 180px; display: grid; gap: 6px; font-family: "SFMono", ui-monospace, monospace; }
+    .log { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 12px; min-height: 140px; display: grid; gap: 6px; font-family: "SFMono", ui-monospace, monospace; }
     .log .entry { padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 10px; display: flex; gap: 8px; align-items: center; }
     .log .entry strong { color: #a5b4fc; }
 
@@ -238,7 +182,7 @@ require __DIR__ . '/config/env.php';
       <div class="logo">TM</div>
       <div>
         <h1>TileMasterAI Lobby</h1>
-        <p class="subtitle">Guided flow to get everyone seated and into the game fast.</p>
+        <p class="subtitle">Create or join with a short code. Keep it simple and fast.</p>
       </div>
     </div>
     <div class="status-board">
@@ -252,41 +196,39 @@ require __DIR__ . '/config/env.php';
     <section class="card">
       <p class="section-title">Get started</p>
       <div class="grid">
-        <div class="panel highlight stack">
-          <div>
-            <h2 style="margin:0 0 6px;">Host a new lobby</h2>
-            <p class="subtext">Pick a short code and your display name. We'll share status with everyone instantly.</p>
-          </div>
+        <div class="stack">
+          <h2 style="margin:0 0 6px;">Host</h2>
+          <p class="subtext">Pick a code, add your name, and you'll be the host.</p>
           <form id="createSessionForm" aria-label="Create lobby">
             <label for="sessionCode">Lobby code</label>
             <input id="sessionCode" name="sessionCode" placeholder="ABCD" maxlength="8" required />
             <label for="playerName">Your name</label>
-            <input id="playerName" name="playerName" placeholder="Maven" maxlength="20" required />
+            <input id="playerName" name="playerName" placeholder="Casey" maxlength="20" required />
             <div class="actions">
-              <button class="btn" type="submit">Create lobby</button>
-              <button class="btn ghost" type="button" id="joinSessionBtn">Join existing</button>
-              <button class="btn quiet" type="button" id="resumeSessionBtn">Resume saved seat</button>
+              <button class="btn" type="submit">Create</button>
+              <button class="btn quiet" type="button" id="resumeSessionBtn">Resume</button>
             </div>
           </form>
-          <div class="meta-grid">
-            <div class="meta">✅ We'll remember your device so reconnecting is painless.</div>
-            <div class="meta">ℹ️ Host draws tiles to set turn order once everyone is ready.</div>
-          </div>
           <div id="sessionFlash" class="flash" hidden></div>
           <div id="stuckSession" class="actions" hidden>
-            <span class="pill warning">Looks like you're stuck in another lobby.</span>
-            <button class="btn ghost danger" type="button" id="forceLeaveBtn">Leave previous lobby</button>
+            <span class="pill warning">You're already seated elsewhere.</span>
+            <button class="btn ghost danger" type="button" id="forceLeaveBtn">Leave</button>
           </div>
         </div>
 
-        <div class="panel stack">
-          <div>
-            <h3 style="margin:0 0 6px;">Open lobbies</h3>
-            <p class="subtext">Tap a card to prefill the code or join directly.</p>
-          </div>
-          <div class="actions" style="justify-content: space-between;">
-            <div class="pill soft" id="liveLobbyHint">Live sync on</div>
-            <button class="btn ghost" type="button" id="refreshSessionsBtn">Refresh</button>
+        <div class="stack">
+          <h2 style="margin:0 0 6px;">Join</h2>
+          <p class="subtext">Enter a code or tap one from the list.</p>
+          <form id="joinInlineForm" aria-label="Join lobby">
+            <label for="inlineSessionCode">Lobby code</label>
+            <input id="inlineSessionCode" name="inlineSessionCode" placeholder="ABCD" maxlength="8" />
+            <label for="inlinePlayerName">Your name</label>
+            <input id="inlinePlayerName" name="inlinePlayerName" placeholder="Casey" maxlength="20" />
+            <button class="btn ghost" type="submit" id="joinSessionBtn">Join lobby</button>
+          </form>
+          <div class="actions" style="justify-content: space-between; margin-top:6px;">
+            <div class="pill soft" id="liveLobbyHint">Live updates</div>
+            <button class="btn ghost" type="button" id="refreshSessionsBtn">Refresh list</button>
           </div>
           <div id="sessionEmpty">No open lobbies yet.</div>
           <div id="sessionList" role="list" class="lobby-list"></div>
@@ -295,7 +237,7 @@ require __DIR__ . '/config/env.php';
     </section>
 
     <section class="card" id="lobbyCard" hidden>
-      <p class="section-title">Your lobby</p>
+      <p class="section-title">Current lobby</p>
       <div class="actions" style="justify-content: space-between; align-items: flex-start; gap: 12px;">
         <div class="stack" style="min-width: 240px;">
           <div class="actions" style="gap: 8px;">
@@ -305,48 +247,20 @@ require __DIR__ . '/config/env.php';
           </div>
           <div class="actions" style="gap:8px; flex-wrap: wrap;">
             <span class="pill soft" id="shareCode">Invite code: —</span>
-            <button class="btn ghost" id="copyCodeBtn" type="button">Copy invite</button>
+            <button class="btn ghost" id="copyCodeBtn" type="button">Copy</button>
           </div>
         </div>
-        <div class="actions" style="gap: 8px;">
+        <div class="actions" style="gap: 8px; flex-wrap: wrap;">
           <button class="btn" id="startGameBtn" disabled aria-disabled="true">Start game</button>
-          <button class="btn ghost" id="drawTurnOrderBtn" disabled aria-disabled="true">Draw turn order</button>
+          <button class="btn ghost" id="drawTurnOrderBtn" disabled aria-disabled="true">Draw my tile</button>
           <button class="btn ghost danger" id="leaveSessionBtn">Leave</button>
           <button class="btn ghost danger" id="deleteSessionBtn">Delete</button>
         </div>
       </div>
 
-      <div class="progress-grid" id="lobbySteps">
-        <div class="step" data-step="seat">
-          <span class="label">Step 1</span>
-          <strong>Seat everyone</strong>
-          <p class="subtext">Players join with the invite code. Live roster updates keep you in sync.</p>
-        </div>
-        <div class="step" data-step="start">
-          <span class="label">Step 2</span>
-          <strong>Host starts</strong>
-          <p class="subtext">Host enables turn order once at least two players are present.</p>
-        </div>
-        <div class="step" data-step="draw">
-          <span class="label">Step 3</span>
-          <strong>Draw tiles</strong>
-          <p class="subtext">Everyone watches the live draw to decide who goes first.</p>
-        </div>
-        <div class="step" data-step="play">
-          <span class="label">Step 4</span>
-          <strong>Jump into the game</strong>
-          <p class="subtext">We auto-open the board once turn order locks in.</p>
-        </div>
-      </div>
-
-      <div id="waitingForHost" class="waiting-banner" hidden>
-        <span class="waiting-dot" aria-hidden="true"></span>
-        <span class="waiting-text"></span>
-      </div>
-
       <div class="grid">
         <div class="stack">
-          <h3 style="margin:10px 0 4px;">Roster</h3>
+          <h3 style="margin:10px 0 4px;">Players</h3>
           <div class="roster" id="lobbyRoster"></div>
         </div>
         <div class="stack">
@@ -378,7 +292,7 @@ require __DIR__ . '/config/env.php';
     <div class="tile" id="tilePop"></div>
   </div>
 
-  <footer>Live sync keeps every player on the same page. Host draws tiles to decide who goes first.</footer>
+  <footer>Short code in, game out. Each player draws their own tile to see who starts.</footer>
 
   <script>
     const lobbyWsUrl = <?php
@@ -391,8 +305,11 @@ require __DIR__ . '/config/env.php';
 
     document.addEventListener('DOMContentLoaded', () => {
       const createSessionForm = document.getElementById('createSessionForm');
+      const joinInlineForm = document.getElementById('joinInlineForm');
       const sessionCodeInput = document.getElementById('sessionCode');
       const playerNameInput = document.getElementById('playerName');
+      const inlineSessionCode = document.getElementById('inlineSessionCode');
+      const inlinePlayerName = document.getElementById('inlinePlayerName');
       const sessionFlash = document.getElementById('sessionFlash');
       const sessionList = document.getElementById('sessionList');
       const sessionEmpty = document.getElementById('sessionEmpty');
@@ -411,7 +328,6 @@ require __DIR__ . '/config/env.php';
       const turnOrderResult = document.getElementById('turnOrderResult');
       const sessionStatus = document.getElementById('sessionStatus');
       const tilePop = document.getElementById('tilePop');
-      const waitingForHost = document.getElementById('waitingForHost');
       const joinSessionBtn = document.getElementById('joinSessionBtn');
       const joinModal = document.getElementById('joinModal');
       const joinModalForm = document.getElementById('joinModalForm');
@@ -420,7 +336,6 @@ require __DIR__ . '/config/env.php';
       const joinModalCancel = document.getElementById('joinModalCancel');
       const connectionState = document.getElementById('connectionState');
       const lastSynced = document.getElementById('lastSynced');
-      const lobbySteps = document.getElementById('lobbySteps');
       const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
       const resumeSessionBtn = document.getElementById('resumeSessionBtn');
       const shareCode = document.getElementById('shareCode');
@@ -438,6 +353,8 @@ require __DIR__ . '/config/env.php';
       let currentPlayer = null;
       let currentPlayers = [];
       let turnOrderInFlight = false;
+      let playerHasDrawn = false;
+      let turnOrderResolved = false;
       let pendingJoinCode = null;
       let countdownTimer = null;
       let lastConflictSession = null;
@@ -541,29 +458,6 @@ require __DIR__ . '/config/env.php';
         }
       };
 
-      const updateSteps = (status, players = []) => {
-        if (!lobbySteps) return;
-        const stepNodes = lobbySteps.querySelectorAll('.step');
-        stepNodes.forEach((step) => {
-          const key = step.dataset.step;
-          step.classList.remove('active', 'complete');
-          if (key === 'seat') {
-            if (players.length >= 2) step.classList.add('complete'); else step.classList.add('active');
-          }
-          if (key === 'start') {
-            if (status === 'started') step.classList.add('complete');
-            else if (players.length >= 2) step.classList.add('active');
-          }
-          if (key === 'draw') {
-            if (status === 'started' && turnOrderResult?.textContent) step.classList.add('complete');
-            else if (status === 'started') step.classList.add('active');
-          }
-          if (key === 'play') {
-            if (turnOrderResult?.textContent) step.classList.add('active');
-          }
-        });
-      };
-
       const updateSessionList = (sessions = []) => {
         sessionList.innerHTML = '';
         if (!sessions.length) {
@@ -571,29 +465,30 @@ require __DIR__ . '/config/env.php';
           return;
         }
         sessionEmpty.hidden = true;
-        sessions.forEach((session) => {
-          const row = document.createElement('div');
-          row.className = 'lobby-row';
-          const meta = document.createElement('div');
-          meta.className = 'lobby-meta';
-          meta.innerHTML = `<strong>${session.code}</strong><span class="pill soft">${session.player_count}/${MAX_PLAYERS} seated</span><span class="pill soft">${session.status}</span>`;
-          const join = document.createElement('div');
-          join.className = 'actions';
-          const joinBtn = document.createElement('button');
-          joinBtn.className = 'btn ghost';
-          joinBtn.type = 'button';
-          joinBtn.textContent = 'Join';
-          joinBtn.addEventListener('click', () => openJoinModal(session.code));
-          join.appendChild(joinBtn);
-          row.appendChild(meta);
-          row.appendChild(join);
-          row.addEventListener('click', () => {
-            sessionCodeInput.value = session.code;
-            setFlash(`Joining ${session.code}? Enter your name.`, 'info');
-            playerNameInput.focus();
+          sessions.forEach((session) => {
+            const row = document.createElement('div');
+            row.className = 'lobby-row';
+            const meta = document.createElement('div');
+            meta.className = 'lobby-meta';
+            meta.innerHTML = `<strong>${session.code}</strong><span class="pill soft">${session.player_count}/${MAX_PLAYERS} seated</span><span class="pill soft">${session.status}</span>`;
+            const join = document.createElement('div');
+            join.className = 'actions';
+            const joinBtn = document.createElement('button');
+            joinBtn.className = 'btn ghost';
+            joinBtn.type = 'button';
+            joinBtn.textContent = 'Join';
+            joinBtn.addEventListener('click', () => openJoinModal(session.code));
+            join.appendChild(joinBtn);
+            row.appendChild(meta);
+            row.appendChild(join);
+            row.addEventListener('click', () => {
+              sessionCodeInput.value = session.code;
+              if (inlineSessionCode) inlineSessionCode.value = session.code;
+              setFlash(`Joining ${session.code}? Enter your name.`, 'info');
+              playerNameInput.focus();
+            });
+            sessionList.appendChild(row);
           });
-          sessionList.appendChild(row);
-        });
         markSynced();
       };
 
@@ -639,26 +534,13 @@ require __DIR__ . '/config/env.php';
         const hostPlayer = players.find((player) => player.is_host);
         const isHost = Boolean(currentPlayer?.is_host || (hostPlayer && currentPlayer?.id === hostPlayer.id));
         const readyToStart = (typeof canStart === 'boolean' ? canStart : players.length >= 2) && status !== 'started';
-        const readyToDraw = players.length >= 2 && status === 'started';
+        const readyToDraw = players.length >= 2 && status === 'started' && !turnOrderResolved && !playerHasDrawn;
         startGameBtn.disabled = !(isHost && readyToStart);
         startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
-        drawTurnOrderBtn.disabled = !(readyToDraw && !turnOrderInFlight);
+        drawTurnOrderBtn.disabled = !(readyToDraw && !turnOrderInFlight && currentPlayer);
         drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
         sessionStatus.textContent = `In ${sessionCode} • ${players.length}/${maxPlayers}`;
 
-        const hostName = players.find((player) => player.is_host)?.name || 'the host';
-        if (waitingForHost) {
-          const textEl = waitingForHost.querySelector('.waiting-text');
-          if (status === 'started') {
-            waitingForHost.hidden = true;
-          } else {
-            waitingForHost.hidden = false;
-            if (textEl) {
-              textEl.textContent = `Waiting for ${hostName} to start the game...`;
-            }
-          }
-        }
-        updateSteps(status, players);
       };
 
       const logTurn = (text) => {
@@ -685,7 +567,8 @@ require __DIR__ . '/config/env.php';
         turnOrderLog.innerHTML = '';
         logTurn('Waiting to draw…');
         turnOrderResult.textContent = '';
-        updateSteps(activeSession?.status || 'active', currentPlayers);
+        playerHasDrawn = false;
+        turnOrderResolved = false;
       };
 
       const stopCountdown = () => {
@@ -700,6 +583,7 @@ require __DIR__ . '/config/env.php';
         currentPlayer = player;
         setStuckSession(null);
         persistSession(session, player);
+        resetTurnOrderUi();
         renderRoster({ sessionCode: session.code, players: [], status: session.status, maxPlayers: session.max_players || MAX_PLAYERS });
         if (lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: session.code }));
@@ -794,6 +678,7 @@ require __DIR__ . '/config/env.php';
             if (activeSession) {
               activeSession.status = 'started';
             }
+            resetTurnOrderUi();
             if (activeSession?.code) {
               renderRoster({
                 sessionCode: activeSession.code,
@@ -807,6 +692,11 @@ require __DIR__ . '/config/env.php';
 
           if (payload.type === 'turnorder.drawn') {
             showTilePop(payload.tile?.letter || '?', payload.player?.name || 'Player');
+            if (payload.player?.id && currentPlayer?.id === payload.player.id) {
+              playerHasDrawn = true;
+              turnOrderInFlight = false;
+              drawTurnOrderBtn.disabled = true;
+            }
             markSynced();
           }
 
@@ -834,7 +724,8 @@ require __DIR__ . '/config/env.php';
               }, 1000);
             }
             turnOrderInFlight = false;
-            drawTurnOrderBtn.disabled = false;
+            turnOrderResolved = true;
+            drawTurnOrderBtn.disabled = true;
             markSynced();
           }
 
@@ -935,7 +826,8 @@ require __DIR__ . '/config/env.php';
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
           lobbyStatus.textContent = 'started';
           activeSession.status = 'started';
-          setFlash('Game started. Host can now draw for turn order.', 'success');
+          setFlash('Game started. Everyone can draw for turn order.', 'success');
+          resetTurnOrderUi();
           renderRoster({
             sessionCode: activeSession.code,
             players: currentPlayers,
@@ -953,15 +845,18 @@ require __DIR__ . '/config/env.php';
       };
 
       const startTurnOrderDraw = () => {
-        if (!activeSession?.code || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+        if (!activeSession?.code || !currentPlayer?.id) {
+          setFlash('Join the lobby before drawing.', 'error');
+          return;
+        }
+        if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
           setFlash('Connect to lobby first.', 'error');
           return;
         }
         turnOrderInFlight = true;
         drawTurnOrderBtn.disabled = true;
-        resetTurnOrderUi();
-        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code }));
-        logTurn('Drawing tiles…');
+        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code, playerId: currentPlayer.id }));
+        logTurn('Drawing your tile…');
       };
 
       const leaveSession = async () => {
@@ -1103,7 +998,18 @@ require __DIR__ . '/config/env.php';
       };
 
       if (createSessionForm) createSessionForm.addEventListener('submit', handleCreateSession);
-      if (joinSessionBtn) joinSessionBtn.addEventListener('click', handleJoinSession);
+      if (joinInlineForm) joinInlineForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (inlineSessionCode?.value) sessionCodeInput.value = inlineSessionCode.value;
+        if (inlinePlayerName?.value) playerNameInput.value = inlinePlayerName.value;
+        handleJoinSession();
+      });
+      if (joinSessionBtn) joinSessionBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (inlineSessionCode?.value) sessionCodeInput.value = inlineSessionCode.value;
+        if (inlinePlayerName?.value) playerNameInput.value = inlinePlayerName.value;
+        handleJoinSession();
+      });
       if (playerNameInput) playerNameInput.addEventListener('change', resolveIdentity);
       if (joinModalForm) joinModalForm.addEventListener('submit', (event) => {
         event.preventDefault();
