@@ -41,6 +41,64 @@ $hasSessionExpired = static function (?string $updatedAt, int $ttlMinutes): bool
     return (time() - $timestamp) > ($ttlMinutes * 60);
 };
 
+$pushLobbyUpdate = static function (array $messages): void {
+    $host = getenv('LOBBY_WS_HOST') ?: '127.0.0.1';
+    $port = (int) (getenv('LOBBY_WS_PORT') ?: 8090);
+    $target = $host === '0.0.0.0' ? '127.0.0.1' : $host;
+
+    $socket = @fsockopen($target, $port, $errno, $errstr, 0.5);
+
+    if (!$socket) {
+        return;
+    }
+
+    stream_set_timeout($socket, 1);
+    $key = base64_encode(random_bytes(16));
+    $handshake = "GET / HTTP/1.1\r\n"
+        . "Host: {$target}:{$port}\r\n"
+        . "Upgrade: websocket\r\n"
+        . "Connection: Upgrade\r\n"
+        . "Sec-WebSocket-Key: {$key}\r\n"
+        . "Sec-WebSocket-Version: 13\r\n\r\n";
+
+    @fwrite($socket, $handshake);
+    @stream_get_contents($socket, 1024);
+
+    $sendFrame = static function ($socket, array $message): void {
+        $payload = json_encode($message);
+
+        if ($payload === false) {
+            return;
+        }
+
+        $length = strlen($payload);
+        $mask = random_bytes(4);
+        $frame = chr(0x81);
+
+        if ($length <= 125) {
+            $frame .= chr(0x80 | $length);
+        } elseif ($length < 65536) {
+            $frame .= chr(0x80 | 126) . pack('n', $length);
+        } else {
+            $frame .= chr(0x80 | 127) . pack('NN', 0, $length);
+        }
+
+        $maskedPayload = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $maskedPayload .= $payload[$i] ^ $mask[$i % 4];
+        }
+
+        @fwrite($socket, $frame . $mask . $maskedPayload);
+    };
+
+    foreach ($messages as $message) {
+        $sendFrame($socket, $message);
+    }
+
+    fclose($socket);
+};
+
 $repository->purgeStaleSessions($sessionTtlMinutes);
 
 try {
@@ -310,6 +368,11 @@ try {
 
         $players = $repository->listPlayersForSession($sessionId);
 
+        $pushLobbyUpdate([
+            ['type' => 'refresh', 'sessionCode' => $session['code']],
+            ['type' => 'lobbies.refresh'],
+        ]);
+
         echo json_encode([
             'success' => true,
             'message' => 'Joined session.',
@@ -370,6 +433,11 @@ try {
         if ($remaining === 0) {
             $repository->deleteSession($sessionId);
 
+            $pushLobbyUpdate([
+                ['type' => 'refresh', 'sessionCode' => $session['code']],
+                ['type' => 'lobbies.refresh'],
+            ]);
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Left session. Lobby removed because it was empty.',
@@ -390,6 +458,11 @@ try {
         }
 
         $players = $repository->listPlayersForSession($sessionId);
+
+        $pushLobbyUpdate([
+            ['type' => 'refresh', 'sessionCode' => $session['code']],
+            ['type' => 'lobbies.refresh'],
+        ]);
 
         echo json_encode([
             'success' => true,
