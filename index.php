@@ -470,7 +470,7 @@ require __DIR__ . '/config/env.php';
 
         // Always fetch over HTTP as a fallback so roster updates still land if
         // the WebSocket push is delayed or interrupted.
-        refreshActiveSession();
+        refreshActiveSession(code);
       };
 
       const persistIdentity = (playerName, clientToken) => {
@@ -676,10 +676,11 @@ require __DIR__ . '/config/env.php';
         }
       };
 
-      const refreshActiveSession = async () => {
-        if (!activeSession?.code) return;
+      const refreshActiveSession = async (sessionCode = null) => {
+        const code = (sessionCode || activeSession?.code || '').toUpperCase();
+        if (!code) return;
         try {
-          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(activeSession.code)}`, {
+          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(code)}`, {
             cache: 'no-store',
           });
           const data = await response.json();
