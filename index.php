@@ -366,6 +366,7 @@ require __DIR__ . '/config/env.php';
       const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
       const MAX_PLAYERS = 4;
       const SYNC_INTERVAL = 6000;
+      const ACTIVE_SYNC_INTERVAL = 2500;
 
       let lobbySocket = null;
       let lobbyConnected = false;
@@ -655,6 +656,7 @@ require __DIR__ . '/config/env.php';
           lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: session.code }));
         }
         refreshActiveSession();
+        startPolling();
       };
 
       const fetchSessions = async () => {
@@ -692,10 +694,11 @@ require __DIR__ . '/config/env.php';
 
       const startPolling = () => {
         if (pollTimer) clearInterval(pollTimer);
+        const interval = activeSession ? ACTIVE_SYNC_INTERVAL : SYNC_INTERVAL;
         pollTimer = setInterval(() => {
           fetchSessions();
           refreshActiveSession();
-        }, SYNC_INTERVAL);
+        }, interval);
       };
 
       const openLobbySocket = () => {
@@ -717,6 +720,10 @@ require __DIR__ . '/config/env.php';
           if (pendingSessionRefresh) {
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: pendingSessionRefresh }));
             pendingSessionRefresh = null;
+          }
+
+          if (activeSession?.code) {
+            refreshActiveSession();
           }
         });
 
@@ -958,6 +965,7 @@ require __DIR__ . '/config/env.php';
         localStorage.removeItem(SESSION_STORAGE_KEY);
         requestLobbyRefresh();
         requestSessionRefresh(code);
+        startPolling();
       };
 
       const deleteSession = async () => {
@@ -979,6 +987,7 @@ require __DIR__ . '/config/env.php';
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
           requestSessionRefresh(code);
+          startPolling();
         } catch (error) {
           setFlash('Unable to delete lobby.', 'error');
         }
@@ -1008,6 +1017,7 @@ require __DIR__ . '/config/env.php';
           requestLobbyRefresh();
           fetchSessions();
           requestSessionRefresh(data.session?.code);
+          startPolling();
         } catch (error) {
           setFlash(error.message, 'error');
         }
@@ -1119,6 +1129,13 @@ require __DIR__ . '/config/env.php';
       if (resumeSessionBtn) resumeSessionBtn.addEventListener('click', attemptResume);
       if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
       if (liveLobbyHint) liveLobbyHint.textContent = 'Live updates connected';
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          fetchSessions();
+          refreshActiveSession();
+        }
+      });
 
       populateIdentity();
       fetchSessions();
