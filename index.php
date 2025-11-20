@@ -2385,12 +2385,16 @@ $aiSetupNotes = [
           };
 
           if (!isJson) {
+            const looksLikeHtml = /<(!doctype html|html)/i.test(bodyText.trim().slice(0, 50));
             const detail = describeHttpResponse({ ...describePayload, reason: 'Non-JSON response' });
-            if (response.ok) {
+            if (response.ok && (contentType.includes('text/html') || looksLikeHtml)) {
               renderSessions([]);
-              closeSessionErrorModal();
+              clearSessionErrors();
               setSessionFlash('No sessions yet — start a session below to begin.', 'info');
-              setSessionDebug(detail);
+              setSessionDebug(
+                'Sessions endpoint responded with HTML (likely the app shell). Treated as an empty lobby.\n' +
+                  detail,
+              );
               return;
             }
 
