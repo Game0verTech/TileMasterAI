@@ -379,6 +379,7 @@ require __DIR__ . '/config/env.php';
       let countdownTimer = null;
       let lastConflictSession = null;
       let pendingLobbyRefresh = false;
+      let pendingSessionRefresh = null;
       let lastSyncedAt = null;
       let pollTimer = null;
 
@@ -452,6 +453,20 @@ require __DIR__ . '/config/env.php';
         }
         pendingLobbyRefresh = true;
         fetchSessions();
+      };
+
+      const requestSessionRefresh = (sessionCode = null) => {
+        const code = (sessionCode || activeSession?.code || '').toUpperCase();
+        if (!code) return;
+
+        if (lobbySocket?.readyState === WebSocket.OPEN) {
+          lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
+          pendingSessionRefresh = null;
+          return;
+        }
+
+        pendingSessionRefresh = code;
+        refreshActiveSession();
       };
 
       const persistIdentity = (playerName, clientToken) => {
@@ -548,6 +563,14 @@ require __DIR__ . '/config/env.php';
         if (activeSession) {
           activeSession.status = status;
           activeSession.max_players = maxPlayers;
+        }
+
+        if (currentPlayer?.id) {
+          const refreshed = players.find((player) => player.id === currentPlayer.id);
+          if (refreshed) {
+            currentPlayer = { ...currentPlayer, ...refreshed };
+            persistSession(activeSession, currentPlayer);
+          }
         }
         players.forEach((player, idx) => {
           const row = document.createElement('div');
@@ -681,6 +704,10 @@ require __DIR__ . '/config/env.php';
             lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
           }
+          if (pendingSessionRefresh) {
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: pendingSessionRefresh }));
+            pendingSessionRefresh = null;
+          }
         });
 
         lobbySocket.addEventListener('close', () => {
@@ -802,6 +829,7 @@ require __DIR__ . '/config/env.php';
             maxPlayers: data.session.max_players,
           });
           requestLobbyRefresh();
+          requestSessionRefresh(data.session.code);
           openLobbySocket();
           markSynced();
         } catch (error) {
@@ -842,6 +870,7 @@ require __DIR__ . '/config/env.php';
             maxPlayers: data.session.max_players,
           });
           requestLobbyRefresh();
+          requestSessionRefresh(data.session.code);
           openLobbySocket();
           markSynced();
         } catch (error) {
@@ -857,26 +886,28 @@ require __DIR__ . '/config/env.php';
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
           });
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
-            lobbyStatus.textContent = 'started';
-            activeSession.status = 'started';
-            setFlash('Game started. Everyone can draw for turn order.', 'success');
-            resetTurnOrderUi();
-            renderRoster({
-              sessionCode: activeSession.code,
-              players: currentPlayers,
-              status: 'started',
-              maxPlayers: activeSession.max_players || MAX_PLAYERS,
-            });
-            if (lobbySocket?.readyState === WebSocket.OPEN) {
-              lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
-              lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-            }
-            refreshActiveSession();
-            markSynced();
-          } catch (error) {
-            setFlash(error.message, 'error');
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
+          lobbyStatus.textContent = 'started';
+          activeSession.status = 'started';
+          setFlash('Game started. Everyone can draw for turn order.', 'success');
+          resetTurnOrderUi();
+          renderRoster({
+            sessionCode: activeSession.code,
+            players: currentPlayers,
+            status: 'started',
+            maxPlayers: activeSession.max_players || MAX_PLAYERS,
+          });
+          if (lobbySocket?.readyState === WebSocket.OPEN) {
+            lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
+          }
+          refreshActiveSession();
+          requestSessionRefresh(activeSession.code);
+          requestLobbyRefresh();
+          markSynced();
+        } catch (error) {
+          setFlash(error.message, 'error');
         }
       };
 
@@ -898,6 +929,7 @@ require __DIR__ . '/config/env.php';
       const leaveSession = async () => {
         const saved = loadSavedSession();
         if (!saved?.clientToken) return;
+        const code = activeSession?.code;
         try {
           await fetch('/api/session_players.php', {
             method: 'DELETE',
@@ -914,11 +946,13 @@ require __DIR__ . '/config/env.php';
         setFlash('Left the lobby.', 'info');
         localStorage.removeItem(SESSION_STORAGE_KEY);
         requestLobbyRefresh();
+        requestSessionRefresh(code);
       };
 
       const deleteSession = async () => {
         const saved = loadSavedSession();
         if (!saved?.clientToken || !activeSession?.code) return;
+        const code = activeSession.code;
         const confirmed = window.confirm(`Delete session ${activeSession.code}?`);
         if (!confirmed) return;
         try {
@@ -932,6 +966,7 @@ require __DIR__ . '/config/env.php';
           setLobbyMode(false);
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
+          requestSessionRefresh(code);
         } catch (error) {
           setFlash('Unable to delete lobby.', 'error');
         }
@@ -959,6 +994,7 @@ require __DIR__ . '/config/env.php';
           localStorage.removeItem(SESSION_STORAGE_KEY);
           requestLobbyRefresh();
           fetchSessions();
+          requestSessionRefresh(data.session?.code);
         } catch (error) {
           setFlash(error.message, 'error');
         }
@@ -981,6 +1017,7 @@ require __DIR__ . '/config/env.php';
           renderRoster({ sessionCode: data.session.code, status: data.session.status, players: data.players, maxPlayers: data.session.max_players });
           setFlash(`Rejoined ${data.session.code}.`, 'success');
           openLobbySocket();
+          requestSessionRefresh(data.session.code);
           markSynced();
         } catch (error) {
           setFlash('No saved lobby.', 'info');
