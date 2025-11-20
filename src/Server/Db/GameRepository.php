@@ -126,6 +126,8 @@ class GameRepository
             ':join_order' => $joinOrder,
             ':is_host' => $isHost ? 1 : 0,
         ]);
+
+        $this->touchSession($sessionId);
     }
 
     public function removePlayerFromSession(int $sessionId, int $playerId): void
@@ -135,6 +137,8 @@ class GameRepository
             ':session_id' => $sessionId,
             ':player_id' => $playerId,
         ]);
+
+        $this->touchSession($sessionId);
     }
 
     public function countPlayersInSession(int $sessionId): int
@@ -193,15 +197,31 @@ class GameRepository
         ];
     }
 
-    public function getActiveSessionForPlayer(int $playerId): ?array
+    public function getActiveSessionForPlayer(int $playerId, ?int $maxAgeMinutes = null): ?array
     {
+        $clauses = ['sp.player_id = :player_id', 's.status IN ("pending", "active", "started")'];
+        $params = [':player_id' => $playerId];
+
+        if ($maxAgeMinutes !== null) {
+            $minutes = max(1, (int) $maxAgeMinutes);
+            $clauses[] = $this->driver === 'mysql'
+                ? sprintf('s.updated_at >= DATE_SUB(NOW(), INTERVAL %d MINUTE)', $minutes)
+                : 's.updated_at >= DATETIME("now", :age_cutoff)';
+
+            if ($this->driver !== 'mysql') {
+                $params[':age_cutoff'] = sprintf('-%d minutes', $minutes);
+            }
+        }
+
+        $where = implode(' AND ', $clauses);
+
         $statement = $this->pdo->prepare(
             'SELECT s.* FROM sessions s '
             . 'JOIN session_players sp ON sp.session_id = s.id '
-            . 'WHERE sp.player_id = :player_id AND s.status IN ("pending", "active", "started") '
+            . "WHERE {$where} "
             . 'ORDER BY s.updated_at DESC, s.created_at DESC LIMIT 1'
         );
-        $statement->execute([':player_id' => $playerId]);
+        $statement->execute($params);
         $session = $statement->fetch();
 
         return $session !== false ? $session : null;
@@ -231,6 +251,8 @@ class GameRepository
             ':session_id' => $sessionId,
             ':player_id' => $playerId,
         ]);
+
+        $this->touchSession($sessionId);
     }
 
     public function setSessionStatus(int $sessionId, string $status): void
@@ -245,18 +267,34 @@ class GameRepository
     /**
      * @return array<int, array{id: int, code: string, status: string, player_count: int}>
      */
-    public function listOpenSessionsWithCounts(): array
+    public function listOpenSessionsWithCounts(?int $maxAgeMinutes = null): array
     {
+        $clauses = ['s.status IN ("pending", "active")'];
+        $params = [];
+
+        if ($maxAgeMinutes !== null) {
+            $minutes = max(1, (int) $maxAgeMinutes);
+            $clauses[] = $this->driver === 'mysql'
+                ? sprintf('s.updated_at >= DATE_SUB(NOW(), INTERVAL %d MINUTE)', $minutes)
+                : 's.updated_at >= DATETIME("now", :age_cutoff)';
+
+            if ($this->driver !== 'mysql') {
+                $params[':age_cutoff'] = sprintf('-%d minutes', $minutes);
+            }
+        }
+
+        $where = implode(' AND ', $clauses);
+
         $statement = $this->pdo->prepare(
             'SELECT s.id, s.code, s.status, COUNT(sp.id) as player_count '
             . 'FROM sessions s '
             . 'LEFT JOIN session_players sp ON sp.session_id = s.id '
-            . 'WHERE s.status IN ("pending", "active") '
+            . "WHERE {$where} "
             . 'GROUP BY s.id, s.code, s.status '
             . 'ORDER BY s.updated_at DESC, s.created_at DESC'
         );
 
-        $statement->execute();
+        $statement->execute($params);
         $sessions = $statement->fetchAll();
 
         return array_map(
@@ -414,6 +452,48 @@ class GameRepository
             ':status' => $status,
             ':id' => $sessionId,
         ]);
+    }
+
+    public function deleteSession(int $sessionId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM sessions WHERE id = :id');
+        $statement->execute([':id' => $sessionId]);
+    }
+
+    public function purgeStaleSessions(int $maxAgeMinutes, array $statuses = ['pending', 'active']): int
+    {
+        if ($maxAgeMinutes < 1 || $statuses === []) {
+            return 0;
+        }
+
+        $minutes = max(1, (int) $maxAgeMinutes);
+        $statusList = implode(', ', array_fill(0, count($statuses), '?'));
+
+        if ($this->driver === 'mysql') {
+            $sql = sprintf(
+                'DELETE FROM sessions WHERE status IN (%s) AND updated_at < DATE_SUB(NOW(), INTERVAL %d MINUTE)',
+                $statusList,
+                $minutes
+            );
+            $params = $statuses;
+        } else {
+            $sql = sprintf(
+                'DELETE FROM sessions WHERE status IN (%s) AND updated_at < DATETIME("now", ?)',
+                $statusList
+            );
+            $params = array_merge($statuses, [sprintf('-%d minutes', $minutes)]);
+        }
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+
+        return $statement->rowCount();
+    }
+
+    public function touchSession(int $sessionId): void
+    {
+        $statement = $this->pdo->prepare('UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $statement->execute([':id' => $sessionId]);
     }
 
     public function getPdo(): PDO

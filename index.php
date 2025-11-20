@@ -700,6 +700,13 @@ $aiSetupNotes = [
       border-style: dashed;
     }
 
+    .btn.danger {
+      background: #be123c;
+      border-color: #fecdd3;
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(190, 18, 60, 0.25);
+    }
+
     .btn[disabled] {
       opacity: 0.5;
       cursor: not-allowed;
@@ -806,6 +813,13 @@ $aiSetupNotes = [
       background: #fff;
       color: var(--ink);
       border-style: dashed;
+    }
+
+    .btn.ghost.danger {
+      color: #b91c1c;
+      border-color: #fecdd3;
+      background: #fff1f2;
+      box-shadow: none;
     }
 
     .session-flash {
@@ -960,6 +974,12 @@ $aiSetupNotes = [
       background: rgba(15, 23, 42, 0.08);
       color: var(--ink);
       border: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .badge.admin {
+      background: rgba(239, 68, 68, 0.12);
+      color: #b91c1c;
+      border: 1px solid rgba(239, 68, 68, 0.28);
     }
 
     .lobby-actions {
@@ -1843,7 +1863,7 @@ $aiSetupNotes = [
         <div class="session-actions">
           <button class="btn small" type="submit">Create session</button>
           <button class="btn small ghost" type="button" id="joinSessionBtn">Join session</button>
-          <p class="session-hint">Max 4 players per table. Creators are marked as host.</p>
+          <p class="session-hint">Max 4 players per table. Creators are marked as host. Idle lobbies expire after 2 hours.</p>
         </div>
       </form>
     </div>
@@ -1878,6 +1898,7 @@ $aiSetupNotes = [
       <div class="lobby-actions">
         <button class="btn" type="button" id="startGameBtn" disabled aria-disabled="true">Start game</button>
         <button class="btn ghost" type="button" id="leaveSessionBtn">Leave lobby</button>
+        <button class="btn ghost danger" type="button" id="deleteSessionBtn" hidden>Delete session</button>
       </div>
     </div>
   </section>
@@ -2038,6 +2059,7 @@ $aiSetupNotes = [
       const startGameBtn = document.getElementById('startGameBtn');
       const leaveSessionBtn = document.getElementById('leaveSessionBtn');
       const drawTurnOrderBtn = document.getElementById('drawTurnOrderBtn');
+      const deleteSessionBtn = document.getElementById('deleteSessionBtn');
       const turnOrderLogEl = document.getElementById('turnOrderLog');
       const turnOrderResultEl = document.getElementById('turnOrderResult');
       const MAX_PLAYERS = 4;
@@ -2054,6 +2076,8 @@ $aiSetupNotes = [
       let currentPlayer = null;
       let sessionErrorDetail = '';
       const SESSION_STORAGE_KEY = 'tilemaster.session';
+      const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
+      const ADMIN_NAME = 'TomAdmin';
       let turnOrderInFlight = false;
 
       const setSessionFlash = (message, tone = 'info') => {
@@ -2076,6 +2100,14 @@ $aiSetupNotes = [
         sessionDebugEl.textContent = hasDetail ? detail : '';
       };
 
+      const isAdminName = (name) => (name || '').trim().toLowerCase() === ADMIN_NAME.toLowerCase();
+
+      const generateClientToken = () => {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      };
+
       const loadSavedSession = () => {
         try {
           const raw = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -2084,6 +2116,25 @@ $aiSetupNotes = [
           console.warn('Unable to parse saved session', error);
           return null;
         }
+      };
+
+      const loadIdentity = () => {
+        try {
+          const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          console.warn('Unable to parse stored identity', error);
+          return null;
+        }
+      };
+
+      const persistIdentity = (playerName, clientToken) => {
+        if (!clientToken) return;
+        const payload = {
+          playerName: (playerName || '').trim(),
+          clientToken,
+        };
+        localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(payload));
       };
 
       const persistSessionState = (session, player) => {
@@ -2096,10 +2147,40 @@ $aiSetupNotes = [
           clientToken: player.client_token,
         };
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+        persistIdentity(player.name, player.client_token);
       };
 
       const clearSavedSession = () => {
         localStorage.removeItem(SESSION_STORAGE_KEY);
+      };
+
+      const resolveIdentity = (nameHint = '') => {
+        const trimmedName = (nameHint || '').trim();
+
+        if (currentPlayer?.client_token) {
+          const actorName = trimmedName || currentPlayer.name || '';
+          persistIdentity(actorName, currentPlayer.client_token);
+          return { playerName: actorName, clientToken: currentPlayer.client_token };
+        }
+
+        const savedSession = loadSavedSession();
+        if (savedSession?.clientToken) {
+          const actorName = trimmedName || savedSession.playerName || '';
+          persistIdentity(actorName, savedSession.clientToken);
+          return { playerName: actorName, clientToken: savedSession.clientToken };
+        }
+
+        const storedIdentity = loadIdentity();
+        if (storedIdentity?.clientToken) {
+          const actorName = trimmedName || storedIdentity.playerName || '';
+          persistIdentity(actorName, storedIdentity.clientToken);
+          return { playerName: actorName, clientToken: storedIdentity.clientToken };
+        }
+
+        const clientToken = generateClientToken();
+        const actorName = trimmedName || (playerNameInput?.value?.trim() || '');
+        persistIdentity(actorName, clientToken);
+        return { playerName: actorName, clientToken };
       };
 
       const closeSessionErrorModal = () => {
@@ -2325,6 +2406,20 @@ $aiSetupNotes = [
         lobbyStatus.textContent = tone;
       };
 
+      const updateLobbyActions = () => {
+        const isHost = Boolean(currentPlayer?.is_host);
+        const isAdmin = Boolean(
+          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(loadIdentity()?.playerName)
+        );
+
+        if (deleteSessionBtn) {
+          const canDelete = Boolean(activeSession?.code && (isHost || isAdmin));
+          deleteSessionBtn.hidden = !canDelete;
+          deleteSessionBtn.disabled = !canDelete;
+          deleteSessionBtn.setAttribute('aria-disabled', canDelete ? 'false' : 'true');
+        }
+      };
+
       const renderRoster = (payload) => {
         if (!lobbyCard || !lobbyRoster || !payload?.players) return;
 
@@ -2369,6 +2464,13 @@ $aiSetupNotes = [
             currentPlayer.join_order = player.join_order;
           }
 
+          if (isAdminName(player.name)) {
+            const adminBadge = document.createElement('span');
+            adminBadge.className = 'badge admin';
+            adminBadge.textContent = 'Admin';
+            badges.appendChild(adminBadge);
+          }
+
           row.appendChild(order);
           row.appendChild(name);
           row.appendChild(badges);
@@ -2389,11 +2491,16 @@ $aiSetupNotes = [
           drawTurnOrderBtn.disabled = !(canDraw && !turnOrderInFlight);
           drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
         }
+
+        updateLobbyActions();
       };
 
       const setActiveSession = (session, player) => {
         activeSession = session;
         currentPlayer = player;
+        if (currentPlayer) {
+          currentPlayer.is_admin = Boolean(player?.is_admin || isAdminName(player?.name));
+        }
         if (player?.client_token) {
           persistSessionState(session, player);
         }
@@ -2402,6 +2509,7 @@ $aiSetupNotes = [
         }
         resetTurnOrderUi();
         openLobbySocket();
+        updateLobbyActions();
         if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN) {
           lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
           lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
@@ -2510,6 +2618,11 @@ $aiSetupNotes = [
 
         sessionListEl.innerHTML = '';
 
+        const storedIdentity = loadIdentity();
+        const canAdminDelete = Boolean(
+          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(storedIdentity?.playerName)
+        );
+
         if (!sessions.length) {
           sessionListEl.hidden = true;
           sessionEmptyEl.hidden = false;
@@ -2562,6 +2675,19 @@ $aiSetupNotes = [
           });
 
           actions.appendChild(joinBtn);
+
+          if (canAdminDelete) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'btn small ghost danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => {
+              const confirmed = window.confirm(`Delete session ${session.code}?`);
+              if (!confirmed) return;
+              deleteSessionByCode(session.code);
+            });
+            actions.appendChild(deleteBtn);
+          }
 
           row.appendChild(meta);
           row.appendChild(actions);
@@ -2673,11 +2799,11 @@ $aiSetupNotes = [
         setSessionFlash('Creating session…');
 
         try {
-          const saved = loadSavedSession();
+          const identity = resolveIdentity(playerName);
           const response = await fetch('/api/sessions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: saved?.clientToken || '' }),
+            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
           });
 
           const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions.php' });
@@ -2704,6 +2830,7 @@ $aiSetupNotes = [
               name: payload.player?.name || payload.session.host?.name || playerName,
               client_token: payload.player?.client_token ?? payload.session.host?.client_token,
               is_host: true,
+              is_admin: payload.player?.is_admin ?? isAdminName(playerName),
             }
           );
           refreshLobby(payload.session.code);
@@ -2732,11 +2859,11 @@ $aiSetupNotes = [
         setSessionFlash('Joining session…');
 
         try {
-          const saved = loadSavedSession();
+          const identity = resolveIdentity(playerName);
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: saved?.clientToken || '' }),
+            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
           });
 
           const { payload, detail } = await parseJsonResponse(response, {
@@ -2761,6 +2888,7 @@ $aiSetupNotes = [
             name: payload.player.name,
             client_token: payload.player.client_token,
             is_host: false,
+            is_admin: payload.player?.is_admin ?? isAdminName(playerName),
           });
           renderRoster({
             sessionCode: payload.session.code,
@@ -2780,6 +2908,67 @@ $aiSetupNotes = [
               ? error.detail
               : `Error: ${error instanceof Error ? error.message : String(error)}`;
           presentSessionError(message, detail);
+        }
+      };
+
+      const resetLobbyState = (flashMessage = '') => {
+        activeSession = null;
+        currentPlayer = null;
+        clearSavedSession();
+        resetTurnOrderUi('Not in a lobby.');
+        if (lobbyCard) {
+          lobbyCard.hidden = true;
+        }
+        if (lobbyRoster) {
+          lobbyRoster.innerHTML = '';
+        }
+        updateLobbyActions();
+
+        if (flashMessage) {
+          setSessionFlash(flashMessage, 'success');
+        }
+      };
+
+      const deleteSessionByCode = async (code) => {
+        const nameFromForm = playerNameInput?.value?.trim() || currentPlayer?.name || '';
+        const identity = resolveIdentity(nameFromForm);
+        const actorName = (nameFromForm || identity.playerName || '').trim();
+
+        if (!actorName) {
+          setSessionFlash('Enter your name to manage sessions. TomAdmin can delete any lobby.', 'error');
+          return;
+        }
+
+        setSessionFlash(`Deleting session ${code}…`);
+
+        try {
+          const response = await fetch('/api/sessions.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, playerName: actorName, clientToken: identity.clientToken }),
+          });
+
+          const { payload, detail } = await parseJsonResponse(response, {
+            requestLabel: 'Request: DELETE /api/sessions.php',
+          });
+
+          if (!response.ok || !payload?.success) {
+            const error = new Error(payload?.message || 'Unable to delete session.');
+            error.detail = payload?.detail || detail;
+            throw error;
+          }
+
+          if (activeSession?.code === code) {
+            resetLobbyState('Session deleted.');
+          } else {
+            setSessionFlash(`Session ${code} deleted.`, 'success');
+          }
+
+          fetchSessions();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to delete session.';
+          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
+          presentSessionError(message, detail || `Request to delete ${code} failed.`);
         }
       };
 
@@ -2812,17 +3001,7 @@ $aiSetupNotes = [
           }
 
           clearSessionErrors();
-          activeSession = null;
-          currentPlayer = null;
-          clearSavedSession();
-          resetTurnOrderUi('Not in a lobby.');
-          if (lobbyCard) {
-            lobbyCard.hidden = true;
-          }
-          if (lobbyRoster) {
-            lobbyRoster.innerHTML = '';
-          }
-          setSessionFlash('Left the lobby.', 'success');
+          resetLobbyState('Left the lobby.');
           fetchSessions();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to leave session.';
@@ -2913,6 +3092,7 @@ $aiSetupNotes = [
               client_token: payload.player.client_token,
               is_host: Boolean(payload.player.is_host),
               join_order: payload.player.join_order,
+              is_admin: payload.player?.is_admin ?? isAdminName(payload.player?.name),
             }
           );
           renderRoster({
@@ -2951,6 +3131,20 @@ $aiSetupNotes = [
         drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
       }
 
+      if (deleteSessionBtn) {
+        deleteSessionBtn.addEventListener('click', () => {
+          if (!activeSession?.code) {
+            setSessionFlash('No active lobby to delete.', 'error');
+            return;
+          }
+
+          const confirmed = window.confirm(`Delete session ${activeSession.code}?`);
+          if (!confirmed) return;
+          deleteSessionByCode(activeSession.code);
+        });
+      }
+
+      updateLobbyActions();
       attemptResumeSession();
 
       let tileId = 0;
