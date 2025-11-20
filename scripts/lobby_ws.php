@@ -41,40 +41,80 @@ $encodeFrame = static function (string $payload): string {
     return $frame . $payload;
 };
 
-$decodeFrame = static function (string $data): ?string {
+$decodeFrames = static function (string $data): array {
     if ($data === '') {
-        return null;
+        return [[], ''];
     }
 
     $bytes = array_values(unpack('C*', $data));
-    $masked = ($bytes[1] & 0x80) === 0x80;
-    $length = $bytes[1] & 0x7F;
-    $index = 2;
+    $total = count($bytes);
+    $cursor = 0;
+    $messages = [];
+    $remainderStart = $total;
 
-    if ($length === 126) {
-        $length = ($bytes[2] << 8) + $bytes[3];
-        $index = 4;
-    } elseif ($length === 127) {
-        $length = 0;
-        for ($i = 0; $i < 8; $i++) {
-            $length = ($length << 8) + $bytes[2 + $i];
+    while ($cursor < $total) {
+        if (!isset($bytes[$cursor + 1])) {
+            $remainderStart = $cursor;
+            break;
         }
-        $index = 10;
-    }
 
-    if ($masked) {
-        $mask = array_slice($bytes, $index, 4);
-        $index += 4;
-    } else {
+        $masked = ($bytes[$cursor + 1] & 0x80) === 0x80;
+        $length = $bytes[$cursor + 1] & 0x7F;
+        $index = $cursor + 2;
+
+        if ($length === 126) {
+            if (!isset($bytes[$cursor + 3])) {
+                $remainderStart = $cursor;
+                break;
+            }
+            $length = ($bytes[$cursor + 2] << 8) + $bytes[$cursor + 3];
+            $index = $cursor + 4;
+        } elseif ($length === 127) {
+            if (!isset($bytes[$cursor + 9])) {
+                $remainderStart = $cursor;
+                break;
+            }
+            $length = 0;
+            for ($i = 0; $i < 8; $i++) {
+                $length = ($length << 8) + $bytes[$cursor + 2 + $i];
+            }
+            $index = $cursor + 10;
+        }
+
         $mask = [0, 0, 0, 0];
+        if ($masked) {
+            if (!isset($bytes[$index + 3])) {
+                $remainderStart = $cursor;
+                break;
+            }
+            $mask = array_slice($bytes, $index, 4);
+            $index += 4;
+        }
+
+        if (!isset($bytes[$index + $length - 1])) {
+            $remainderStart = $cursor;
+            break;
+        }
+
+        $payload = '';
+        for ($i = 0; $i < $length; $i++) {
+            $payload .= chr($bytes[$index + $i] ^ $mask[$i % 4]);
+        }
+
+        $messages[] = $payload;
+        $cursor = $index + $length;
     }
 
-    $payload = '';
-    for ($i = 0; $i < $length; $i++) {
-        $payload .= chr($bytes[$index + $i] ^ $mask[$i % 4]);
+    if ($remainderStart === $total) {
+        $remainderStart = $cursor;
     }
 
-    return $payload;
+    $remainder = '';
+    for ($i = $remainderStart; $i < $total; $i++) {
+        $remainder .= chr($bytes[$i]);
+    }
+
+    return [$messages, $remainder];
 };
 
 $broadcast = static function (array &$clients, string $sessionCode, array $message) use ($encodeFrame): void {
@@ -193,7 +233,13 @@ while (true) {
         $newSocket = @stream_socket_accept($server, 0);
         if ($newSocket) {
             stream_set_blocking($newSocket, false);
-            $clients[] = ['socket' => $newSocket, 'handshake' => false, 'session' => null, 'watchingLobbyList' => false];
+            $clients[] = [
+                'socket' => $newSocket,
+                'handshake' => false,
+                'session' => null,
+                'watchingLobbyList' => false,
+                'buffer' => '',
+            ];
         }
 
         $readSockets = array_filter($readSockets, static fn ($sock) => $sock !== $server);
@@ -235,60 +281,62 @@ while (true) {
                 . "Sec-WebSocket-Accept: {$acceptKey}\r\n\r\n";
             fwrite($socket, $headers);
             $clients[$clientIndex]['handshake'] = true;
+            $clients[$clientIndex]['buffer'] = '';
             continue;
         }
 
-        $message = $decodeFrame($data);
+        $clients[$clientIndex]['buffer'] .= $data;
+        [$messages, $remainder] = $decodeFrames($clients[$clientIndex]['buffer']);
+        $clients[$clientIndex]['buffer'] = $remainder;
 
-        if ($message === null) {
-            fclose($socket);
-            unset($clients[$clientIndex]);
+        if ($messages === []) {
             continue;
         }
 
-        $payload = json_decode($message, true);
+        foreach ($messages as $rawMessage) {
+            $payload = json_decode($rawMessage, true);
 
-        if (!is_array($payload) || !isset($payload['type'])) {
-            continue;
-        }
+            if (!is_array($payload) || !isset($payload['type'])) {
+                continue;
+            }
 
-        if (($payload['type'] ?? '') === 'lobbies.subscribe') {
-            $clients[$clientIndex]['watchingLobbyList'] = true;
-            $sendLobbyList($clients, [$socket]);
-            continue;
-        }
+            if (($payload['type'] ?? '') === 'lobbies.subscribe') {
+                $clients[$clientIndex]['watchingLobbyList'] = true;
+                $sendLobbyList($clients, [$socket]);
+                continue;
+            }
 
-        if (($payload['type'] ?? '') === 'lobbies.refresh') {
-            $sendLobbyList($clients);
-            continue;
-        }
+            if (($payload['type'] ?? '') === 'lobbies.refresh') {
+                $sendLobbyList($clients);
+                continue;
+            }
 
-        if (($payload['type'] ?? '') === 'subscribe') {
-            $code = strtoupper(trim((string) ($payload['sessionCode'] ?? '')));
-            $session = $repository->getSessionByCode($code);
+            if (($payload['type'] ?? '') === 'subscribe') {
+                $code = strtoupper(trim((string) ($payload['sessionCode'] ?? '')));
+                $session = $repository->getSessionByCode($code);
+                if (!$session) {
+                    continue;
+                }
+
+                $clients[$clientIndex]['session'] = $code;
+                $players = $repository->listPlayersForSession((int) $session['id']);
+                $sendRoster($clients, $session, $players, $socket);
+                continue;
+            }
+
+            $sessionCode = strtoupper(trim((string) ($payload['sessionCode'] ?? '')));
+
+            if ($sessionCode === '') {
+                continue;
+            }
+
+            $session = $repository->getSessionByCode($sessionCode);
+
             if (!$session) {
                 continue;
             }
 
-            $clients[$clientIndex]['session'] = $code;
-            $players = $repository->listPlayersForSession((int) $session['id']);
-            $sendRoster($clients, $session, $players, $socket);
-            continue;
-        }
-
-        $sessionCode = strtoupper(trim((string) ($payload['sessionCode'] ?? '')));
-
-        if ($sessionCode === '') {
-            continue;
-        }
-
-        $session = $repository->getSessionByCode($sessionCode);
-
-        if (!$session) {
-            continue;
-        }
-
-        if (($payload['type'] ?? '') === 'turnorder.draw') {
+            if (($payload['type'] ?? '') === 'turnorder.draw') {
             $sessionId = (int) $session['id'];
             $players = $repository->listPlayersForSession($sessionId);
             $playerId = (int) ($payload['playerId'] ?? 0);
@@ -537,4 +585,5 @@ while (true) {
             continue;
         }
     }
+}
 }
