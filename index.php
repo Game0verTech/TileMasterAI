@@ -204,6 +204,20 @@ require __DIR__ . '/config/env.php';
     </section>
   </main>
 
+  <dialog id="joinModal">
+    <div class="card" style="max-width:420px; padding:22px;">
+      <p class="eyebrow">Join lobby</p>
+      <h3 id="joinModalTitle" style="margin:0 0 8px;">Enter your name</h3>
+      <form id="joinModalForm" style="display:grid; gap:10px;">
+        <input type="text" id="joinModalName" placeholder="Your name" maxlength="20" required />
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn ghost" id="joinModalCancel">Cancel</button>
+          <button type="submit" class="btn" id="joinModalConfirm">Join</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <div class="tile-pop" aria-hidden="true">
     <div class="tile" id="tilePop"></div>
   </div>
@@ -240,6 +254,11 @@ require __DIR__ . '/config/env.php';
       const sessionStatus = document.getElementById('sessionStatus');
       const tilePop = document.getElementById('tilePop');
       const joinSessionBtn = document.getElementById('joinSessionBtn');
+      const joinModal = document.getElementById('joinModal');
+      const joinModalForm = document.getElementById('joinModalForm');
+      const joinModalName = document.getElementById('joinModalName');
+      const joinModalTitle = document.getElementById('joinModalTitle');
+      const joinModalCancel = document.getElementById('joinModalCancel');
 
       const SESSION_STORAGE_KEY = 'tilemaster.session';
       const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
@@ -251,6 +270,8 @@ require __DIR__ . '/config/env.php';
       let activeSession = null;
       let currentPlayer = null;
       let turnOrderInFlight = false;
+      let pendingJoinCode = null;
+      let countdownTimer = null;
 
       const setFlash = (text, tone = 'info') => {
         if (!sessionFlash) return;
@@ -315,10 +336,11 @@ require __DIR__ . '/config/env.php';
         });
 
         const isHost = Boolean(currentPlayer?.is_host);
-        const ready = players.length >= 2 && status !== 'started';
-        startGameBtn.disabled = !(isHost && ready);
+        const readyToStart = players.length >= 2 && status !== 'started';
+        const readyToDraw = players.length >= 2 && status === 'started';
+        startGameBtn.disabled = !(isHost && readyToStart);
         startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
-        drawTurnOrderBtn.disabled = !(isHost && ready && !turnOrderInFlight);
+        drawTurnOrderBtn.disabled = !(isHost && readyToDraw && !turnOrderInFlight);
         drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
         sessionStatus.textContent = `In ${sessionCode} • ${players.length}/${maxPlayers}`;
       };
@@ -347,6 +369,13 @@ require __DIR__ . '/config/env.php';
         turnOrderLog.innerHTML = '';
         logTurn('Waiting to draw…');
         turnOrderResult.textContent = '';
+      };
+
+      const stopCountdown = () => {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
       };
 
       const setActiveSession = (session, player) => {
@@ -427,19 +456,27 @@ require __DIR__ . '/config/env.php';
             logTurn(`Tie on letter ${String.fromCharCode(65 + (payload.distance || 0))} — redraw for ${payload.players.map((p) => p.name).join(', ')}`);
           }
 
-          if (payload.type === 'turnorder.resolved') {
-            const order = payload.order || [];
-            if (order.length) {
-              const lead = order[0];
-              turnOrderResult.innerHTML = `<strong>${lead.player.name}</strong> will start. Then ${order.slice(1).map((o) => o.player.name).join(', ')}`;
-              setFlash('Turn order set! Redirecting to the game…', 'success');
-              setTimeout(() => {
+        if (payload.type === 'turnorder.resolved') {
+          const order = payload.order || [];
+          if (order.length) {
+            const lead = order[0];
+            const countdownSeconds = 4;
+            turnOrderResult.innerHTML = `<strong>${lead.player.name}</strong> will start. Then ${order.slice(1).map((o) => o.player.name).join(', ')}`;
+            setFlash(`Turn order set! Launching game in ${countdownSeconds}s`, 'success');
+            let remaining = countdownSeconds;
+            stopCountdown();
+            countdownTimer = setInterval(() => {
+              remaining -= 1;
+              setFlash(`Turn order set! Launching game in ${remaining}s`, 'success');
+              if (remaining <= 0) {
+                stopCountdown();
                 window.location.href = `/game.php?code=${encodeURIComponent(payload.sessionCode)}`;
-              }, 1400);
-            }
-            turnOrderInFlight = false;
-            drawTurnOrderBtn.disabled = false;
+              }
+            }, 1000);
           }
+          turnOrderInFlight = false;
+          drawTurnOrderBtn.disabled = false;
+        }
 
           if (payload.type === 'turnorder.error') {
             setFlash(payload.message || 'Unable to draw turn order', 'error');
@@ -454,6 +491,7 @@ require __DIR__ . '/config/env.php';
         event.preventDefault();
         const code = (sessionCodeInput.value || '').toUpperCase();
         const playerName = (playerNameInput.value || '').trim();
+        resolveIdentity();
         if (!code || !playerName) {
           setFlash('Add a code and your name.', 'error');
           return;
@@ -481,14 +519,17 @@ require __DIR__ . '/config/env.php';
       };
 
       const handleJoinSession = async () => {
-        const code = (sessionCodeInput.value || '').toUpperCase();
-        const playerName = (playerNameInput.value || '').trim();
+        const code = (pendingJoinCode || sessionCodeInput.value || '').toUpperCase();
+        const playerName = (joinModalName?.value || playerNameInput.value || '').trim();
         const storedIdentity = loadIdentity();
         const clientToken = storedIdentity?.clientToken || undefined;
+        resolveIdentity();
         if (!code || !playerName) {
           setFlash('Enter code and name to join.', 'error');
           return;
         }
+        playerNameInput.value = playerName;
+        sessionCodeInput.value = code;
         try {
           const response = await fetch('/api/session_players.php', {
             method: 'POST',
@@ -499,6 +540,7 @@ require __DIR__ . '/config/env.php';
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to join');
           setFlash(`Joined ${data.session.code}.`, 'success');
           setActiveSession(data.session, data.player);
+          closeJoinModal();
           renderRoster({
             sessionCode: data.session.code,
             status: data.session.status,
@@ -522,9 +564,11 @@ require __DIR__ . '/config/env.php';
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to start game');
           lobbyStatus.textContent = 'started';
+          activeSession.status = 'started';
           setFlash('Game started. Host can now draw for turn order.', 'success');
           if (lobbySocket?.readyState === WebSocket.OPEN) {
             lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
+            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
           }
         } catch (error) {
           setFlash(error.message, 'error');
@@ -605,18 +649,60 @@ require __DIR__ . '/config/env.php';
         const name = (playerNameInput.value || '').trim();
         const stored = loadIdentity();
         const clientToken = stored?.clientToken || crypto.randomUUID().replace(/-/g, '');
-        persistIdentity(name, clientToken);
+        if (name) {
+          persistIdentity(name, clientToken);
+        }
         return { playerName: name, clientToken };
+      };
+
+      const populateIdentity = () => {
+        const stored = loadIdentity();
+        if (stored?.playerName && playerNameInput) {
+          playerNameInput.value = stored.playerName;
+        }
+        if (stored?.playerName && joinModalName) {
+          joinModalName.value = stored.playerName;
+        }
+      };
+
+      const openJoinModal = (code) => {
+        pendingJoinCode = code;
+        sessionCodeInput.value = code;
+        if (joinModalTitle) joinModalTitle.textContent = `Join lobby ${code}`;
+        populateIdentity();
+        if (typeof joinModal?.showModal === 'function') {
+          joinModal.showModal();
+        }
+        if (joinModalName) {
+          joinModalName.focus();
+          joinModalName.select();
+        }
+      };
+
+      const closeJoinModal = () => {
+        pendingJoinCode = null;
+        if (typeof joinModal?.close === 'function') {
+          joinModal.close();
+        }
       };
 
       if (createSessionForm) createSessionForm.addEventListener('submit', handleCreateSession);
       if (joinSessionBtn) joinSessionBtn.addEventListener('click', handleJoinSession);
       if (playerNameInput) playerNameInput.addEventListener('change', resolveIdentity);
+      if (joinModalForm) joinModalForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (joinModalName) {
+          playerNameInput.value = joinModalName.value;
+        }
+        handleJoinSession();
+      });
+      if (joinModalCancel) joinModalCancel.addEventListener('click', closeJoinModal);
       if (startGameBtn) startGameBtn.addEventListener('click', handleStartGame);
       if (drawTurnOrderBtn) drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
       if (leaveSessionBtn) leaveSessionBtn.addEventListener('click', leaveSession);
       if (deleteSessionBtn) deleteSessionBtn.addEventListener('click', deleteSession);
 
+      populateIdentity();
       fetchSessions();
       attemptResume();
       openLobbySocket();
