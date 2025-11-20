@@ -20,14 +20,15 @@ class GameRepository
         $this->driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 
-    public function createSession(string $code, string $status = 'pending'): int
+    public function createSession(string $code, string $status = 'pending', ?string $name = null): int
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO sessions (code, status) VALUES (:code, :status)'
+            'INSERT INTO sessions (code, status, name) VALUES (:code, :status, :name)'
         );
         $statement->execute([
             ':code' => $code,
             ':status' => $status,
+            ':name' => $name,
         ]);
 
         return (int) $this->pdo->lastInsertId();
@@ -101,6 +102,28 @@ class GameRepository
         ];
     }
 
+    public function getOrCreatePlayerByToken(string $clientToken, ?string $fallbackName = null): array
+    {
+        $existing = $this->findPlayerByToken($clientToken);
+
+        if ($existing) {
+            return [
+                'id' => (int) $existing['id'],
+                'name' => (string) $existing['name'],
+                'client_token' => (string) $existing['client_token'],
+            ];
+        }
+
+        $name = $fallbackName ?: 'Guest ' . strtoupper(substr($clientToken, 0, 6));
+        $id = $this->createPlayer($name, $clientToken);
+
+        return [
+            'id' => $id,
+            'name' => $name,
+            'client_token' => $clientToken,
+        ];
+    }
+
     public function getPlayer(int $playerId): ?array
     {
         $statement = $this->pdo->prepare('SELECT * FROM players WHERE id = :id LIMIT 1');
@@ -113,11 +136,11 @@ class GameRepository
     public function addPlayerToSession(int $sessionId, int $playerId, int $joinOrder, bool $isHost = false): void
     {
         $sql = $this->driver === 'mysql'
-            ? 'INSERT INTO session_players (session_id, player_id, join_order, is_host) '
-                . 'VALUES (:session_id, :player_id, :join_order, :is_host) '
+            ? 'INSERT INTO session_players (session_id, player_id, join_order, is_host, is_ready) '
+                . 'VALUES (:session_id, :player_id, :join_order, :is_host, 0) '
                 . 'ON DUPLICATE KEY UPDATE join_order = VALUES(join_order), is_host = VALUES(is_host)'
-            : 'INSERT OR REPLACE INTO session_players (session_id, player_id, join_order, is_host) '
-                . 'VALUES (:session_id, :player_id, :join_order, :is_host)';
+            : 'INSERT OR REPLACE INTO session_players (session_id, player_id, join_order, is_host, is_ready) '
+                . 'VALUES (:session_id, :player_id, :join_order, :is_host, 0)';
 
         $statement = $this->pdo->prepare($sql);
         $statement->execute([
@@ -151,12 +174,12 @@ class GameRepository
     }
 
     /**
-     * @return array<int, array{id: int, name: string, join_order: int, is_host: bool}>
+     * @return array<int, array{id: int, name: string, join_order: int, is_host: bool, is_ready: bool, ready_at: ?string}>
      */
     public function listPlayersForSession(int $sessionId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT p.id, p.name, sp.join_order, sp.is_host '
+            'SELECT p.id, p.name, sp.join_order, sp.is_host, sp.is_ready, sp.ready_at '
             . 'FROM session_players sp '
             . 'JOIN players p ON p.id = sp.player_id '
             . 'WHERE sp.session_id = :session_id '
@@ -171,9 +194,44 @@ class GameRepository
                 'name' => (string) $player['name'],
                 'join_order' => (int) $player['join_order'],
                 'is_host' => (bool) $player['is_host'],
+                'is_ready' => (bool) ($player['is_ready'] ?? false),
+                'ready_at' => $player['ready_at'] ?? null,
             ],
             $players ?: []
         );
+    }
+
+    public function setPlayerReady(int $sessionId, int $playerId, bool $ready): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE session_players SET is_ready = :is_ready, ready_at = :ready_at WHERE session_id = :session_id AND player_id = :player_id'
+        );
+
+        $statement->execute([
+            ':session_id' => $sessionId,
+            ':player_id' => $playerId,
+            ':is_ready' => $ready ? 1 : 0,
+            ':ready_at' => $ready ? date('Y-m-d H:i:s') : null,
+        ]);
+
+        $this->touchSession($sessionId);
+    }
+
+    public function resetReadyStates(int $sessionId): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE session_players SET is_ready = 0, ready_at = NULL WHERE session_id = :session_id'
+        );
+        $statement->execute([':session_id' => $sessionId]);
+    }
+
+    public function updatePlayerName(int $playerId, string $name): void
+    {
+        $statement = $this->pdo->prepare('UPDATE players SET name = :name WHERE id = :id');
+        $statement->execute([
+            ':name' => $name,
+            ':id' => $playerId,
+        ]);
     }
 
     public function getPlayerSessionRole(int $sessionId, int $playerId): ?array
@@ -197,10 +255,18 @@ class GameRepository
         ];
     }
 
-    public function getActiveSessionForPlayer(int $playerId, ?int $maxAgeMinutes = null): ?array
+    public function getActiveSessionForPlayer(int $playerId, ?int $maxAgeMinutes = null, array $statuses = ['waiting', 'ready', 'active', 'in_game', 'started']): ?array
     {
-        $clauses = ['sp.player_id = :player_id', 's.status IN ("pending", "active", "started")'];
+        $statusPlaceholders = [];
         $params = [':player_id' => $playerId];
+
+        foreach (array_values($statuses) as $index => $status) {
+            $placeholder = ':status' . $index;
+            $statusPlaceholders[] = $placeholder;
+            $params[$placeholder] = $status;
+        }
+
+        $clauses = ['sp.player_id = :player_id', 's.status IN (' . implode(', ', $statusPlaceholders) . ')'];
 
         if ($maxAgeMinutes !== null) {
             $minutes = max(1, (int) $maxAgeMinutes);
@@ -305,6 +371,34 @@ class GameRepository
                 'player_count' => (int) $session['player_count'],
             ],
             $sessions ?: []
+        );
+    }
+
+    /**
+     * @return array<int, array{id: int, code: string, name: ?string, status: string, player_count: int}>
+     */
+    public function listLobbies(): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT s.id, s.code, s.name, s.status, COUNT(sp.id) as player_count '
+            . 'FROM sessions s '
+            . 'LEFT JOIN session_players sp ON sp.session_id = s.id '
+            . 'WHERE s.status IN ("waiting", "ready", "active", "in_game") '
+            . 'GROUP BY s.id, s.code, s.name, s.status '
+            . 'ORDER BY s.updated_at DESC, s.created_at DESC'
+        );
+        $statement->execute();
+        $rows = $statement->fetchAll();
+
+        return array_map(
+            static fn ($row) => [
+                'id' => (int) $row['id'],
+                'code' => (string) $row['code'],
+                'name' => $row['name'] !== null ? (string) $row['name'] : null,
+                'status' => (string) $row['status'],
+                'player_count' => (int) $row['player_count'],
+            ],
+            $rows ?: []
         );
     }
 
@@ -537,6 +631,64 @@ class GameRepository
         ];
     }
 
+    /**
+     * Establish a turn order by drawing tiles from a seeded bag.
+     * Returns an array of draws and the chosen sequence.
+     */
+    public function determineTurnOrder(int $sessionId, array $players): array
+    {
+        $draws = [];
+        foreach ($players as $player) {
+            $tile = $this->drawTileFromBag($sessionId, (int) $player['id']);
+            if (!$tile) {
+                continue;
+            }
+
+            $draws[] = [
+                'player' => $player,
+                'tile' => $tile,
+            ];
+        }
+
+        $rank = static function (string $letter): int {
+            if ($letter === '?') {
+                return -1;
+            }
+            return ord(strtoupper($letter)) - ord('A');
+        };
+
+        usort(
+            $draws,
+            static fn ($a, $b) => ($rank($a['tile']['letter']) <=> $rank($b['tile']['letter']))
+                ?: ((int) $a['player']['id'] <=> (int) $b['player']['id'])
+        );
+
+        $sequence = array_map(static fn ($draw) => (int) $draw['player']['id'], $draws);
+
+        foreach ($draws as $draw) {
+            $this->recordTileReturn((int) $draw['tile']['id']);
+        }
+
+        return ['draws' => $draws, 'sequence' => $sequence];
+    }
+
+    public function startLobbyGame(int $sessionId, array $players): array
+    {
+        $this->seedStandardTileBag($sessionId);
+        $order = $this->determineTurnOrder($sessionId, $players);
+
+        $sequence = $order['sequence'];
+        $currentPlayer = $sequence[0] ?? null;
+
+        if ($currentPlayer !== null) {
+            $this->saveTurnState($sessionId, $currentPlayer, 1, 'in_game', $sequence);
+        }
+
+        $this->updateSessionStatus($sessionId, 'in_game');
+
+        return $order;
+    }
+
     public function advanceTurnState(int $sessionId): ?array
     {
         $state = $this->getTurnState($sessionId);
@@ -618,3 +770,4 @@ class GameRepository
         return isset($result['total']) ? (int) $result['total'] : 0;
     }
 }
+
