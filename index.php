@@ -18,81 +18,120 @@ require __DIR__ . '/config/env.php';
       --bg: #f8fafc;
       --accent: #6366f1;
       --accent-strong: #4f46e5;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --amber: #f59e0b;
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08), transparent 24%),
-        radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.08), transparent 26%),
+      background:
+        radial-gradient(circle at 12% 24%, rgba(99, 102, 241, 0.08), transparent 26%),
+        radial-gradient(circle at 82% 10%, rgba(14, 165, 233, 0.12), transparent 26%),
         linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
       min-height: 100vh;
       color: var(--ink);
-      padding: 32px 18px 48px;
+      padding: 28px 18px 48px;
     }
 
     header {
-      max-width: 1080px;
-      margin: 0 auto 24px;
+      max-width: 1180px;
+      margin: 0 auto 20px;
       display: grid;
-      gap: 12px;
-      align-items: flex-start;
+      gap: 14px;
       grid-template-columns: 1fr auto;
+      align-items: center;
     }
 
     .brand {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
     }
 
     .logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
       background: linear-gradient(135deg, #4f46e5, #22d3ee);
       box-shadow: 0 16px 40px rgba(79, 70, 229, 0.22);
       display: grid;
       place-items: center;
       color: #fff;
       font-weight: 800;
-      font-size: 20px;
+      font-size: 22px;
+      letter-spacing: 0.02em;
     }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(26px, 4vw, 32px);
-    }
+    h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); }
+    p.subtitle { margin: 4px 0 0; color: var(--muted); }
 
-    p.subtitle { margin: 0; color: var(--muted); }
+    .status-board {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
 
     .pill {
-      padding: 8px 12px;
+      padding: 9px 12px;
       border-radius: 999px;
       border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.88);
       color: var(--muted);
       font-weight: 700;
       letter-spacing: 0.02em;
       box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    main { max-width: 1080px; margin: 0 auto; display: grid; gap: 18px; }
+    .pill.primary { background: linear-gradient(135deg, #6366f1, #22d3ee); color: #fff; border-color: transparent; box-shadow: 0 12px 28px rgba(79, 70, 229, 0.25); }
+    .pill.soft { background: #eef2ff; color: #3730a3; }
+    .pill.success { background: #ecfdf3; color: #166534; border-color: #bbf7d0; box-shadow: none; }
+    .pill.warning { background: #fffbeb; color: #92400e; border-color: #fef3c7; box-shadow: none; }
+    .pill.danger { background: #fff1f2; color: #b91c1c; border-color: #fecaca; box-shadow: none; }
+
+    main { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
 
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 18px;
-      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
     }
 
-    .card h2 { margin: 0 0 8px; }
-    .eyebrow { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; color: var(--muted); font-size: 12px; margin: 0 0 4px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+    .panel {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+
+    .panel.highlight {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(34, 211, 238, 0.08));
+      border-color: rgba(99, 102, 241, 0.25);
+    }
 
     form { display: grid; gap: 10px; }
-
     label { font-weight: 700; color: var(--muted); font-size: 14px; }
 
     input, button {
@@ -110,24 +149,34 @@ require __DIR__ . '/config/env.php';
       font-weight: 800;
       cursor: pointer;
       border: none;
-      transition: transform 120ms ease, box-shadow 120ms ease;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
       box-shadow: 0 12px 28px rgba(79, 70, 229, 0.25);
     }
 
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; filter: grayscale(0.4); }
     .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(79, 70, 229, 0.28); }
 
     .ghost { background: #fff; color: var(--ink); border: 1px solid var(--border); box-shadow: none; }
     .danger { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
+    .quiet { background: #e2e8f0; color: #0f172a; border-color: transparent; box-shadow: none; }
 
-    .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .stack { display: grid; gap: 10px; }
+
+    .lobby-list { display: grid; gap: 10px; }
+    .lobby-row { padding: 12px; border: 1px solid var(--border); border-radius: 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: #f8fafc; }
+    .lobby-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     .roster { display: grid; gap: 10px; margin-top: 12px; }
     .player { padding: 12px; border: 1px solid var(--border); border-radius: 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: #f8fafc; }
     .badge { padding: 4px 8px; border-radius: 999px; font-weight: 800; background: rgba(99,102,241,0.12); color: #4f46e5; }
+    .subtext { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .progress-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .step { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f8fafc; display: grid; gap: 6px; }
+    .step .label { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 12px; }
+    .step.active { border-color: #c7d2fe; background: #eef2ff; }
+    .step.complete { border-color: #bbf7d0; background: #ecfdf3; }
 
     .waiting-banner {
       margin-top: 10px;
@@ -177,6 +226,9 @@ require __DIR__ . '/config/env.php';
     .flash.success { border-color: #bbf7d0; background: #ecfdf3; color: #15803d; }
     .flash.error { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
 
+    .meta-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .meta { padding: 12px; border-radius: 12px; border: 1px dashed var(--border); background: #f8fafc; }
+
     footer { text-align: center; color: var(--muted); margin-top: 16px; }
   </style>
 </head>
@@ -186,70 +238,131 @@ require __DIR__ . '/config/env.php';
       <div class="logo">TM</div>
       <div>
         <h1>TileMasterAI Lobby</h1>
-        <p class="subtitle">Create a room, invite friends, draw tiles to set turn order.</p>
+        <p class="subtitle">Guided flow to get everyone seated and into the game fast.</p>
       </div>
     </div>
-    <div class="pill" id="sessionStatus">Waiting to join</div>
+    <div class="status-board">
+      <div class="pill primary" id="connectionState">Connecting…</div>
+      <div class="pill" id="sessionStatus">Waiting to join</div>
+      <div class="pill soft" id="lastSynced">Syncing…</div>
+    </div>
   </header>
 
   <main>
     <section class="card">
-      <p class="eyebrow">Join or start</p>
-      <h2>Land in a lobby</h2>
+      <p class="section-title">Get started</p>
       <div class="grid">
-        <form id="createSessionForm" aria-label="Create lobby">
-          <label for="sessionCode">Lobby code</label>
-          <input id="sessionCode" name="sessionCode" placeholder="ABCD" maxlength="8" required />
-          <label for="playerName">Your name</label>
-          <input id="playerName" name="playerName" placeholder="Maven" maxlength="20" required />
-          <div class="actions">
-            <button class="btn" type="submit">Create lobby</button>
-            <button class="btn ghost" type="button" id="joinSessionBtn">Join lobby</button>
+        <div class="panel highlight stack">
+          <div>
+            <h2 style="margin:0 0 6px;">Host a new lobby</h2>
+            <p class="subtext">Pick a short code and your display name. We'll share status with everyone instantly.</p>
           </div>
-        </form>
-
-        <div class="card" style="background:#0f172a;color:#e2e8f0;">
-          <p class="eyebrow" style="color:#cbd5e1;">Live sessions</p>
-          <div id="sessionEmpty">No open lobbies yet.</div>
-          <div id="sessionList" role="list" class="roster"></div>
+          <form id="createSessionForm" aria-label="Create lobby">
+            <label for="sessionCode">Lobby code</label>
+            <input id="sessionCode" name="sessionCode" placeholder="ABCD" maxlength="8" required />
+            <label for="playerName">Your name</label>
+            <input id="playerName" name="playerName" placeholder="Maven" maxlength="20" required />
+            <div class="actions">
+              <button class="btn" type="submit">Create lobby</button>
+              <button class="btn ghost" type="button" id="joinSessionBtn">Join existing</button>
+              <button class="btn quiet" type="button" id="resumeSessionBtn">Resume saved seat</button>
+            </div>
+          </form>
+          <div class="meta-grid">
+            <div class="meta">✅ We'll remember your device so reconnecting is painless.</div>
+            <div class="meta">ℹ️ Host draws tiles to set turn order once everyone is ready.</div>
+          </div>
+          <div id="sessionFlash" class="flash" hidden></div>
+          <div id="stuckSession" class="actions" hidden>
+            <span class="pill warning">Looks like you're stuck in another lobby.</span>
+            <button class="btn ghost danger" type="button" id="forceLeaveBtn">Leave previous lobby</button>
+          </div>
         </div>
-      </div>
-      <div id="sessionFlash" class="flash" hidden></div>
-      <div id="stuckSession" class="actions" hidden>
-        <span class="pill">Looks like you're stuck in another lobby.</span>
-        <button class="btn ghost danger" type="button" id="forceLeaveBtn">Leave previous lobby</button>
+
+        <div class="panel stack">
+          <div>
+            <h3 style="margin:0 0 6px;">Open lobbies</h3>
+            <p class="subtext">Tap a card to prefill the code or join directly.</p>
+          </div>
+          <div class="actions" style="justify-content: space-between;">
+            <div class="pill soft" id="liveLobbyHint">Live sync on</div>
+            <button class="btn ghost" type="button" id="refreshSessionsBtn">Refresh</button>
+          </div>
+          <div id="sessionEmpty">No open lobbies yet.</div>
+          <div id="sessionList" role="list" class="lobby-list"></div>
+        </div>
       </div>
     </section>
 
     <section class="card" id="lobbyCard" hidden>
-      <p class="eyebrow">Lobby</p>
-      <div class="pill-row">
-        <h2 id="lobbyTitle">Session</h2>
-        <span class="pill" id="lobbyStatus">Waiting</span>
-        <span class="pill" id="lobbyCapacity"></span>
+      <p class="section-title">Your lobby</p>
+      <div class="actions" style="justify-content: space-between; align-items: flex-start; gap: 12px;">
+        <div class="stack" style="min-width: 240px;">
+          <div class="actions" style="gap: 8px;">
+            <h2 id="lobbyTitle" style="margin:0;">Session</h2>
+            <span class="pill" id="lobbyStatus">Waiting</span>
+            <span class="pill soft" id="lobbyCapacity"></span>
+          </div>
+          <div class="actions" style="gap:8px; flex-wrap: wrap;">
+            <span class="pill soft" id="shareCode">Invite code: —</span>
+            <button class="btn ghost" id="copyCodeBtn" type="button">Copy invite</button>
+          </div>
+        </div>
+        <div class="actions" style="gap: 8px;">
+          <button class="btn" id="startGameBtn" disabled aria-disabled="true">Start game</button>
+          <button class="btn ghost" id="drawTurnOrderBtn" disabled aria-disabled="true">Draw turn order</button>
+          <button class="btn ghost danger" id="leaveSessionBtn">Leave</button>
+          <button class="btn ghost danger" id="deleteSessionBtn">Delete</button>
+        </div>
       </div>
-      <div class="actions" style="margin: 10px 0;">
-        <button class="btn" id="startGameBtn" disabled aria-disabled="true">Start game</button>
-        <button class="btn ghost" id="drawTurnOrderBtn" disabled aria-disabled="true">Draw turn order</button>
-        <button class="btn ghost danger" id="leaveSessionBtn">Leave</button>
-        <button class="btn ghost danger" id="deleteSessionBtn">Delete</button>
+
+      <div class="progress-grid" id="lobbySteps">
+        <div class="step" data-step="seat">
+          <span class="label">Step 1</span>
+          <strong>Seat everyone</strong>
+          <p class="subtext">Players join with the invite code. Live roster updates keep you in sync.</p>
+        </div>
+        <div class="step" data-step="start">
+          <span class="label">Step 2</span>
+          <strong>Host starts</strong>
+          <p class="subtext">Host enables turn order once at least two players are present.</p>
+        </div>
+        <div class="step" data-step="draw">
+          <span class="label">Step 3</span>
+          <strong>Draw tiles</strong>
+          <p class="subtext">Everyone watches the live draw to decide who goes first.</p>
+        </div>
+        <div class="step" data-step="play">
+          <span class="label">Step 4</span>
+          <strong>Jump into the game</strong>
+          <p class="subtext">We auto-open the board once turn order locks in.</p>
+        </div>
       </div>
+
       <div id="waitingForHost" class="waiting-banner" hidden>
         <span class="waiting-dot" aria-hidden="true"></span>
         <span class="waiting-text"></span>
       </div>
-      <div class="roster" id="lobbyRoster"></div>
-      <div class="card" style="margin-top:14px; background:#0f172a; color:#e2e8f0;">
-        <p class="eyebrow" style="color:#cbd5e1;">Turn order</p>
-        <div class="log" id="turnOrderLog"></div>
-        <p id="turnOrderResult"></p>
+
+      <div class="grid">
+        <div class="stack">
+          <h3 style="margin:10px 0 4px;">Roster</h3>
+          <div class="roster" id="lobbyRoster"></div>
+        </div>
+        <div class="stack">
+          <div class="card" style="margin:0; background:#0f172a; color:#e2e8f0;">
+            <p class="section-title" style="color:#cbd5e1;">Turn order</p>
+            <div class="log" id="turnOrderLog"></div>
+            <p id="turnOrderResult"></p>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
   <dialog id="joinModal">
     <div class="card" style="max-width:420px; padding:22px;">
-      <p class="eyebrow">Join lobby</p>
+      <p class="section-title">Join lobby</p>
       <h3 id="joinModalTitle" style="margin:0 0 8px;">Enter your name</h3>
       <form id="joinModalForm" style="display:grid; gap:10px;">
         <input type="text" id="joinModalName" placeholder="Your name" maxlength="20" required />
@@ -265,7 +378,7 @@ require __DIR__ . '/config/env.php';
     <div class="tile" id="tilePop"></div>
   </div>
 
-  <footer>Host draws tiles to set who goes first. Everyone watches live.</footer>
+  <footer>Live sync keeps every player on the same page. Host draws tiles to decide who goes first.</footer>
 
   <script>
     const lobbyWsUrl = <?php
@@ -305,11 +418,19 @@ require __DIR__ . '/config/env.php';
       const joinModalName = document.getElementById('joinModalName');
       const joinModalTitle = document.getElementById('joinModalTitle');
       const joinModalCancel = document.getElementById('joinModalCancel');
+      const connectionState = document.getElementById('connectionState');
+      const lastSynced = document.getElementById('lastSynced');
+      const lobbySteps = document.getElementById('lobbySteps');
+      const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
+      const resumeSessionBtn = document.getElementById('resumeSessionBtn');
+      const shareCode = document.getElementById('shareCode');
+      const copyCodeBtn = document.getElementById('copyCodeBtn');
+      const liveLobbyHint = document.getElementById('liveLobbyHint');
 
       const SESSION_STORAGE_KEY = 'tilemaster.session';
       const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
       const MAX_PLAYERS = 4;
-      const ADMIN_NAME = 'TomAdmin';
+      const SYNC_INTERVAL = 6000;
 
       let lobbySocket = null;
       let lobbyConnected = false;
@@ -320,6 +441,40 @@ require __DIR__ . '/config/env.php';
       let pendingJoinCode = null;
       let countdownTimer = null;
       let lastConflictSession = null;
+      let pendingLobbyRefresh = false;
+      let lastSyncedAt = null;
+      let pollTimer = null;
+
+      const setConnectionState = (state, text) => {
+        if (!connectionState) return;
+        connectionState.textContent = text;
+        connectionState.className = 'pill primary';
+        if (state === 'connected') connectionState.className = 'pill success';
+        if (state === 'reconnecting') connectionState.className = 'pill warning';
+        if (state === 'offline') connectionState.className = 'pill danger';
+      };
+
+      const markSynced = () => {
+        lastSyncedAt = new Date();
+        if (lastSynced) {
+          lastSynced.textContent = `Synced just now`;
+        }
+      };
+
+      const updateSyncAge = () => {
+        if (!lastSyncedAt || !lastSynced) return;
+        const diff = Math.round((Date.now() - lastSyncedAt.getTime()) / 1000);
+        if (diff < 5) {
+          lastSynced.textContent = 'Synced just now';
+        } else if (diff < 60) {
+          lastSynced.textContent = `Synced ${diff}s ago`;
+        } else {
+          const mins = Math.floor(diff / 60);
+          lastSynced.textContent = `Synced ${mins}m ago`;
+        }
+      };
+
+      setInterval(updateSyncAge, 5000);
 
       const setFlash = (text, tone = 'info') => {
         if (!sessionFlash) return;
@@ -340,8 +495,6 @@ require __DIR__ . '/config/env.php';
           ? `Leave lobby ${session.code}`
           : 'Leave previous lobby';
       };
-
-      let pendingLobbyRefresh = false;
 
       const requestLobbyRefresh = () => {
         if (lobbySocket?.readyState === WebSocket.OPEN) {
@@ -388,6 +541,29 @@ require __DIR__ . '/config/env.php';
         }
       };
 
+      const updateSteps = (status, players = []) => {
+        if (!lobbySteps) return;
+        const stepNodes = lobbySteps.querySelectorAll('.step');
+        stepNodes.forEach((step) => {
+          const key = step.dataset.step;
+          step.classList.remove('active', 'complete');
+          if (key === 'seat') {
+            if (players.length >= 2) step.classList.add('complete'); else step.classList.add('active');
+          }
+          if (key === 'start') {
+            if (status === 'started') step.classList.add('complete');
+            else if (players.length >= 2) step.classList.add('active');
+          }
+          if (key === 'draw') {
+            if (status === 'started' && turnOrderResult?.textContent) step.classList.add('complete');
+            else if (status === 'started') step.classList.add('active');
+          }
+          if (key === 'play') {
+            if (turnOrderResult?.textContent) step.classList.add('active');
+          }
+        });
+      };
+
       const updateSessionList = (sessions = []) => {
         sessionList.innerHTML = '';
         if (!sessions.length) {
@@ -397,8 +573,20 @@ require __DIR__ . '/config/env.php';
         sessionEmpty.hidden = true;
         sessions.forEach((session) => {
           const row = document.createElement('div');
-          row.className = 'player';
-          row.innerHTML = `<strong>${session.code}</strong><div class="badge">${session.status}</div><div>${session.player_count}/${MAX_PLAYERS}</div>`;
+          row.className = 'lobby-row';
+          const meta = document.createElement('div');
+          meta.className = 'lobby-meta';
+          meta.innerHTML = `<strong>${session.code}</strong><span class="pill soft">${session.player_count}/${MAX_PLAYERS} seated</span><span class="pill soft">${session.status}</span>`;
+          const join = document.createElement('div');
+          join.className = 'actions';
+          const joinBtn = document.createElement('button');
+          joinBtn.className = 'btn ghost';
+          joinBtn.type = 'button';
+          joinBtn.textContent = 'Join';
+          joinBtn.addEventListener('click', () => openJoinModal(session.code));
+          join.appendChild(joinBtn);
+          row.appendChild(meta);
+          row.appendChild(join);
           row.addEventListener('click', () => {
             sessionCodeInput.value = session.code;
             setFlash(`Joining ${session.code}? Enter your name.`, 'info');
@@ -406,6 +594,7 @@ require __DIR__ . '/config/env.php';
           });
           sessionList.appendChild(row);
         });
+        markSynced();
       };
 
       const parseSessionDetail = (detail) => {
@@ -428,6 +617,7 @@ require __DIR__ . '/config/env.php';
         lobbyTitle.textContent = `Session ${sessionCode}`;
         lobbyStatus.textContent = status;
         lobbyCapacity.textContent = `${players.length}/${maxPlayers} players`;
+        shareCode.textContent = `Invite code: ${sessionCode}`;
         lobbyRoster.innerHTML = '';
         if (activeSession) {
           activeSession.status = status;
@@ -436,7 +626,7 @@ require __DIR__ . '/config/env.php';
         players.forEach((player, idx) => {
           const row = document.createElement('div');
           row.className = 'player';
-          row.innerHTML = `<div class="badge">${idx + 1}</div><div><strong>${player.name}</strong><br/><small>${player.is_host ? 'Host' : 'Guest'}</small></div>`;
+          row.innerHTML = `<div class="badge">${idx + 1}</div><div><strong>${player.name}</strong><div class="subtext">${player.is_host ? 'Host' : 'Guest'}</div></div>`;
           if (player.is_host) {
             const host = document.createElement('span');
             host.className = 'badge';
@@ -468,6 +658,7 @@ require __DIR__ . '/config/env.php';
             }
           }
         }
+        updateSteps(status, players);
       };
 
       const logTurn = (text) => {
@@ -494,6 +685,7 @@ require __DIR__ . '/config/env.php';
         turnOrderLog.innerHTML = '';
         logTurn('Waiting to draw…');
         turnOrderResult.textContent = '';
+        updateSteps(activeSession?.status || 'active', currentPlayers);
       };
 
       const stopCountdown = () => {
@@ -522,16 +714,47 @@ require __DIR__ . '/config/env.php';
           if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load sessions');
           const sessions = data.sessions || [];
           updateSessionList(sessions);
+          markSynced();
         } catch (error) {
           sessionEmpty.hidden = false;
+          setConnectionState('offline', 'Sync paused');
         }
+      };
+
+      const refreshActiveSession = async () => {
+        if (!activeSession?.code) return;
+        try {
+          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(activeSession.code)}`);
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || 'Unable to sync lobby');
+          renderRoster({
+            sessionCode: data.session.code,
+            status: data.session.status,
+            players: data.players,
+            maxPlayers: data.session.max_players,
+            canStart: data.players.length >= 2,
+          });
+          markSynced();
+        } catch (error) {
+          setFlash(error.message, 'error');
+        }
+      };
+
+      const startPolling = () => {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => {
+          fetchSessions();
+          refreshActiveSession();
+        }, SYNC_INTERVAL);
       };
 
       const openLobbySocket = () => {
         if (lobbySocket && lobbyConnected) return lobbySocket;
+        setConnectionState('reconnecting', 'Connecting…');
         lobbySocket = new WebSocket(lobbyWsUrl);
         lobbySocket.addEventListener('open', () => {
           lobbyConnected = true;
+          setConnectionState('connected', 'Live sync on');
           lobbySocket.send(JSON.stringify({ type: 'lobbies.subscribe' }));
           if (pendingLobbyRefresh) {
             lobbySocket.send(JSON.stringify({ type: 'lobbies.refresh' }));
@@ -545,6 +768,7 @@ require __DIR__ . '/config/env.php';
 
         lobbySocket.addEventListener('close', () => {
           lobbyConnected = false;
+          setConnectionState('reconnecting', 'Reconnecting…');
           setTimeout(openLobbySocket, 1000);
         });
 
@@ -557,10 +781,12 @@ require __DIR__ . '/config/env.php';
               status: payload.status,
               maxPlayers: payload.maxPlayers,
             });
+            markSynced();
           }
 
           if (payload.type === 'lobbies.list') {
             updateSessionList(payload.sessions || []);
+            markSynced();
           }
 
           if (payload.type === 'session.started') {
@@ -576,37 +802,41 @@ require __DIR__ . '/config/env.php';
                 maxPlayers: activeSession.max_players || MAX_PLAYERS,
               });
             }
+            markSynced();
           }
 
           if (payload.type === 'turnorder.drawn') {
             showTilePop(payload.tile?.letter || '?', payload.player?.name || 'Player');
+            markSynced();
           }
 
           if (payload.type === 'turnorder.tie') {
             logTurn(`Tie on letter ${String.fromCharCode(65 + (payload.distance || 0))} — redraw for ${payload.players.map((p) => p.name).join(', ')}`);
+            markSynced();
           }
 
-        if (payload.type === 'turnorder.resolved') {
-          const order = payload.order || [];
-          if (order.length) {
-            const lead = order[0];
-            const countdownSeconds = 4;
-            turnOrderResult.innerHTML = `<strong>${lead.player.name}</strong> will start. Then ${order.slice(1).map((o) => o.player.name).join(', ')}`;
-            setFlash(`Turn order set! Launching game in ${countdownSeconds}s`, 'success');
-            let remaining = countdownSeconds;
-            stopCountdown();
-            countdownTimer = setInterval(() => {
-              remaining -= 1;
-              setFlash(`Turn order set! Launching game in ${remaining}s`, 'success');
-              if (remaining <= 0) {
-                stopCountdown();
-                window.location.href = `/game.php?code=${encodeURIComponent(payload.sessionCode)}`;
-              }
-            }, 1000);
+          if (payload.type === 'turnorder.resolved') {
+            const order = payload.order || [];
+            if (order.length) {
+              const lead = order[0];
+              const countdownSeconds = 4;
+              turnOrderResult.innerHTML = `<strong>${lead.player.name}</strong> will start. Then ${order.slice(1).map((o) => o.player.name).join(', ')}`;
+              setFlash(`Turn order set! Launching game in ${countdownSeconds}s`, 'success');
+              let remaining = countdownSeconds;
+              stopCountdown();
+              countdownTimer = setInterval(() => {
+                remaining -= 1;
+                setFlash(`Turn order set! Launching game in ${remaining}s`, 'success');
+                if (remaining <= 0) {
+                  stopCountdown();
+                  window.location.href = `/game.php?code=${encodeURIComponent(payload.sessionCode)}`;
+                }
+              }, 1000);
+            }
+            turnOrderInFlight = false;
+            drawTurnOrderBtn.disabled = false;
+            markSynced();
           }
-          turnOrderInFlight = false;
-          drawTurnOrderBtn.disabled = false;
-        }
 
           if (payload.type === 'turnorder.error') {
             setFlash(payload.message || 'Unable to draw turn order', 'error');
@@ -647,6 +877,7 @@ require __DIR__ . '/config/env.php';
           });
           requestLobbyRefresh();
           openLobbySocket();
+          markSynced();
         } catch (error) {
           setFlash(error.message, 'error');
         }
@@ -686,6 +917,7 @@ require __DIR__ . '/config/env.php';
           });
           requestLobbyRefresh();
           openLobbySocket();
+          markSynced();
         } catch (error) {
           setFlash(error.message, 'error');
         }
@@ -714,6 +946,7 @@ require __DIR__ . '/config/env.php';
             lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
             lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
           }
+          markSynced();
         } catch (error) {
           setFlash(error.message, 'error');
         }
@@ -813,6 +1046,7 @@ require __DIR__ . '/config/env.php';
           renderRoster({ sessionCode: data.session.code, status: data.session.status, players: data.players, maxPlayers: data.session.max_players });
           setFlash(`Rejoined ${data.session.code}.`, 'success');
           openLobbySocket();
+          markSynced();
         } catch (error) {
           setFlash('No saved lobby.', 'info');
         }
@@ -859,6 +1093,15 @@ require __DIR__ . '/config/env.php';
         }
       };
 
+      const copyCode = () => {
+        if (!activeSession?.code) return;
+        navigator.clipboard.writeText(activeSession.code).then(() => {
+          setFlash('Invite code copied.', 'success');
+        }).catch(() => {
+          setFlash('Unable to copy code.', 'error');
+        });
+      };
+
       if (createSessionForm) createSessionForm.addEventListener('submit', handleCreateSession);
       if (joinSessionBtn) joinSessionBtn.addEventListener('click', handleJoinSession);
       if (playerNameInput) playerNameInput.addEventListener('change', resolveIdentity);
@@ -875,11 +1118,16 @@ require __DIR__ . '/config/env.php';
       if (leaveSessionBtn) leaveSessionBtn.addEventListener('click', leaveSession);
       if (deleteSessionBtn) deleteSessionBtn.addEventListener('click', deleteSession);
       if (forceLeaveBtn) forceLeaveBtn.addEventListener('click', forceLeavePreviousSession);
+      if (refreshSessionsBtn) refreshSessionsBtn.addEventListener('click', () => { fetchSessions(); requestLobbyRefresh(); });
+      if (resumeSessionBtn) resumeSessionBtn.addEventListener('click', attemptResume);
+      if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
+      if (liveLobbyHint) liveLobbyHint.textContent = 'Live updates connected';
 
       populateIdentity();
       fetchSessions();
       attemptResume();
       openLobbySocket();
+      startPolling();
       resetTurnOrderUi();
     });
   </script>
