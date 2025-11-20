@@ -43,16 +43,18 @@ $encodeFrame = static function (string $payload): string {
 
 $decodeFrames = static function (string $data): array {
     if ($data === '') {
-        return [];
+        return [[], ''];
     }
 
     $bytes = array_values(unpack('C*', $data));
     $total = count($bytes);
     $cursor = 0;
     $messages = [];
+    $remainderStart = $total;
 
     while ($cursor < $total) {
         if (!isset($bytes[$cursor + 1])) {
+            $remainderStart = $cursor;
             break;
         }
 
@@ -62,12 +64,14 @@ $decodeFrames = static function (string $data): array {
 
         if ($length === 126) {
             if (!isset($bytes[$cursor + 3])) {
+                $remainderStart = $cursor;
                 break;
             }
             $length = ($bytes[$cursor + 2] << 8) + $bytes[$cursor + 3];
             $index = $cursor + 4;
         } elseif ($length === 127) {
             if (!isset($bytes[$cursor + 9])) {
+                $remainderStart = $cursor;
                 break;
             }
             $length = 0;
@@ -80,6 +84,7 @@ $decodeFrames = static function (string $data): array {
         $mask = [0, 0, 0, 0];
         if ($masked) {
             if (!isset($bytes[$index + 3])) {
+                $remainderStart = $cursor;
                 break;
             }
             $mask = array_slice($bytes, $index, 4);
@@ -87,6 +92,7 @@ $decodeFrames = static function (string $data): array {
         }
 
         if (!isset($bytes[$index + $length - 1])) {
+            $remainderStart = $cursor;
             break;
         }
 
@@ -99,7 +105,16 @@ $decodeFrames = static function (string $data): array {
         $cursor = $index + $length;
     }
 
-    return $messages;
+    if ($remainderStart === $total) {
+        $remainderStart = $cursor;
+    }
+
+    $remainder = '';
+    for ($i = $remainderStart; $i < $total; $i++) {
+        $remainder .= chr($bytes[$i]);
+    }
+
+    return [$messages, $remainder];
 };
 
 $broadcast = static function (array &$clients, string $sessionCode, array $message) use ($encodeFrame): void {
@@ -218,7 +233,13 @@ while (true) {
         $newSocket = @stream_socket_accept($server, 0);
         if ($newSocket) {
             stream_set_blocking($newSocket, false);
-            $clients[] = ['socket' => $newSocket, 'handshake' => false, 'session' => null, 'watchingLobbyList' => false];
+            $clients[] = [
+                'socket' => $newSocket,
+                'handshake' => false,
+                'session' => null,
+                'watchingLobbyList' => false,
+                'buffer' => '',
+            ];
         }
 
         $readSockets = array_filter($readSockets, static fn ($sock) => $sock !== $server);
@@ -260,14 +281,15 @@ while (true) {
                 . "Sec-WebSocket-Accept: {$acceptKey}\r\n\r\n";
             fwrite($socket, $headers);
             $clients[$clientIndex]['handshake'] = true;
+            $clients[$clientIndex]['buffer'] = '';
             continue;
         }
 
-        $messages = $decodeFrames($data);
+        $clients[$clientIndex]['buffer'] .= $data;
+        [$messages, $remainder] = $decodeFrames($clients[$clientIndex]['buffer']);
+        $clients[$clientIndex]['buffer'] = $remainder;
 
         if ($messages === []) {
-            fclose($socket);
-            unset($clients[$clientIndex]);
             continue;
         }
 
