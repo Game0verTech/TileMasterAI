@@ -213,11 +213,15 @@ class AppRepository
 
     public function createGame(int $lobbyId, array $players): int
     {
-        $order = $this->determineTurnOrder($players);
-        $statement = $this->pdo->prepare('INSERT INTO games (lobby_id, turn_order) VALUES (:lobby_id, :turn_order)');
+        $bag = $this->buildTileBag();
+        shuffle($bag);
+
+        $statement = $this->pdo->prepare('INSERT INTO games (lobby_id, turn_order, draw_pool, draws) VALUES (:lobby_id, :turn_order, :draw_pool, :draws)');
         $statement->execute([
             ':lobby_id' => $lobbyId,
-            ':turn_order' => json_encode($order, JSON_THROW_ON_ERROR),
+            ':turn_order' => json_encode([], JSON_THROW_ON_ERROR),
+            ':draw_pool' => json_encode($bag, JSON_THROW_ON_ERROR),
+            ':draws' => json_encode([], JSON_THROW_ON_ERROR),
         ]);
 
         return (int) $this->pdo->lastInsertId();
@@ -232,11 +236,68 @@ class AppRepository
             return null;
         }
 
+        $drawPool = isset($game['draw_pool']) ? json_decode((string) $game['draw_pool'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $draws = isset($game['draws']) ? json_decode((string) $game['draws'], true, 512, JSON_THROW_ON_ERROR) : [];
+
         return [
             'id' => (int) $game['id'],
             'lobby_id' => (int) $game['lobby_id'],
             'turn_order' => json_decode((string) $game['turn_order'], true, 512, JSON_THROW_ON_ERROR),
             'started_at' => $game['started_at'] ?? null,
+            'draw_pool' => is_array($drawPool) ? $drawPool : [],
+            'draw_pool_remaining' => is_array($drawPool) ? count($drawPool) : 0,
+            'draws' => is_array($draws) ? $draws : [],
+        ];
+    }
+
+    public function recordDraw(int $lobbyId, int $userId): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found for lobby.');
+        }
+
+        $players = $this->listPlayers($lobbyId);
+        $already = array_filter($game['draws'], static fn ($draw) => (int) $draw['user_id'] === $userId);
+        if ($already) {
+            return ['tile' => current($already)['tile'], 'draws' => $game['draws'], 'turn_order' => $game['turn_order']];
+        }
+
+        $drawPool = $game['draw_pool'];
+        if (!is_array($drawPool) || empty($drawPool)) {
+            $drawPool = $this->buildTileBag();
+            shuffle($drawPool);
+        }
+
+        $tile = array_shift($drawPool);
+        if ($tile === null) {
+            throw new \RuntimeException('No tiles remaining to draw.');
+        }
+
+        $user = $this->getUserById($userId);
+        $draws = $game['draws'];
+        $draws[] = [
+            'user_id' => $userId,
+            'username' => $user['username'] ?? 'Player',
+            'tile' => $tile,
+            'value' => Scoring::tileValue($tile),
+        ];
+
+        $this->persistGameDrawState($game['id'], $drawPool, $draws);
+
+        if (count($draws) === count($players)) {
+            $order = $this->determineTurnOrderFromDraws($draws);
+            $this->finalizeTurnOrder($game['id'], $order);
+            $this->updateLobbyStatus($lobbyId, 'in_game');
+        }
+
+        $updated = $this->getGameByLobby($lobbyId);
+
+        return [
+            'tile' => $tile,
+            'draws' => $updated['draws'],
+            'turn_order' => $updated['turn_order'],
+            'complete' => count($updated['draws']) === count($players),
         ];
     }
 
@@ -322,32 +383,44 @@ class AppRepository
         $statement->execute([':id' => $lobbyId]);
     }
 
-    private function determineTurnOrder(array $players): array
+    private function buildTileBag(): array
     {
         $bag = [];
         foreach (Scoring::tileDistribution() as $letter => $info) {
             $bag = array_merge($bag, array_fill(0, (int) $info['count'], $letter));
         }
-        shuffle($bag);
 
-        $draws = [];
-        foreach ($players as $player) {
-            $tile = array_pop($bag);
-            $draws[] = [
-                'user_id' => $player['user_id'],
-                'username' => $player['username'],
-                'tile' => $tile,
-                'value' => Scoring::tileValue($tile),
-            ];
-        }
+        return $bag;
+    }
 
+    private function determineTurnOrderFromDraws(array $draws): array
+    {
         usort($draws, static function ($a, $b) {
-            if ($a['value'] === $b['value']) {
-                return strcmp($a['tile'], $b['tile']);
+            if (($a['value'] ?? 0) === ($b['value'] ?? 0)) {
+                return strcmp((string) $a['tile'], (string) $b['tile']);
             }
-            return $b['value'] <=> $a['value'];
+            return ($b['value'] ?? 0) <=> ($a['value'] ?? 0);
         });
 
         return array_map(static fn ($draw) => ['user_id' => $draw['user_id'], 'username' => $draw['username'], 'tile' => $draw['tile']], $draws);
+    }
+
+    private function persistGameDrawState(int $gameId, array $pool, array $draws): void
+    {
+        $statement = $this->pdo->prepare('UPDATE games SET draw_pool = :draw_pool, draws = :draws WHERE id = :id');
+        $statement->execute([
+            ':id' => $gameId,
+            ':draw_pool' => json_encode(array_values($pool), JSON_THROW_ON_ERROR),
+            ':draws' => json_encode(array_values($draws), JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    private function finalizeTurnOrder(int $gameId, array $order): void
+    {
+        $statement = $this->pdo->prepare('UPDATE games SET turn_order = :turn_order WHERE id = :id');
+        $statement->execute([
+            ':id' => $gameId,
+            ':turn_order' => json_encode($order, JSON_THROW_ON_ERROR),
+        ]);
     }
 }

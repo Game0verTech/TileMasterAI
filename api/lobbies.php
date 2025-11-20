@@ -91,7 +91,7 @@ if ($method === 'POST') {
 
         if ($repository->playerCount($lobbyId) >= 2 && $repository->allReady($lobbyId) && !$repository->getGameByLobby($lobbyId)) {
             $players = $repository->listPlayers($lobbyId);
-            $repository->updateLobbyStatus($lobbyId, 'in_game');
+            $repository->updateLobbyStatus($lobbyId, 'drawing');
             $repository->createGame($lobbyId, $players);
         }
 
@@ -131,7 +131,7 @@ if ($method === 'POST') {
             exit;
         }
         if (!$repository->getGameByLobby($lobbyId)) {
-            $repository->updateLobbyStatus($lobbyId, 'in_game');
+            $repository->updateLobbyStatus($lobbyId, 'drawing');
             $repository->createGame($lobbyId, $players);
         }
         echo json_encode(['success' => true]);

@@ -26,6 +26,7 @@ final class Schema
         self::ensurePlayerTokenColumn($pdo, $driver);
         self::ensureLobbyEnhancements($pdo, $driver);
         self::applyAuthLobbyMigrations($pdo, $driver);
+        self::ensureGameDrawColumns($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -194,6 +195,33 @@ final class Schema
             . 'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE'
             . ')'
         );
+    }
+
+    private static function ensureGameDrawColumns(PDO $pdo, string $driver): void
+    {
+        $stringColumn = $driver === 'mysql' ? 'TEXT' : 'TEXT';
+
+        $columns = [];
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(games)");
+            $columns = $statement ? $statement->fetchAll() : [];
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'games'"
+            );
+            $statement->execute();
+            $columns = array_map(static fn ($row) => ['name' => $row['COLUMN_NAME'] ?? ''], $statement->fetchAll());
+        }
+
+        $columnNames = array_map(static fn ($column) => $column['name'] ?? '', $columns);
+
+        if (!in_array('draw_pool', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN draw_pool {$stringColumn} NULL");
+        }
+
+        if (!in_array('draws', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN draws {$stringColumn} NOT NULL DEFAULT '[]'");
+        }
     }
 
     private static function ensurePlayerTokenColumn(PDO $pdo, string $driver): void
