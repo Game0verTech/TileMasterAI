@@ -2816,23 +2816,12 @@ $aiSetupNotes = [
         const scalePadX = Math.max(0, (scaledWidth - boardWidth) / 2);
         const scalePadY = Math.max(0, (scaledHeight - boardHeight) / 2);
         const panAllowance = Math.max(0, zoomFactor - 1);
+        const panBoostX = (viewportRect.width || 0) * 0.5 * panAllowance;
+        const panBoostY = (viewportRect.height || 0) * 0.5 * panAllowance;
 
-        const extraPanX = Math.max(
-          basePadding * 0.85,
-          scalePadX * 0.9,
-          overflowX * 0.24,
-          (viewportRect.width || 0) * 0.25 * panAllowance,
-        );
+        const padX = Math.max(basePadding, scalePadX + panBoostX, overflowX * 0.5 + basePadding * 0.6);
+        const padY = Math.max(basePadding, scalePadY + panBoostY, overflowY * 0.5 + basePadding * 0.6);
 
-        const extraPanY = Math.max(
-          basePadding * 0.85,
-          scalePadY * 0.9,
-          overflowY * 0.24,
-          (viewportRect.height || 0) * 0.25 * panAllowance,
-        );
-
-        const padX = Math.max(basePadding, scalePadX) + extraPanX;
-        const padY = Math.max(basePadding, scalePadY) + extraPanY;
         const topPad = padY + Math.max(0, topInset * 0.5);
         const bottomPad = padY + Math.max(0, bottomInset * 0.35);
         return {
