@@ -266,8 +266,8 @@ $aiSetupNotes = [
       text-align: center;
     }
 
-    .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; justify-items: center; }
-    .draw-stage { display: flex; align-items: stretch; justify-content: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; }
+    .draw-hero { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; }
+    .draw-stage { display: flex; align-items: stretch; justify-content: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; width: min(940px, 100%); margin: 0 auto; }
     .draw-bag { width: 200px; min-height: 200px; position: relative; display: grid; place-items: center; cursor: pointer; }
     .draw-bag.disabled { pointer-events: none; opacity: 0.65; }
     .bag-img { width: 100%; max-width: 200px; filter: drop-shadow(0 16px 28px rgba(0,0,0,0.32)); transition: transform 280ms ease, filter 280ms ease; }
