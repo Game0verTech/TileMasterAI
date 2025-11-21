@@ -3031,12 +3031,12 @@ $aiSetupNotes = [
       };
 
       let pendingResizeReset = false;
-      const scheduleResizeAndCenter = () => {
+      const scheduleResizeAndCenter = (resetView = false) => {
         if (pendingResizeReset) return;
         pendingResizeReset = true;
         requestAnimationFrame(() => {
           pendingResizeReset = false;
-          resizeBoardToViewport({ resetView: true });
+          resizeBoardToViewport({ resetView });
         });
       };
 
@@ -5191,16 +5191,15 @@ $aiSetupNotes = [
 
       const topDock = document.querySelector('.hud-dock');
       const bottomDock = document.querySelector('.turn-dock');
-      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter()) : null;
+      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter(false)) : null;
 
       if (layoutObserver) {
         if (boardViewport) layoutObserver.observe(boardViewport);
-        if (boardCanvas) layoutObserver.observe(boardCanvas);
         if (topDock) layoutObserver.observe(topDock);
         if (bottomDock) layoutObserver.observe(bottomDock);
       }
 
-      window.addEventListener('resize', () => scheduleResizeAndCenter());
+      window.addEventListener('resize', () => scheduleResizeAndCenter(false));
 
       const bootstrapBoard = () => {
         renderBoard();
