@@ -262,10 +262,12 @@ $aiSetupNotes = [
       box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.06);
       display: grid;
       gap: 14px;
+      margin: 0 auto;
+      text-align: center;
     }
 
-    .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; }
-    .draw-stage { display: flex; align-items: stretch; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; }
+    .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; justify-items: center; }
+    .draw-stage { display: flex; align-items: stretch; justify-content: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; }
     .draw-bag { width: 200px; min-height: 200px; position: relative; display: grid; place-items: center; cursor: pointer; }
     .draw-bag.disabled { pointer-events: none; opacity: 0.65; }
     .bag-img { width: 100%; max-width: 200px; filter: drop-shadow(0 16px 28px rgba(0,0,0,0.32)); transition: transform 280ms ease, filter 280ms ease; }
@@ -303,7 +305,7 @@ $aiSetupNotes = [
     .draw-grid th, .draw-grid td { padding: 8px; text-align: left; border-bottom: 1px solid #1e293b; }
     .draw-grid th { color: #cbd5e1; }
 
-    .draw-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .draw-actions { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; text-align: center; }
     .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; box-shadow: 0 10px 20px rgba(99,102,241,0.25); }
     .draw-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -2529,9 +2531,9 @@ $aiSetupNotes = [
         return cleanPool[Math.floor(Math.random() * cleanPool.length)];
       };
 
-      const runTileAnimation = (finalTile) => new Promise((resolve) => {
+      const runTileAnimation = (spillLetters = []) => new Promise((resolve) => {
         if (!spillTiles) {
-          resolve();
+          resolve(null);
           return;
         }
 
@@ -2539,10 +2541,9 @@ $aiSetupNotes = [
           ? state.game.draw_pool
           : Object.keys(tileDistribution);
         const spillCount = Math.min(8, Math.max(5, (state.players?.length || 4) + 2));
-        const revealIndex = Math.floor(Math.random() * spillCount);
-        const letters = Array.from({ length: spillCount }, (_, i) => (i === revealIndex
-          ? finalTile
-          : randomLetterFromPool(sourcePool)));
+        const letters = spillLetters.length
+          ? spillLetters.slice(0, spillCount)
+          : Array.from({ length: spillCount }, () => randomLetterFromPool(sourcePool));
 
         state.drawAnimationActive = true;
         state.bagSpilled = true;
@@ -2567,10 +2568,11 @@ $aiSetupNotes = [
         }
 
         const chips = [];
-        letters.forEach((letter, index) => {
+        letters.forEach((letter) => {
           const chip = document.createElement('button');
           chip.type = 'button';
           chip.className = 'spill-tile';
+          chip.dataset.letter = letter;
           const angle = (Math.random() * 24) - 12;
           const tx = (Math.random() * 90) - 45;
           const ty = 16 + Math.random() * 48;
@@ -2579,47 +2581,47 @@ $aiSetupNotes = [
           chip.style.setProperty('--ty', `${ty}px`);
           chip.setAttribute('aria-label', 'Facedown tile');
           chip.innerHTML = '<span class="tile-back"></span><span class="tile-front">?</span>';
-          chip.addEventListener('click', () => revealTile(index));
+          chip.addEventListener('click', () => revealTile(chip));
           spillTiles.appendChild(chip);
           requestAnimationFrame(() => chip.classList.add('landed'));
           chips.push(chip);
         });
 
         let resolved = false;
-        const autoReveal = setTimeout(() => revealTile(revealIndex), 4200);
 
-        function revealTile(index) {
+        function revealTile(chip) {
           if (resolved) return;
           resolved = true;
-          clearTimeout(autoReveal);
-          chips.forEach((chip, idx) => {
-            chip.disabled = true;
-            chip.classList.toggle('revealed', idx === index);
-            if (idx === index) {
-              const front = chip.querySelector('.tile-front');
-              if (front) front.textContent = finalTile;
-              chip.setAttribute('aria-label', `Tile ${finalTile}`);
+          const letter = chip.dataset.letter || randomLetterFromPool(sourcePool);
+          chips.forEach((item) => {
+            item.disabled = true;
+            const isMatch = item === chip;
+            item.classList.toggle('revealed', isMatch);
+            if (isMatch) {
+              const front = item.querySelector('.tile-front');
+              if (front) front.textContent = letter;
+              item.setAttribute('aria-label', `Tile ${letter}`);
             } else {
-              chip.style.opacity = 0.4;
+              item.style.opacity = 0.4;
             }
           });
 
           if (drawCardTop) {
-            drawCardTop.textContent = finalTile;
+            drawCardTop.textContent = letter;
             drawCardTop.classList.add('revealed');
             setTimeout(() => drawCardTop.classList.remove('revealed'), 520);
           }
-          if (drawResultCopy) drawResultCopy.textContent = `You drew ${finalTile}.`;
-          if (drawResultText) drawResultText.textContent = `You drew ${finalTile}.`;
-          if (drawTicker) drawTicker.textContent = finalTile;
+          if (drawResultCopy) drawResultCopy.textContent = `You drew ${letter}.`;
+          if (drawResultText) drawResultText.textContent = `You drew ${letter}.`;
+          if (drawTicker) drawTicker.textContent = letter;
           if (spillHint) spillHint.textContent = 'Great pick! Waiting for the table to finish drawing.';
           state.lastDrawRevealAt = Date.now();
           playFx('place', { rate: 0.94 });
 
           setTimeout(() => {
             state.drawAnimationActive = false;
-            resolve();
-          }, 900);
+            resolve(letter);
+          }, 720);
         }
       });
 
@@ -2961,13 +2963,16 @@ $aiSetupNotes = [
         if (!drawTable || !orderTable) return;
         const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
-        const sortedDraws = [...draws].sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || String(b.tile).localeCompare(String(a.tile)));
+        const myDraw = draws.find((d) => Number(d.user_id) === Number(state.user?.id));
 
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
-          const status = entry ? (entry.revealed ? `Revealed · ${entry.value} pts` : 'Drawing…') : 'Waiting';
-          const tile = entry ? entry.tile : '—';
-          return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
+          const isSelf = Number(player.user_id ?? player.id) === Number(state.user?.id);
+          const status = entry
+            ? (entry.revealed ? `Revealed · ${entry.value} pts` : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal'))
+            : 'Waiting to draw';
+          const tile = entry && entry.revealed ? entry.tile : '—';
+          return `<tr><td>${player.username}${isSelf ? ' (you)' : ''}</td><td>${status}</td><td>${tile}</td></tr>`;
         }).join('');
 
         orderTable.innerHTML = (state.turnOrder || []).map((entry, idx) => {
@@ -2975,8 +2980,8 @@ $aiSetupNotes = [
           return `<tr><td>${idx + 1}</td><td>${crown}${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
         }).join('');
 
-        if (drawCardTop && sortedDraws.length) {
-          drawCardTop.textContent = sortedDraws[0].tile;
+        if (drawCardTop) {
+          drawCardTop.textContent = myDraw && myDraw.revealed ? myDraw.tile : '？';
         }
       };
 
@@ -3130,25 +3135,30 @@ $aiSetupNotes = [
         if (!drawOverlay || !state.user) return;
         const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
-        const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
+        const myEntry = draws.find((entry) => Number(entry.user_id) === Number(state.user.id));
+        const alreadyDrew = Boolean(myEntry);
+        const hasRevealed = Boolean(myEntry?.revealed);
+        const hasPending = alreadyDrew && !hasRevealed;
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
         const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
-        const readyToDraw = !alreadyDrew && !everyoneDrew;
+        const readyToDraw = !hasRevealed && (!everyoneDrew || hasPending);
         renderDrawTables();
 
         if (drawStatusEl) {
           const leader = state.turnOrder?.[0];
           drawStatusEl.textContent = leader && everyoneRevealed
             ? `${leader.username} starts the game`
-            : 'Click the bag, spill some tiles, and tap one to see who starts!';
+            : 'Spill the bag, pick a tile, and reveal to lock turn order.';
         }
         if (drawHintEl) {
-          drawHintEl.textContent = alreadyDrew
-            ? 'You drew already—waiting for the table to finish.'
-            : 'Click the bag to spill some tiles, then pick one.';
+          drawHintEl.textContent = hasPending
+            ? 'Tap any face-down tile to claim it.'
+            : alreadyDrew
+              ? 'You revealed—waiting for the table to finish.'
+              : 'Click the bag to spill some tiles, then pick one.';
         }
         if (drawTileBtn) {
-          drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+          drawTileBtn.disabled = hasRevealed || (everyoneDrew && !hasPending);
         }
         if (drawBag) {
           drawBag.classList.toggle('disabled', !readyToDraw);
@@ -3362,8 +3372,6 @@ $aiSetupNotes = [
           void drawBag.offsetWidth;
           drawBag.classList.add('bag-pop');
         }
-        state.bagSpilled = true;
-        setBagFrame(true);
         playFx('spill', { rate: 0.96 });
         try {
           const res = await fetch('/api/game.php', {
@@ -3380,12 +3388,15 @@ $aiSetupNotes = [
             setBagFrame(false);
               return;
             }
-          const tile = data.result?.tile || '?';
-          await runTileAnimation(tile);
+          const spill = Array.isArray(data.result?.spill) ? data.result.spill : [];
+          const picked = await runTileAnimation(spill);
+          if (!picked) {
+            throw new Error('No tile selected.');
+          }
           await fetch('/api/game.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'reveal', lobbyId }),
+            body: JSON.stringify({ action: 'reveal', lobbyId, tile: picked }),
           });
           await fetchGameState();
         } catch (error) {
