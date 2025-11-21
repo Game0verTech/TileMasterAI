@@ -486,6 +486,60 @@ class AppRepository
         return $this->updateGameState($lobbyId, $game['board_state'], $racks, $bag, $nextIndex, null, $userId, 'exchange');
     }
 
+    public function resetGame(int $lobbyId): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found for lobby.');
+        }
+
+        $bag = $this->buildTileBag();
+        shuffle($bag);
+
+        $scores = [];
+        $racks = [];
+        $turnOrder = $game['turn_order'] ?? [];
+        $players = $turnOrder ?: array_map(
+            static fn ($player) => ['user_id' => $player['user_id'] ?? $player['id'], 'username' => $player['username'] ?? 'Player'],
+            $this->listPlayers($lobbyId)
+        );
+
+        foreach ($players as $entry) {
+            $rack = [];
+            $scores[$entry['user_id']] = 0;
+            for ($i = 0; $i < 7; $i++) {
+                $tile = array_shift($bag);
+                if ($tile === null) {
+                    break;
+                }
+                $rack[] = $tile;
+            }
+            $racks[$entry['user_id']] = $rack;
+        }
+
+        $statement = $this->pdo->prepare(
+            'UPDATE games SET '
+            . 'turn_order = :turn_order, draw_pool = :draw_pool, draws = :draws, board_state = :board_state, racks = :racks, '
+            . 'bag = :bag, current_turn_index = 0, scores = :scores, winner_user_id = NULL, completed_at = NULL, status = :status '
+            . 'WHERE id = :id'
+        );
+        $statement->execute([
+            ':id' => $game['id'],
+            ':turn_order' => json_encode(array_values($players), JSON_THROW_ON_ERROR),
+            ':draw_pool' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
+            ':draws' => json_encode([], JSON_THROW_ON_ERROR),
+            ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
+            ':racks' => json_encode($racks, JSON_THROW_ON_ERROR),
+            ':bag' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
+            ':scores' => json_encode($scores, JSON_THROW_ON_ERROR),
+            ':status' => 'active',
+        ]);
+
+        $this->updateLobbyStatus($lobbyId, 'active');
+
+        return $this->getGameByLobby($lobbyId) ?? [];
+    }
+
     public function listSessions(): array
     {
         $statement = $this->pdo->query('SELECT * FROM active_sessions ORDER BY created_at DESC');
