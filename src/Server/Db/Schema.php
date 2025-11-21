@@ -10,23 +10,23 @@ final class Schema
 {
     public static function ensureSessionsTable(PDO $pdo): void
     {
+        // Legacy no-op to preserve backward compatibility
+        self::ensureAppSchema($pdo);
+    }
+
+    /**
+     * Main schema entry point for the new authentication + lobby system.
+     */
+    public static function ensureAppSchema(PDO $pdo): void
+    {
         $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        $exists = false;
 
-        if ($driver === 'sqlite') {
-            $statement = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sessions' LIMIT 1");
-            $exists = $statement !== false && $statement->fetchColumn() !== false;
-        } else {
-            $statement = $pdo->query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sessions' LIMIT 1");
-            $exists = $statement !== false && $statement->fetchColumn() !== false;
-        }
-
-        if (!$exists) {
-            self::applyMigrations($pdo, $driver);
-        }
-
+        // Keep legacy tables for backwards-compat while layering the new tables
+        self::applyMigrations($pdo, $driver);
         self::ensurePlayerTokenColumn($pdo, $driver);
         self::ensureLobbyEnhancements($pdo, $driver);
+        self::applyAuthLobbyMigrations($pdo, $driver);
+        self::ensureGameDrawColumns($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -130,6 +130,97 @@ final class Schema
 
         foreach ($migrations as $sql) {
             $pdo->exec($sql);
+        }
+    }
+
+    private static function applyAuthLobbyMigrations(PDO $pdo, string $driver): void
+    {
+        $idColumn = $driver === 'mysql'
+            ? 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY'
+            : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        $boolColumn = $driver === 'mysql' ? 'TINYINT(1)' : 'INTEGER';
+        $stringColumn = $driver === 'mysql' ? 'VARCHAR(255)' : 'TEXT';
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS users ('
+            . 'id ' . $idColumn . ', '
+            . 'username ' . $stringColumn . ' NOT NULL UNIQUE, '
+            . 'password_hash ' . $stringColumn . ' NOT NULL, '
+            . "role TEXT NOT NULL DEFAULT 'user', "
+            . 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP'
+            . ')'
+        );
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS lobbies ('
+            . 'id ' . $idColumn . ', '
+            . 'code ' . $stringColumn . ' NOT NULL UNIQUE, '
+            . 'owner_user_id INTEGER NOT NULL, '
+            . "status TEXT NOT NULL DEFAULT 'waiting', "
+            . 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE'
+            . ')'
+        );
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS lobby_players ('
+            . 'id ' . $idColumn . ', '
+            . 'lobby_id INTEGER NOT NULL, '
+            . 'user_id INTEGER NOT NULL, '
+            . 'is_ready ' . $boolColumn . ' NOT NULL DEFAULT 0, '
+            . 'joined_at DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'UNIQUE(lobby_id, user_id), '
+            . 'FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE CASCADE, '
+            . 'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE'
+            . ')'
+        );
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS games ('
+            . 'id ' . $idColumn . ', '
+            . 'lobby_id INTEGER NOT NULL UNIQUE, '
+            . 'turn_order TEXT NOT NULL, '
+            . 'started_at DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE CASCADE'
+            . ')'
+        );
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS active_sessions ('
+            . 'id ' . $stringColumn . ' PRIMARY KEY, '
+            . 'user_id INTEGER NOT NULL, '
+            . 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'last_seen DATETIME DEFAULT CURRENT_TIMESTAMP, '
+            . 'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE'
+            . ')'
+        );
+    }
+
+    private static function ensureGameDrawColumns(PDO $pdo, string $driver): void
+    {
+        $stringColumn = $driver === 'mysql' ? 'TEXT' : 'TEXT';
+
+        $columns = [];
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(games)");
+            $columns = $statement ? $statement->fetchAll() : [];
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'games'"
+            );
+            $statement->execute();
+            $columns = array_map(static fn ($row) => ['name' => $row['COLUMN_NAME'] ?? ''], $statement->fetchAll());
+        }
+
+        $columnNames = array_map(static fn ($column) => $column['name'] ?? '', $columns);
+
+        if (!in_array('draw_pool', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN draw_pool {$stringColumn} NULL");
+        }
+
+        if (!in_array('draws', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN draws {$stringColumn} NOT NULL DEFAULT '[]'");
         }
     }
 

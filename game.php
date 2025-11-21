@@ -237,6 +237,60 @@ $aiSetupNotes = [
       overflow: hidden;
     }
 
+    .hidden { display: none !important; }
+
+    .draw-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.78);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      z-index: 2000;
+    }
+
+    .draw-panel {
+      background: #0b1224;
+      border: 1px solid #1e293b;
+      border-radius: 18px;
+      padding: 18px;
+      width: min(100%, 820px);
+      color: #e2e8f0;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    .draw-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .draw-grid table { width: 100%; border-collapse: collapse; }
+    .draw-grid th, .draw-grid td { padding: 8px; text-align: left; border-bottom: 1px solid #1e293b; }
+    .draw-grid th { color: #cbd5e1; }
+
+    .draw-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; }
+    .draw-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .draw-modal {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 2100;
+    }
+
+    .draw-modal .modal-card {
+      background: #0f172a;
+      border-radius: 16px;
+      border: 1px solid #1e293b;
+      padding: 20px;
+      width: min(100%, 420px);
+      color: #e2e8f0;
+      text-align: center;
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .draw-ticker { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 8px 0; }
+    .countdown { font-size: 36px; font-weight: 800; margin-top: 10px; }
+
     header {
       display: flex;
       flex-direction: column;
@@ -1819,6 +1873,52 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
+  <div class="draw-overlay hidden" id="drawOverlay">
+    <div class="draw-panel">
+      <div class="draw-actions">
+        <div>
+          <p class="hud-eyebrow" style="margin:0;">Turn order draw</p>
+          <h2 style="margin:4px 0 0;">Reveal your starting tile</h2>
+          <p class="hud-text" id="drawStatus" style="margin:6px 0 0; color:#cbd5e1;">Waiting for lobby...</p>
+        </div>
+        <button type="button" id="drawTileBtn">Draw tile</button>
+      </div>
+      <div class="draw-grid" style="margin-top:10px;">
+        <div>
+          <h3 style="margin:0 0 6px;">Players</h3>
+          <table>
+            <thead><tr><th>Player</th><th>Status</th><th>Tile</th></tr></thead>
+            <tbody id="drawTable"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="margin:0 0 6px;">Turn order</h3>
+          <table>
+            <thead><tr><th>#</th><th>Player</th><th>Tile</th></tr></thead>
+            <tbody id="orderTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="hud-text" style="margin-top:10px; color:#cbd5e1;" id="drawHint">All players must draw to continue.</p>
+    </div>
+  </div>
+
+  <div class="draw-modal hidden" id="tileModal" aria-live="polite">
+    <div class="modal-card">
+      <h3 style="margin:0;">Drawing...</h3>
+      <div class="draw-ticker" id="drawTicker">?</div>
+      <p id="drawResultText" style="color:#cbd5e1; margin:6px 0 0;"></p>
+    </div>
+  </div>
+
+  <div class="draw-modal hidden" id="startModal" aria-live="polite">
+    <div class="modal-card">
+      <h3 id="startModalTitle" style="margin:0;">Game starting</h3>
+      <p id="startModalMessage" style="color:#cbd5e1; margin:8px 0 4px;"></p>
+      <div class="countdown" id="startCountdown">3</div>
+    </div>
+  </div>
+
   <header class="hud-dock" aria-label="Game status dock">
     <div class="hud-inner">
       <div class="hud-menu" id="hudMenu">
@@ -4755,6 +4855,169 @@ $aiSetupNotes = [
       loadDictionary();
       fetchSessions();
     });
+  </script>
+
+  <script>
+    (() => {
+      const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
+      if (!lobbyId) return;
+
+      const state = { user: null, lobby: null, game: null, players: [], announced: false, dismissed: false };
+      const overlay = document.getElementById('drawOverlay');
+      const drawTable = document.getElementById('drawTable');
+      const orderTable = document.getElementById('orderTable');
+      const drawStatus = document.getElementById('drawStatus');
+      const drawHint = document.getElementById('drawHint');
+      const drawButton = document.getElementById('drawTileBtn');
+      const tileModal = document.getElementById('tileModal');
+      const drawTicker = document.getElementById('drawTicker');
+      const drawResultText = document.getElementById('drawResultText');
+      const startModal = document.getElementById('startModal');
+      const startCountdown = document.getElementById('startCountdown');
+      const startModalTitle = document.getElementById('startModalTitle');
+      const startModalMessage = document.getElementById('startModalMessage');
+      const lobbyStatus = document.getElementById('lobbyStatus');
+      const lobbyCapacity = document.getElementById('lobbyCapacity');
+
+      const show = (el) => el?.classList.remove('hidden');
+      const hide = (el) => el?.classList.add('hidden');
+
+      const renderDraws = () => {
+        drawTable.innerHTML = '';
+        orderTable.innerHTML = '';
+        const draws = state.game?.draws || [];
+
+        state.players.forEach((player) => {
+          const drawn = draws.find((d) => Number(d.user_id) === Number(player.user_id));
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${player.username}${Number(player.user_id) === Number(state.lobby?.owner_user_id) ? ' (owner)' : ''}</td>`
+            + `<td>${player.is_ready ? '<span class="pill">Ready</span>' : 'Not ready'}</td>`
+            + `<td>${drawn ? `<span class="pill"><strong>${drawn.tile}</strong></span>` : 'Pending'}</td>`;
+          drawTable.appendChild(tr);
+        });
+
+        (state.game?.turn_order || []).forEach((entry, idx) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${idx + 1}</td><td>${entry.username}</td><td><span class="pill"><strong>${entry.tile}</strong></span></td>`;
+          orderTable.appendChild(tr);
+        });
+
+        const myDraw = draws.find((d) => Number(d.user_id) === Number(state.user?.id));
+        drawButton.disabled = !!myDraw || state.lobby?.status !== 'drawing';
+        drawStatus.textContent = state.lobby?.status === 'drawing'
+          ? `${draws.length}/${state.players.length} players have drawn`
+          : 'Waiting for lobby to enter drawing phase';
+        drawHint.textContent = draws.length === state.players.length && draws.length > 0
+          ? 'Everyone has drawn. Finalizing order and starting the game...'
+          : 'All players must draw to continue.';
+      };
+
+      const startDrawAnimation = (finalTile) => {
+        show(tileModal);
+        drawResultText.textContent = 'Shuffling tiles...';
+        let delay = 40;
+        let spins = 18;
+
+        const spin = () => {
+          drawTicker.textContent = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+          if (spins <= 0) {
+            drawTicker.textContent = finalTile;
+            drawResultText.textContent = `You drew ${finalTile}`;
+            setTimeout(() => hide(tileModal), 2600);
+            return;
+          }
+          spins -= 1;
+          delay = Math.min(delay + 30, 240);
+          setTimeout(spin, delay);
+        };
+
+        spin();
+      };
+
+      const handleStartCountdown = () => {
+        if (state.announced || state.lobby?.status !== 'in_game' || !state.game?.turn_order?.length) return;
+        state.announced = true;
+        const first = state.game.turn_order[0]?.username || 'A player';
+        startModalTitle.textContent = `${first} goes first`;
+        startModalMessage.textContent = 'Launching the Scrabble board...';
+        let count = 3;
+        startCountdown.textContent = count;
+        show(startModal);
+        const timer = setInterval(() => {
+          count -= 1;
+          startCountdown.textContent = count;
+          if (count <= 0) {
+            clearInterval(timer);
+            hide(startModal);
+            state.dismissed = true;
+            hide(overlay);
+          }
+        }, 1000);
+      };
+
+      const loadGame = async () => {
+        const res = await fetch(`/api/game.php?lobbyId=${encodeURIComponent(lobbyId)}`);
+        const data = await res.json();
+        if (!data.success) {
+          drawStatus.textContent = data.message || 'Unable to load lobby';
+          return;
+        }
+
+        state.lobby = data.lobby;
+        state.game = data.game;
+        state.players = data.players || [];
+        if (lobbyStatus) {
+          lobbyStatus.textContent = `Lobby ${data.lobby.code} • ${data.lobby.status}`;
+        }
+        if (lobbyCapacity) {
+          lobbyCapacity.textContent = `${state.players.length} players`;
+        }
+
+        renderDraws();
+
+        if (state.lobby.status === 'drawing' || (state.game.turn_order || []).length === 0) {
+          show(overlay);
+        } else if (state.lobby.status === 'in_game') {
+          if (!state.dismissed) {
+            show(overlay);
+          }
+          handleStartCountdown();
+        }
+      };
+
+      const fetchUser = async () => {
+        const res = await fetch('/api/auth.php');
+        if (!res.ok) return;
+        const data = await res.json();
+        state.user = data.user;
+      };
+
+      drawButton?.addEventListener('click', async () => {
+        show(tileModal);
+        drawResultText.textContent = 'Drawing...';
+        const res = await fetch('/api/game.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'draw', lobbyId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          const tile = data.result.tile;
+          startDrawAnimation(tile);
+          await loadGame();
+        } else {
+          hide(tileModal);
+          alert(data.message || 'Unable to draw tile');
+        }
+      });
+
+      fetchUser();
+      loadGame();
+      setInterval(() => {
+        loadGame();
+        handleStartCountdown();
+      }, 2500);
+    })();
   </script>
 
   <div class="modal-backdrop" id="sessionErrorModal" aria-hidden="true">
