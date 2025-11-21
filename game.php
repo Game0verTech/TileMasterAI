@@ -1993,7 +1993,7 @@ $aiSetupNotes = [
       const startModalMessage = document.getElementById('startModalMessage');
       const startCountdown = document.getElementById('startCountdown');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [] };
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0 };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -2018,6 +2018,7 @@ $aiSetupNotes = [
       let touchDragLastPosition = null;
       let startModalShown = false;
       let startTimer = null;
+      let startDelayTimer = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -2122,6 +2123,7 @@ $aiSetupNotes = [
           return;
         }
 
+        state.drawAnimationActive = true;
         tileModal.classList.remove('hidden');
         drawResultText.textContent = 'Shuffling tiles...';
 
@@ -2136,10 +2138,12 @@ $aiSetupNotes = [
           if (index >= sequence.length) {
             drawTicker.textContent = finalTile;
             drawResultText.textContent = `You drew ${finalTile}.`;
+            state.lastDrawRevealAt = Date.now();
             setTimeout(() => {
               tileModal.classList.add('hidden');
+              state.drawAnimationActive = false;
               resolve();
-            }, 1800);
+            }, 2000);
             return;
           }
           drawTicker.textContent = sequence[index];
@@ -2488,10 +2492,29 @@ $aiSetupNotes = [
           drawTileBtn.disabled = alreadyDrew || everyoneDrew;
         }
 
-        drawOverlay.classList.toggle('hidden', everyoneDrew && state.turnOrder.length > 0);
+        const readyToStart = everyoneDrew && state.turnOrder.length > 0;
+        drawOverlay.classList.toggle('hidden', readyToStart);
 
-        if (everyoneDrew && state.turnOrder.length > 0) {
-          triggerStartCountdown();
+        if (!readyToStart && startDelayTimer) {
+          clearTimeout(startDelayTimer);
+          startDelayTimer = null;
+        }
+
+        const scheduleCountdown = () => {
+          if (state.drawAnimationActive) {
+            startDelayTimer = setTimeout(scheduleCountdown, 300);
+            return;
+          }
+          const elapsed = state.lastDrawRevealAt ? (Date.now() - state.lastDrawRevealAt) : 0;
+          const wait = elapsed >= 1000 ? 0 : 1000 - elapsed;
+          startDelayTimer = setTimeout(() => {
+            startDelayTimer = null;
+            triggerStartCountdown();
+          }, wait);
+        };
+
+        if (readyToStart && !startModalShown && !startDelayTimer) {
+          scheduleCountdown();
         }
       };
 
@@ -3073,7 +3096,7 @@ $aiSetupNotes = [
 
       const fetchAiSuggestions = async () => {
         try {
-          const response = await fetch('index.php?action=suggestions', {
+          const response = await fetch('game.php?action=suggestions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
