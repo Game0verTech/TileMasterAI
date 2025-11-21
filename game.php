@@ -1466,11 +1466,15 @@ $aiSetupNotes = [
       min-height: clamp(480px, 68vh, 880px);
       padding: 12px 12px 16px;
       overflow: hidden;
+      align-items: center;
     }
 
     .board-canvas {
       position: relative;
-      display: block;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      justify-content: center;
       flex: 1;
       width: 100%;
       height: 100%;
@@ -1481,6 +1485,7 @@ $aiSetupNotes = [
       touch-action: none;
       cursor: grab;
       scroll-behavior: auto;
+      height: 100%;
     }
 
     .board-canvas.dragging { cursor: grabbing; }
@@ -2789,21 +2794,18 @@ $aiSetupNotes = [
 
       const computeCanvasPadding = (viewportRect, scaledWidth, scaledHeight, { topInset = 0, bottomInset = 0 } = {}) => {
         const basePadding = getBasePadding();
-        const topBias = Math.max(basePadding * 0.75, topInset * 0.85);
-        const bottomBias = Math.max(basePadding * 0.4, bottomInset * 0.35);
-
         if (!viewportRect?.width || !viewportRect?.height) {
           return {
             x: basePadding,
-            top: basePadding + topBias,
-            bottom: basePadding + bottomBias,
+            top: basePadding + Math.max(0, topInset * 0.5),
+            bottom: basePadding + Math.max(0, bottomInset * 0.35),
           };
         }
 
         const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2);
         const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2);
-        const topPad = padY + topBias;
-        const bottomPad = padY + bottomBias;
+        const topPad = padY + Math.max(0, topInset * 0.5);
+        const bottomPad = padY + Math.max(0, bottomInset * 0.35);
         return {
           x: Number.isFinite(padX) ? padX : basePadding,
           top: Number.isFinite(topPad) ? topPad : basePadding,
