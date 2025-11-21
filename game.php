@@ -1408,8 +1408,8 @@ $aiSetupNotes = [
 
     .board-viewport {
       position: relative;
-      display: grid;
-      grid-template-rows: auto 1fr;
+      display: flex;
+      flex-direction: column;
       width: 100%;
       margin: 0;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
@@ -1419,12 +1419,12 @@ $aiSetupNotes = [
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
-      gap: 10px;
-      padding: 10px;
+      padding: 12px 12px 16px;
     }
 
     .board-canvas {
       position: relative;
+      flex: 1;
       overflow: auto;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.4);
@@ -1432,6 +1432,7 @@ $aiSetupNotes = [
       touch-action: pan-x pan-y;
       cursor: grab;
       scroll-behavior: smooth;
+      height: 100%;
     }
 
     .board-canvas.dragging { cursor: grabbing; }
@@ -1471,9 +1472,9 @@ $aiSetupNotes = [
     }
 
     .board-toolbar {
-      position: sticky;
-      top: 0;
-      right: 0;
+      position: absolute;
+      top: 12px;
+      right: 12px;
       display: inline-flex;
       gap: 8px;
       align-items: center;
