@@ -1447,7 +1447,6 @@ $aiSetupNotes = [
 
     .board-scale {
       transform-origin: center;
-      transition: transform 180ms ease;
       will-change: transform;
       display: grid;
       align-items: center;
@@ -2347,6 +2346,9 @@ $aiSetupNotes = [
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
       let panRenderQueued = false;
+      let panMomentumFrame = null;
+      let panVelocity = { x: 0, y: 0 };
+      let lastPanSample = null;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
@@ -2740,11 +2742,53 @@ $aiSetupNotes = [
         panY = clamp(panY, minPanY, maxPanY);
       };
 
+      const stopPanMomentum = () => {
+        if (panMomentumFrame) {
+          cancelAnimationFrame(panMomentumFrame);
+          panMomentumFrame = null;
+        }
+      };
+
       const applyBoardTransform = () => {
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
         clampPanToViewport(finalScale);
         boardScaleEl.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${finalScale})`;
+      };
+
+      const samplePanVelocity = (x, y) => {
+        const now = performance.now();
+        if (lastPanSample) {
+          const deltaTime = Math.max(1, now - lastPanSample.time);
+          panVelocity = {
+            x: (x - lastPanSample.x) / deltaTime,
+            y: (y - lastPanSample.y) / deltaTime,
+          };
+        }
+        lastPanSample = { x, y, time: now };
+      };
+
+      const startPanMomentum = () => {
+        stopPanMomentum();
+        const decay = 0.92;
+        const minVelocity = 0.01;
+
+        const step = () => {
+          panVelocity.x *= decay;
+          panVelocity.y *= decay;
+
+          if (Math.abs(panVelocity.x) < minVelocity && Math.abs(panVelocity.y) < minVelocity) {
+            panMomentumFrame = null;
+            return;
+          }
+
+          panX += panVelocity.x * 16;
+          panY += panVelocity.y * 16;
+          applyBoardTransform();
+          panMomentumFrame = requestAnimationFrame(step);
+        };
+
+        panMomentumFrame = requestAnimationFrame(step);
       };
 
       const requestBoardRender = () => {
@@ -2828,8 +2872,11 @@ $aiSetupNotes = [
         if (!boardScaleEl || !boardViewport) return;
         if (event.ctrlKey || event.metaKey) return;
         event.preventDefault();
-        const direction = Math.sign(event.deltaY);
-        adjustZoom(direction > 0 ? 0.92 : 1.08, { x: event.clientX, y: event.clientY });
+        const delta = -event.deltaY;
+        const intensity = event.deltaMode === 1 ? 0.04 : 0.0014;
+        const factor = Math.exp(delta * intensity);
+        stopPanMomentum();
+        adjustZoom(factor, { x: event.clientX, y: event.clientY });
       };
 
       const touchDistance = (touches) => {
@@ -2846,6 +2893,7 @@ $aiSetupNotes = [
           isPanning = false;
           boardViewport.classList.remove('dragging');
           pinchDistance = touchDistance(event.touches);
+          stopPanMomentum();
           return;
         }
 
@@ -2855,6 +2903,8 @@ $aiSetupNotes = [
 
         isPanning = true;
         panOrigin = { x: touch.clientX - panX, y: touch.clientY - panY };
+        lastPanSample = null;
+        stopPanMomentum();
         boardViewport.classList.add('dragging');
       };
 
@@ -2881,6 +2931,7 @@ $aiSetupNotes = [
         event.preventDefault();
         panX = touch.clientX - panOrigin.x;
         panY = touch.clientY - panOrigin.y;
+        samplePanVelocity(touch.clientX, touch.clientY);
         requestBoardRender();
       };
 
@@ -2901,6 +2952,8 @@ $aiSetupNotes = [
         event.preventDefault();
         isPanning = true;
         panOrigin = { x: event.clientX - panX, y: event.clientY - panY };
+        lastPanSample = null;
+        stopPanMomentum();
         boardViewport.classList.add('dragging');
       };
 
@@ -2908,6 +2961,7 @@ $aiSetupNotes = [
         if (!isPanning) return;
         panX = event.clientX - panOrigin.x;
         panY = event.clientY - panOrigin.y;
+        samplePanVelocity(event.clientX, event.clientY);
         requestBoardRender();
       };
 
@@ -2915,6 +2969,7 @@ $aiSetupNotes = [
         if (!isPanning) return;
         isPanning = false;
         boardViewport.classList.remove('dragging');
+        startPanMomentum();
       };
 
       const buildBag = () => {
