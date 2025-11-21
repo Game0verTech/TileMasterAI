@@ -32,8 +32,6 @@ $premiumBoard = [
 $rowLabels = range('A', 'O');
 $columnLabels = range(1, 15);
 
-$aiTokenSquares = ['C3', 'C13', 'M3', 'M13'];
-
 $rackLetters = ['T', 'I', 'L', 'E', 'M', 'A', '?'];
 $rackModel = Rack::fromLetters($rackLetters);
 $rackTiles = array_map(static function (Tile $tile) {
@@ -485,7 +483,6 @@ $aiSetupNotes = [
     .cell.triple-letter { background: #bfdbfe; color: #1d4ed8; }
     .cell.double-letter { background: #e0f2fe; color: #075985; }
     .cell.center-star { background: #ffe4e6; color: #9f1239; }
-    .cell.ai-token { background: #ecfeff; color: #0284c7; box-shadow: inset 0 0 0 2px rgba(14,165,233,0.18); }
 
     .cell.show-premium {
       grid-template-rows: auto 1fr;
@@ -2011,19 +2008,6 @@ $aiSetupNotes = [
     </div>
   </div>
 
-  <div class="draw-modal hidden" id="aiTokenModal" aria-live="polite">
-    <div class="modal-card">
-      <h3 style="margin:0;">Use an AI token?</h3>
-      <p id="aiTokenCopy" style="color:#cbd5e1; margin:8px 0 10px;">
-        You start with one AI token. Spend one to reveal a fresh batch of playable moves.
-      </p>
-      <div class="draw-actions" style="justify-content:center; margin-top:10px;">
-        <button class="btn rack-shuffle" type="button" id="confirmAiToken">Use token</button>
-        <button class="btn rack-shuffle" type="button" id="cancelAiToken">Not now</button>
-      </div>
-    </div>
-  </div>
-
   <header class="hud-dock" aria-label="Game status dock">
     <div class="hud-inner">
       <div class="hud-menu" id="hudMenu">
@@ -2046,7 +2030,6 @@ $aiSetupNotes = [
         <div class="score-strip" id="playerScores" aria-live="polite"></div>
         <div class="hud-meta">
           <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="hud-pill"><strong>AI tokens</strong> <span id="aiTokenCount">0</span></span>
         </div>
       </div>
     </div>
@@ -2073,10 +2056,8 @@ $aiSetupNotes = [
                 <?php foreach ($row as $colIndex => $cellType):
                   $rowLabel = $rowLabels[$rowIndex];
                   $colLabel = $columnLabels[$colIndex];
-                  $cellCoord = "{$rowLabel}{$colLabel}";
                   $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
                   $isCenter = $rowIndex === 7 && $colIndex === 7;
-                  $isAiToken = in_array($cellCoord, $aiTokenSquares, true);
                   $classes = 'cell';
 
                   if ($cellType === 'TW') { $classes .= ' triple-word'; }
@@ -2084,7 +2065,6 @@ $aiSetupNotes = [
                   if ($cellType === 'TL') { $classes .= ' triple-letter'; }
                   if ($cellType === 'DL') { $classes .= ' double-letter'; }
                   if ($isCenter) { $classes .= ' center-star'; }
-                  if ($isAiToken) { $classes .= ' ai-token'; }
 
                   $cellName = match ($cellType) {
                     'TW' => 'triple word',
@@ -2096,7 +2076,6 @@ $aiSetupNotes = [
 
                   $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
                   if ($isCenter) { $ariaParts[] = 'start star'; }
-                  if ($isAiToken) { $ariaParts[] = 'AI token bonus'; }
                   if ($tile) {
                     if ($tile->isBlank()) {
                       $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
@@ -2113,12 +2092,9 @@ $aiSetupNotes = [
                   data-col="<?php echo $colIndex; ?>"
                   data-premium="<?php echo $cellType; ?>"
                   data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-                  data-ai-token="<?php echo $isAiToken ? 'true' : 'false'; ?>"
                 >
                   <?php if ($isCenter): ?>
                     <span class="cell-label">★ DW</span>
-                  <?php elseif ($isAiToken): ?>
-                    <span class="cell-label">AI</span>
                   <?php elseif ($cellType !== ''): ?>
                     <span class="cell-label"><?php echo $cellType; ?></span>
                   <?php endif; ?>
@@ -2128,7 +2104,7 @@ $aiSetupNotes = [
               </div>
             </div>
 
-            <div class="message" id="turnMessage">Start a turn to place your word. Your rack refills after you submit.</div>
+            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
           </div>
         </div>
       </div>
@@ -2142,7 +2118,7 @@ $aiSetupNotes = [
           <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
             <span class="turn-label">
               <span class="turn-title">Start turn</span>
-              <span class="turn-subtitle">Place your word then auto-refill</span>
+              <span class="turn-subtitle">Draw tiles and place your word</span>
             </span>
           </button>
         </div>
@@ -2180,7 +2156,6 @@ $aiSetupNotes = [
     document.addEventListener('DOMContentLoaded', () => {
       const BOARD_SIZE = 15;
       const RACK_SIZE = 7;
-      const aiTokenSquares = new Set(<?php echo json_encode($aiTokenSquares); ?>.map((coord) => String(coord).toUpperCase()));
       const rackEl = document.getElementById('rack');
       const messageEl = document.getElementById('turnMessage');
       const bagCountEl = document.getElementById('bagCount');
@@ -2201,10 +2176,6 @@ $aiSetupNotes = [
       const aiAnimationEl = document.getElementById('aiAnimation');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
-      const aiTokenModal = document.getElementById('aiTokenModal');
-      const aiTokenCopy = document.getElementById('aiTokenCopy');
-      const aiTokenConfirm = document.getElementById('confirmAiToken');
-      const aiTokenCancel = document.getElementById('cancelAiToken');
       const playerScoresEl = document.getElementById('playerScores');
       const rulesBtn = document.getElementById('openRules');
       const menuToggle = document.getElementById('menuToggle');
@@ -2244,7 +2215,6 @@ $aiSetupNotes = [
       const winnerConfetti = document.getElementById('winnerConfetti');
       const rematchBtn = document.getElementById('rematchBtn');
       const closeWinnerBtn = document.getElementById('closeWinnerBtn');
-      const aiTokenCountEl = document.getElementById('aiTokenCount');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
       const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null };
       let tileId = 0;
@@ -2267,6 +2237,7 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
+      let panRenderQueued = false;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
@@ -2275,29 +2246,6 @@ $aiSetupNotes = [
       let startTimer = null;
       let startDelayTimer = null;
       let celebrationTimer = null;
-      let rackRefillTimer = null;
-
-      const normalizeRackEntry = (entry = {}) => {
-        if (Array.isArray(entry)) {
-          return { tiles: entry, tokens: 0 };
-        }
-        return {
-          tiles: Array.isArray(entry.tiles) ? entry.tiles : [],
-          tokens: Number.isFinite(Number(entry.tokens)) ? Number(entry.tokens) : 0,
-        };
-      };
-
-      const getMyRackEntry = () => normalizeRackEntry(state.racks[state.user?.id] || []);
-
-      const setMyRackEntry = (tiles, tokens = 0) => {
-        if (!state.user) return;
-        state.racks[state.user.id] = {
-          tiles,
-          tokens: Math.max(0, Number.isFinite(tokens) ? tokens : 0),
-        };
-      };
-
-      const getAiTokens = () => getMyRackEntry().tokens;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -2511,16 +2459,33 @@ $aiSetupNotes = [
         return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
       };
 
+      const measureBoardCenter = () => {
+        if (!boardScaleEl || !boardChromeEl) return { x: 0, y: 0, width: 0, height: 0 };
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        const centerCell = document.querySelector('.board-grid .cell[data-center="true"]');
+        const centerRect = centerCell ? centerCell.getBoundingClientRect() : boardRect;
+
+        boardScaleEl.style.transform = previousTransform;
+
+        return {
+          x: centerRect.left - boardRect.left + centerRect.width / 2,
+          y: centerRect.top - boardRect.top + centerRect.height / 2,
+          width: boardRect.width,
+          height: boardRect.height,
+        };
+      };
+
       const centerBoard = () => {
         if (!boardViewport || !boardScaleEl) return;
         const finalScale = getFinalScale();
-        const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
-        const scaledWidth = boardRect.width * finalScale;
-        const scaledHeight = boardRect.height * finalScale;
+        const { x, y } = measureBoardCenter();
 
-        panX = (viewportRect.width - scaledWidth) / 2;
-        panY = (viewportRect.height - scaledHeight) / 2;
+        panX = viewportRect.width / 2 - x * finalScale;
+        panY = viewportRect.height / 2 - y * finalScale;
         applyBoardTransform();
       };
 
@@ -2569,7 +2534,16 @@ $aiSetupNotes = [
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
         clampPanToViewport(finalScale);
-        boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
+        boardScaleEl.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${finalScale})`;
+      };
+
+      const requestBoardRender = () => {
+        if (panRenderQueued) return;
+        panRenderQueued = true;
+        requestAnimationFrame(() => {
+          panRenderQueued = false;
+          applyBoardTransform();
+        });
       };
 
       const resizeBoardToViewport = ({ resetView = false } = {}) => {
@@ -2697,7 +2671,7 @@ $aiSetupNotes = [
         event.preventDefault();
         panX = touch.clientX - panOrigin.x;
         panY = touch.clientY - panOrigin.y;
-        applyBoardTransform();
+        requestBoardRender();
       };
 
       const handleTouchEnd = () => {
@@ -2724,7 +2698,7 @@ $aiSetupNotes = [
         if (!isPanning) return;
         panX = event.clientX - panOrigin.x;
         panY = event.clientY - panOrigin.y;
-        applyBoardTransform();
+        requestBoardRender();
       };
 
       const endBoardPan = () => {
@@ -2884,7 +2858,7 @@ $aiSetupNotes = [
         const iAmWinner = Number(state.user?.id) === Number(state.winnerUserId);
 
         winnerTitle.textContent = `${winnerName} wins!`;
-        winnerMessage.textContent = `${winnerName} posted the top score with ${topScore} points. You finished with ${myScore} points.`;
+        winnerMessage.textContent = `${winnerName} finished their tiles and scored ${topScore} points. You finished with ${myScore} points.`;
         if (winnerFace) {
           winnerFace.textContent = iAmWinner ? '🏆' : '🤝';
           winnerFace.classList.toggle('runnerup-face', !iAmWinner);
@@ -3028,15 +3002,13 @@ $aiSetupNotes = [
 
       const applyRackState = () => {
         if (!state.user) return;
-        const rackEntry = getMyRackEntry();
-        const letters = rackEntry.tiles || [];
+        const letters = state.racks[state.user.id] || [];
         rack = letters.map((letter) => {
           const tile = createTile(String(letter).toUpperCase());
           tile.position = { type: 'rack' };
           return tile;
         });
         renderRack();
-        updateAiTokensUi();
       };
 
       const hydrateFromGame = (game) => {
@@ -3101,19 +3073,15 @@ $aiSetupNotes = [
         }
       };
 
-      const syncGameState = async ({ advanceTurn = false, actingIndex = null, scoreDelta = null, turnIndexOverride = null } = {}) => {
+      const syncGameState = async ({ advanceTurn = false, actingIndex = null, scoreDelta = null } = {}) => {
         if (!lobbyId || !state.user) return;
         const activeIndex = actingIndex !== null ? actingIndex : state.turnIndex;
-        const rackLetters = rack.map((tile) => (tile.isBlank && tile.assignedLetter)
+        state.racks[state.user.id] = rack.map((tile) => (tile.isBlank && tile.assignedLetter)
           ? tile.assignedLetter.toUpperCase()
           : tile.letter.toUpperCase());
-        const tokens = getAiTokens();
-        setMyRackEntry(rackLetters, tokens);
-        const nextIndex = turnIndexOverride !== null
-          ? turnIndexOverride
-          : (advanceTurn && state.turnOrder.length
-            ? (activeIndex + 1) % state.turnOrder.length
-            : activeIndex);
+        const nextIndex = advanceTurn && state.turnOrder.length
+          ? (activeIndex + 1) % state.turnOrder.length
+          : activeIndex;
 
         const res = await fetch('/api/game.php', {
           method: 'POST',
@@ -3252,7 +3220,7 @@ $aiSetupNotes = [
           toggleBtn?.removeAttribute('disabled');
           messageEl.textContent = turnActive
             ? 'Place tiles and submit your move.'
-            : 'Start your turn to place a word—refills happen after you submit.';
+            : 'Start your turn to draw tiles from the shared bag.';
         }
         updateActionButtons();
       };
@@ -3304,7 +3272,7 @@ $aiSetupNotes = [
         if (turnSubtitleEl) {
           turnSubtitleEl.textContent = waiting
             ? 'Please wait for your turn'
-            : (turnActive ? 'Lock tiles & score it' : 'Place your word; refill comes after');
+            : (turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word');
         }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
         updateActionButtons();
@@ -3312,13 +3280,10 @@ $aiSetupNotes = [
 
       const updateAiButton = () => {
         if (!aiBtn) return;
-        const disabled = !turnActive || getAiTokens() <= 0;
+        const disabled = !turnActive;
         aiBtn.disabled = disabled;
         aiBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         aiBtn.classList.toggle('disabled', disabled);
-        aiBtn.querySelector('.ai-text').textContent = getAiTokens() > 0
-          ? `AI suggested moves (${getAiTokens()} token${getAiTokens() === 1 ? '' : 's'} left)`
-          : 'AI suggestions (0 tokens)';
       };
 
       const updateActionButtons = () => {
@@ -3333,17 +3298,6 @@ $aiSetupNotes = [
 
       const updateBagCount = () => {
         bagCountEl.textContent = bag.length;
-      };
-
-      const updateAiTokensUi = () => {
-        if (!aiTokenCountEl) return;
-        const tokens = getAiTokens();
-        aiTokenCountEl.textContent = tokens;
-        if (aiTokenCopy) {
-          aiTokenCopy.textContent = tokens > 0
-            ? `You have ${tokens} AI token${tokens === 1 ? '' : 's'} left for fresh move ideas.`
-            : 'No AI tokens left. Capture AI squares on the board to earn more.';
-        }
       };
 
       const renderPlayerScores = () => {
@@ -3602,8 +3556,6 @@ $aiSetupNotes = [
       };
 
       let latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
-
-      const coordKey = (row, col) => `${String.fromCharCode(65 + row)}${col + 1}`;
 
       const parseCoordinate = (coord) => {
         const match = /^([A-Oa-o])(\d{1,2})$/.exec((coord || '').trim());
@@ -3963,23 +3915,6 @@ $aiSetupNotes = [
         }
       };
 
-      const openAiTokenModal = () => {
-        if (!aiTokenModal) return;
-        aiTokenModal.classList.remove('hidden');
-        aiTokenModal.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('modal-open');
-      };
-
-      const closeAiTokenModal = () => {
-        if (!aiTokenModal) return;
-        aiTokenModal.classList.add('hidden');
-        aiTokenModal.setAttribute('aria-hidden', 'true');
-        const otherModalOpen = document.querySelector('.modal-backdrop.active, .draw-modal:not(.hidden)');
-        if (!otherModalOpen) {
-          document.body.classList.remove('modal-open');
-        }
-      };
-
       const openAiModal = () => {
         if (!aiModal) return;
         aiModal.classList.add('active');
@@ -4081,9 +4016,32 @@ $aiSetupNotes = [
           setMessage(`${currentTurnName()} is still playing. Please wait your turn.`, 'error');
           return false;
         }
-        setMessage('Take a moment with your rack, then place and submit your word.', 'success');
+        let drewTiles = false;
+
+        while (rack.length < RACK_SIZE) {
+          const letter = pickTileFromBag();
+          if (!letter) break;
+          const tile = createTile(letter);
+          tile.position = { type: 'rack' };
+          rack.push(tile);
+          drewTiles = true;
+        }
+
+        updateBagCount();
         renderRack();
+
+        if (rack.length === RACK_SIZE) {
+          setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
+          if (drewTiles) {
+            playFx('accept', { rate: 1.08 });
+          }
+        } else {
+          setMessage('Bag is empty—continue with the tiles you have.', 'success');
+        }
+
+        syncGameState();
         setTurnMessaging();
+
         return true;
       };
 
@@ -4284,62 +4242,14 @@ $aiSetupNotes = [
         updateAiButton();
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
-        const tokenHaul = committed.reduce((count, { row, col }) => (
-          aiTokenSquares.has(coordKey(row, col)) ? count + 1 : count
-        ), 0);
-        if (tokenHaul > 0) {
-          const entry = getMyRackEntry();
-          setMyRackEntry(entry.tiles, entry.tokens + tokenHaul);
-          updateAiTokensUi();
-          updateAiButton();
-          setMessage(`Move accepted for ${turnScore} points${scoreNote}. +${tokenHaul} AI token${tokenHaul === 1 ? '' : 's'} earned!`, 'success');
-        } else {
-          setMessage(`Move accepted for ${turnScore} points${scoreNote}. We'll refill your rack in a moment.`, 'success');
-        }
+        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
         playFx('accept', { rate: 1.02 });
         const actingIndex = state.turnIndex;
         if (state.turnOrder.length) {
           state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
         }
-        const nextIndex = state.turnIndex;
         syncGameState({ advanceTurn: true, actingIndex, scoreDelta: turnScore });
         setTurnMessaging();
-        scheduleRackRefill(actingIndex, nextIndex);
-      };
-
-      const scheduleRackRefill = (actingIndex = state.turnIndex, currentTurnIndex = state.turnIndex) => {
-        if (rackRefillTimer) {
-          clearTimeout(rackRefillTimer);
-        }
-        const missing = Math.max(0, RACK_SIZE - rack.length);
-        if (missing === 0 || bag.length === 0) {
-          return;
-        }
-        rackRefillTimer = setTimeout(() => {
-          let drew = 0;
-          while (rack.length < RACK_SIZE && bag.length) {
-            const letter = pickTileFromBag();
-            if (!letter) break;
-            const tile = createTile(letter);
-            tile.position = { type: 'rack' };
-            rack.push(tile);
-            drew += 1;
-          }
-          rackRefillTimer = null;
-          updateBagCount();
-          renderRack();
-          setMyRackEntry(
-            rack.map((tile) => (tile.isBlank && tile.assignedLetter)
-              ? tile.assignedLetter.toUpperCase()
-              : tile.letter.toUpperCase()),
-            getAiTokens()
-          );
-          syncGameState({ actingIndex, turnIndexOverride: currentTurnIndex });
-          if (drew) {
-            setMessage(`Refilled ${drew} tile${drew === 1 ? '' : 's'} for your next turn.`, 'success');
-            playFx('accept', { rate: 1 });
-          }
-        }, 2000);
       };
 
       const resetBoard = () => {
@@ -4440,33 +4350,6 @@ $aiSetupNotes = [
             setMessage('Start your turn to request AI suggestions.', 'error');
             return;
           }
-          if (getAiTokens() <= 0) {
-            setMessage('No AI tokens left—claim an AI square on the board to earn more.', 'error');
-            openAiTokenModal();
-            return;
-          }
-          updateAiTokensUi();
-          openAiTokenModal();
-        };
-
-        const spendAiToken = () => {
-          const entry = getMyRackEntry();
-          if (!entry || entry.tokens <= 0) {
-            setMessage('No AI tokens available right now.', 'error');
-            return false;
-          }
-          const remaining = Math.max(0, entry.tokens - 1);
-          setMyRackEntry(entry.tiles, remaining);
-          updateAiTokensUi();
-          updateAiButton();
-          syncGameState();
-          return true;
-        };
-
-        const handleAiConfirm = async () => {
-          const ok = spendAiToken();
-          closeAiTokenModal();
-          if (!ok) return;
           returnLooseTilesToRack();
           renderBoard();
           renderRack();
@@ -4498,8 +4381,6 @@ $aiSetupNotes = [
       if (rematchBtn) rematchBtn.addEventListener('click', requestRematch);
       if (closeWinnerBtn) closeWinnerBtn.addEventListener('click', closeWinnerModal);
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
-      if (aiTokenConfirm) aiTokenConfirm.addEventListener('click', handleAiConfirm);
-      if (aiTokenCancel) aiTokenCancel.addEventListener('click', closeAiTokenModal);
       if (passBtn) passBtn.addEventListener('click', handlePass);
       if (exchangeBtn) exchangeBtn.addEventListener('click', handleExchange);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
@@ -4515,19 +4396,8 @@ $aiSetupNotes = [
             if (aiModal.classList.contains('active')) {
               closeAiModal();
             }
-            if (aiTokenModal && !aiTokenModal.classList.contains('hidden')) {
-              closeAiTokenModal();
-            }
             closeHudMenu();
             closeRackHelp();
-          }
-        });
-      }
-
-      if (aiTokenModal) {
-        aiTokenModal.addEventListener('click', (event) => {
-          if (event.target === aiTokenModal) {
-            closeAiTokenModal();
           }
         });
       }
