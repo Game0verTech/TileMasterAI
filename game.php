@@ -1419,6 +1419,7 @@ $aiSetupNotes = [
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       grid-template-rows: 1fr;
+      grid-template-columns: 1fr;
       justify-items: stretch;
       align-items: stretch;
     }
@@ -1427,9 +1428,6 @@ $aiSetupNotes = [
       position: relative;
       width: 100%;
       margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: hidden;
       touch-action: none;
       cursor: grab;
@@ -1446,14 +1444,17 @@ $aiSetupNotes = [
     .board-viewport.dragging { cursor: grabbing; }
 
     .board-scale {
+      position: absolute;
+      inset: 0;
       transform-origin: center;
       will-change: transform;
-      display: grid;
-      align-items: center;
-      justify-items: center;
+      display: block;
     }
 
     .board-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
       display: grid;
       place-items: center;
       width: max-content;
