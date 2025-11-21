@@ -1432,6 +1432,9 @@ $aiSetupNotes = [
 
     .board-canvas {
       position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
       flex: 1;
       width: 100%;
       height: 100%;
@@ -1452,6 +1455,7 @@ $aiSetupNotes = [
       transform-origin: top left;
       will-change: transform;
       display: inline-block;
+      flex-shrink: 0;
     }
 
     .board-frame {
