@@ -2677,14 +2677,12 @@ $aiSetupNotes = [
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
-        const centerCell = document.querySelector('.board-grid .cell[data-center="true"]');
-        const centerRect = centerCell ? centerCell.getBoundingClientRect() : boardRect;
 
         boardScaleEl.style.transform = previousTransform;
 
         return {
-          x: centerRect.left - boardRect.left + centerRect.width / 2,
-          y: centerRect.top - boardRect.top + centerRect.height / 2,
+          x: boardRect.width / 2,
+          y: boardRect.height / 2,
           width: boardRect.width,
           height: boardRect.height,
         };
@@ -2717,25 +2715,26 @@ $aiSetupNotes = [
         const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
         const padding = getViewportPadding();
+        const reach = Math.max(padding * 1.75, 28);
 
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
 
-        let minPanX = viewportRect.width - scaledWidth - padding;
-        let maxPanX = padding;
-        let minPanY = viewportRect.height - scaledHeight - padding;
-        let maxPanY = padding;
+        let minPanX = viewportRect.width - scaledWidth - reach;
+        let maxPanX = reach;
+        let minPanY = viewportRect.height - scaledHeight - reach;
+        let maxPanY = reach;
 
         if (scaledWidth <= viewportRect.width) {
           const centeredX = (viewportRect.width - scaledWidth) / 2;
-          minPanX = centeredX - padding;
-          maxPanX = centeredX + padding;
+          minPanX = centeredX - reach;
+          maxPanX = centeredX + reach;
         }
 
         if (scaledHeight <= viewportRect.height) {
           const centeredY = (viewportRect.height - scaledHeight) / 2;
-          minPanY = centeredY - padding;
-          maxPanY = centeredY + padding;
+          minPanY = centeredY - reach;
+          maxPanY = centeredY + reach;
         }
 
         panX = clamp(panX, minPanX, maxPanX);
