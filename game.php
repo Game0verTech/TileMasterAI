@@ -1471,9 +1471,10 @@ $aiSetupNotes = [
 
     .board-canvas {
       position: relative;
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-start;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      justify-content: center;
       flex: 1;
       width: 100%;
       height: 100%;
@@ -1483,7 +1484,7 @@ $aiSetupNotes = [
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
       touch-action: pan-x pan-y;
       cursor: grab;
-      scroll-behavior: smooth;
+      scroll-behavior: auto;
       height: 100%;
     }
 
@@ -1524,7 +1525,7 @@ $aiSetupNotes = [
 
     .board-scale {
       position: relative;
-      transform-origin: top left;
+      transform-origin: center center;
       will-change: transform;
       display: inline-block;
       flex-shrink: 0;
@@ -2860,6 +2861,28 @@ $aiSetupNotes = [
         return { viewportRect: targetViewport, boardRect, scaledWidth, scaledHeight };
       };
 
+      const getContentBounds = (scale = getFinalScale()) => {
+        if (!boardCanvas) return { maxLeft: 0, maxTop: 0 };
+        const viewportRect = boardCanvas.getBoundingClientRect();
+        const boardRect = measureBoardRect();
+        const padX = canvasPadding.x || 0;
+        const padY = canvasPadding.y || 0;
+        const width = Math.max(0, boardRect.width * scale) + padX * 2;
+        const height = Math.max(0, boardRect.height * scale) + padY * 2;
+
+        return {
+          maxLeft: Math.max(0, width - viewportRect.width),
+          maxTop: Math.max(0, height - viewportRect.height),
+        };
+      };
+
+      const clampScrollToContent = (scale = getFinalScale()) => {
+        if (!boardCanvas) return;
+        const bounds = getContentBounds(scale);
+        boardCanvas.scrollLeft = clamp(boardCanvas.scrollLeft, 0, bounds.maxLeft);
+        boardCanvas.scrollTop = clamp(boardCanvas.scrollTop, 0, bounds.maxTop);
+      };
+
       const centerBoard = () => {
         if (!boardCanvas || !boardScaleEl) return;
         const finalScale = getFinalScale();
@@ -2885,6 +2908,7 @@ $aiSetupNotes = [
 
         boardCanvas.scrollLeft = targetLeft;
         boardCanvas.scrollTop = targetTop;
+        clampScrollToContent(finalScale);
       };
 
       const syncDockHeights = () => {
@@ -2943,6 +2967,8 @@ $aiSetupNotes = [
           boardCanvas.scrollLeft = Math.max(0, centerX * nextScale + (canvasPadding.x || 0) - viewportRect.width / 2);
           boardCanvas.scrollTop = Math.max(0, centerY * nextScale + (canvasPadding.y || 0) - viewportRect.height / 2);
         }
+
+        clampScrollToContent(getFinalScale());
       };
 
       const adjustZoom = (factor, pivot = null) => {
@@ -2967,6 +2993,7 @@ $aiSetupNotes = [
           const padY = canvasPadding.y || 0;
           boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + padX - pivotX);
           boardCanvas.scrollTop = Math.max(0, contentY * nextScale + padY - pivotY);
+          clampScrollToContent(nextScale);
         } else {
           applyBoardTransform();
         }
@@ -3001,10 +3028,12 @@ $aiSetupNotes = [
 
       const handleWheelZoom = (event) => {
         if (!boardScaleEl || !boardCanvas) return;
-        if (!event.ctrlKey && !event.metaKey) return;
+        const isPinchZoom = event.ctrlKey || event.metaKey;
+        const dominantAxisY = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
+        if (!isPinchZoom && !dominantAxisY && !event.shiftKey) return;
         event.preventDefault();
         const delta = -event.deltaY;
-        const intensity = event.deltaMode === 1 ? 0.04 : 0.0014;
+        const intensity = event.deltaMode === 1 ? 0.08 : 0.0022;
         const factor = Math.exp(delta * intensity);
         adjustZoom(factor, { x: event.clientX, y: event.clientY });
       };
@@ -3063,8 +3092,9 @@ $aiSetupNotes = [
         event.preventDefault();
         const dx = touch.clientX - dragOrigin.x;
         const dy = touch.clientY - dragOrigin.y;
-        boardCanvas.scrollLeft = dragOrigin.scrollX - dx;
-        boardCanvas.scrollTop = dragOrigin.scrollY - dy;
+        const bounds = getContentBounds();
+        boardCanvas.scrollLeft = clamp(dragOrigin.scrollX - dx, 0, bounds.maxLeft);
+        boardCanvas.scrollTop = clamp(dragOrigin.scrollY - dy, 0, bounds.maxTop);
       };
 
       const handleTouchEnd = () => {
@@ -3096,8 +3126,9 @@ $aiSetupNotes = [
         if (!isDraggingViewport) return;
         const dx = event.clientX - dragOrigin.x;
         const dy = event.clientY - dragOrigin.y;
-        boardCanvas.scrollLeft = dragOrigin.scrollX - dx;
-        boardCanvas.scrollTop = dragOrigin.scrollY - dy;
+        const bounds = getContentBounds();
+        boardCanvas.scrollLeft = clamp(dragOrigin.scrollX - dx, 0, bounds.maxLeft);
+        boardCanvas.scrollTop = clamp(dragOrigin.scrollY - dy, 0, bounds.maxTop);
       };
 
       const endBoardPan = () => {
@@ -5086,7 +5117,8 @@ $aiSetupNotes = [
         boardCanvas.addEventListener('touchcancel', handleTouchEnd);
         boardCanvas.addEventListener('dblclick', (event) => {
           event.preventDefault();
-          centerBoard();
+          const zoomStep = event.shiftKey ? 0.72 : 1.45;
+          adjustZoom(zoomStep, { x: event.clientX, y: event.clientY });
         });
       }
 
