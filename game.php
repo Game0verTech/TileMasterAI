@@ -237,6 +237,60 @@ $aiSetupNotes = [
       overflow: hidden;
     }
 
+    .hidden { display: none !important; }
+
+    .draw-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.78);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      z-index: 2000;
+    }
+
+    .draw-panel {
+      background: #0b1224;
+      border: 1px solid #1e293b;
+      border-radius: 18px;
+      padding: 18px;
+      width: min(100%, 820px);
+      color: #e2e8f0;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    .draw-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .draw-grid table { width: 100%; border-collapse: collapse; }
+    .draw-grid th, .draw-grid td { padding: 8px; text-align: left; border-bottom: 1px solid #1e293b; }
+    .draw-grid th { color: #cbd5e1; }
+
+    .draw-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; }
+    .draw-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .draw-modal {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 2100;
+    }
+
+    .draw-modal .modal-card {
+      background: #0f172a;
+      border-radius: 16px;
+      border: 1px solid #1e293b;
+      padding: 20px;
+      width: min(100%, 420px);
+      color: #e2e8f0;
+      text-align: center;
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .draw-ticker { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 8px 0; }
+    .countdown { font-size: 36px; font-weight: 800; margin-top: 10px; }
+
     header {
       display: flex;
       flex-direction: column;
@@ -603,6 +657,12 @@ $aiSetupNotes = [
       color: var(--muted);
       font-weight: 600;
     }
+    .message.waiting {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
 
     .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
     .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
@@ -727,86 +787,6 @@ $aiSetupNotes = [
       align-items: start;
     }
 
-    .session-form {
-      display: grid;
-      gap: 8px;
-    }
-
-    .session-fields {
-      display: grid;
-      gap: 8px;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    }
-
-    .input {
-      width: 100%;
-      padding: 12px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      font-weight: 600;
-      color: var(--ink);
-    }
-
-    .input:focus {
-      outline: 2px solid #a5b4fc;
-      border-color: #818cf8;
-      background: #fff;
-    }
-
-    .session-hint {
-      margin: 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .session-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .session-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .session-meta { display: grid; gap: 4px; }
-
-    .session-title {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 18px;
-    }
-
-    .session-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 10px;
-      background: #eef2ff;
-      color: #312e81;
-      font-weight: 700;
-      font-size: 13px;
-    }
-
-    .session-players {
-      color: var(--muted);
-      margin: 0;
-      font-weight: 700;
-    }
-
-    .session-actions { display: inline-flex; gap: 8px; align-items: center; }
-
     .btn.small { padding: 10px 12px; font-size: 14px; }
 
     .btn.ghost {
@@ -821,36 +801,6 @@ $aiSetupNotes = [
       background: #fff1f2;
       box-shadow: none;
     }
-
-    .session-flash {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 700;
-      display: none;
-    }
-
-    .session-flash.show { display: block; }
-    .session-flash.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-    .session-flash.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
-
-    .session-debug {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid #0f172a;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 10px 0;
-    }
-
-    .session-empty { margin: 0; color: var(--muted); font-weight: 700; }
 
     .lobby-card {
       margin-top: 18px;
@@ -1154,21 +1104,6 @@ $aiSetupNotes = [
       gap: 10px;
     }
 
-    .session-error-modal .session-error-body {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 12px;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 13px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-      border: 1px solid #0f172a;
-      max-height: min(620px, calc(80vh - 160px));
-      overflow: auto;
-    }
-
     .ai-status {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -1412,6 +1347,12 @@ $aiSetupNotes = [
       width: max-content;
       max-width: 100%;
       max-height: 100%;
+    }
+
+    .board-chrome.locked {
+      pointer-events: none;
+      opacity: 0.85;
+      filter: saturate(0.7);
     }
 
     .hud-dock {
@@ -1767,6 +1708,18 @@ $aiSetupNotes = [
       width: 100%;
     }
 
+    .message.waiting {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #4338ca;
+      animation: pulseNotice 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulseNotice {
+      0%, 100% { opacity: 0.82; }
+      50% { opacity: 1; }
+    }
+
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1819,6 +1772,52 @@ $aiSetupNotes = [
   </style>
 </head>
 <body>
+  <div class="draw-overlay hidden" id="drawOverlay">
+    <div class="draw-panel">
+      <div class="draw-actions">
+        <div>
+          <p class="hud-eyebrow" style="margin:0;">Turn order draw</p>
+          <h2 style="margin:4px 0 0;">Reveal your starting tile</h2>
+          <p class="hud-text" id="drawStatus" style="margin:6px 0 0; color:#cbd5e1;">Waiting for lobby...</p>
+        </div>
+        <button type="button" id="drawTileBtn">Draw tile</button>
+      </div>
+      <div class="draw-grid" style="margin-top:10px;">
+        <div>
+          <h3 style="margin:0 0 6px;">Players</h3>
+          <table>
+            <thead><tr><th>Player</th><th>Status</th><th>Tile</th></tr></thead>
+            <tbody id="drawTable"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="margin:0 0 6px;">Turn order</h3>
+          <table>
+            <thead><tr><th>#</th><th>Player</th><th>Tile</th></tr></thead>
+            <tbody id="orderTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="hud-text" style="margin-top:10px; color:#cbd5e1;" id="drawHint">All players must draw to continue.</p>
+    </div>
+  </div>
+
+  <div class="draw-modal hidden" id="tileModal" aria-live="polite">
+    <div class="modal-card">
+      <h3 style="margin:0;">Drawing...</h3>
+      <div class="draw-ticker" id="drawTicker">?</div>
+      <p id="drawResultText" style="color:#cbd5e1; margin:6px 0 0;"></p>
+    </div>
+  </div>
+
+  <div class="draw-modal hidden" id="startModal" aria-live="polite">
+    <div class="modal-card">
+      <h3 id="startModalTitle" style="margin:0;">Game starting</h3>
+      <p id="startModalMessage" style="color:#cbd5e1; margin:8px 0 4px;"></p>
+      <div class="countdown" id="startCountdown">3</div>
+    </div>
+  </div>
+
   <header class="hud-dock" aria-label="Game status dock">
     <div class="hud-inner">
       <div class="hud-menu" id="hudMenu">
@@ -1845,63 +1844,6 @@ $aiSetupNotes = [
       </div>
     </div>
   </header>
-
-  <section class="card sessions-card" aria-labelledby="sessionsTitle">
-    <div class="session-header">
-      <div>
-        <p class="eyebrow">Multiplayer lobby</p>
-        <h2 class="subhead" id="sessionsTitle">Sessions</h2>
-        <p class="lede small">Open games ready for up to four players.</p>
-      </div>
-      <form class="session-form" id="createSessionForm" novalidate>
-        <div class="session-fields">
-          <label class="sr-only" for="sessionCode">Session code</label>
-          <input class="input" type="text" id="sessionCode" name="code" placeholder="e.g., ALPHA" required maxlength="12" />
-          <label class="sr-only" for="playerName">Your name</label>
-          <input class="input" type="text" id="playerName" name="playerName" placeholder="Display name" required maxlength="40" />
-        </div>
-        <div class="session-actions">
-          <button class="btn small" type="submit">Create session</button>
-          <button class="btn small ghost" type="button" id="joinSessionBtn">Join session</button>
-          <p class="session-hint">Max 4 players per table. Creators are marked as host. Idle lobbies expire after 2 hours.</p>
-        </div>
-      </form>
-    </div>
-
-    <div class="session-flash" id="sessionFlash" role="status" aria-live="polite"></div>
-    <pre class="session-debug" id="sessionDebug" hidden aria-live="polite"></pre>
-    <div class="session-list" id="sessionList" role="list"></div>
-    <p class="session-empty" id="sessionEmpty">No sessions yet — create one.</p>
-    <div class="lobby-card" id="lobbyCard" hidden>
-      <div class="lobby-header">
-        <div>
-          <p class="eyebrow">Live lobby</p>
-          <h3 class="subhead" id="lobbyTitle">Session lobby</h3>
-        </div>
-        <div class="lobby-meta">
-          <span class="hud-pill" id="lobbyStatus">Waiting for players</span>
-          <span class="hud-pill" id="lobbyCapacity"></span>
-        </div>
-      </div>
-      <div class="lobby-roster" id="lobbyRoster"></div>
-      <div class="turnorder-panel" id="turnOrderPanel">
-        <div class="turnorder-header">
-          <div>
-            <p class="eyebrow">Starting player</p>
-            <p class="turnorder-label">Draw tiles to pick who plays first. Ties redraw automatically.</p>
-          </div>
-          <button class="btn small" type="button" id="drawTurnOrderBtn">Draw tiles</button>
-        </div>
-        <div class="turnorder-log" id="turnOrderLog" role="log" aria-live="polite"></div>
-        <div class="turnorder-result" id="turnOrderResult" aria-live="polite"></div>
-      </div>
-      <div class="lobby-actions">
-        <button class="btn" type="button" id="startGameBtn" disabled aria-disabled="true">Start game</button>
-        <button class="btn ghost" type="button" id="leaveSessionBtn">Leave lobby</button>
-        <button class="btn ghost danger" type="button" id="deleteSessionBtn" hidden>Delete session</button>
-      </div>
-    </div>
-  </section>
 
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
@@ -2037,1192 +1979,21 @@ $aiSetupNotes = [
       const boardChromeEl = document.getElementById('boardChrome');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
-      const sessionListEl = document.getElementById('sessionList');
-      const sessionEmptyEl = document.getElementById('sessionEmpty');
-      const sessionFlashEl = document.getElementById('sessionFlash');
-      const sessionDebugEl = document.getElementById('sessionDebug');
-      const sessionErrorModal = document.getElementById('sessionErrorModal');
-      const sessionErrorBody = document.getElementById('sessionErrorBody');
-      const sessionErrorTitle = document.getElementById('sessionErrorTitle');
-      const sessionErrorClose = document.getElementById('closeSessionError');
-      const sessionErrorAck = document.getElementById('ackSessionError');
-      const sessionErrorCopy = document.getElementById('copySessionError');
-      const createSessionForm = document.getElementById('createSessionForm');
-      const sessionCodeInput = document.getElementById('sessionCode');
-      const playerNameInput = document.getElementById('playerName');
-      const joinSessionBtn = document.getElementById('joinSessionBtn');
-      const lobbyCard = document.getElementById('lobbyCard');
-      const lobbyTitle = document.getElementById('lobbyTitle');
-      const lobbyStatus = document.getElementById('lobbyStatus');
-      const lobbyCapacity = document.getElementById('lobbyCapacity');
-      const lobbyRoster = document.getElementById('lobbyRoster');
-      const startGameBtn = document.getElementById('startGameBtn');
-      const leaveSessionBtn = document.getElementById('leaveSessionBtn');
-      const drawTurnOrderBtn = document.getElementById('drawTurnOrderBtn');
-      const deleteSessionBtn = document.getElementById('deleteSessionBtn');
-      const turnOrderLogEl = document.getElementById('turnOrderLog');
-      const turnOrderResultEl = document.getElementById('turnOrderResult');
-      const MAX_PLAYERS = 4;
-      const lobbyWsUrl = <?php
-        $explicitWsUrl = getenv('LOBBY_WS_URL') ?: '';
-        $wsPort = getenv('LOBBY_WS_PORT') ?: '8090';
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'wss' : 'ws';
-        $computed = $protocol . '://' . ($_SERVER['SERVER_NAME'] ?? 'localhost') . ':' . $wsPort;
-        echo json_encode($explicitWsUrl ?: $computed);
-      ?>;
-      let lobbySocket = null;
-      let lobbyConnected = false;
-      let activeSession = null;
-      let currentPlayer = null;
-      let currentTurnPlayerId = null;
-      let sessionErrorDetail = '';
-      const SESSION_STORAGE_KEY = 'tilemaster.session';
-      const IDENTITY_STORAGE_KEY = 'tilemaster.identity';
-      const ADMIN_NAME = 'TomAdmin';
-      const sessionFromUrl = new URLSearchParams(window.location.search).get('code');
-
-      const bannerStyle = document.createElement('style');
-      bannerStyle.textContent = `
-        #waitingBanner {
-          position: fixed;
-          inset: 0;
-          display: grid;
-          place-items: center;
-          pointer-events: none;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          font-size: clamp(16px, 2vw, 22px);
-          color: #e2e8f0;
-          text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-          opacity: 0;
-          transition: opacity 220ms ease;
-        }
-        #waitingBanner.active { opacity: 1; }
-        #waitingBanner .badge { background: rgba(99, 102, 241, 0.28); color: #fff; padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
-        .cell.pulse { box-shadow: inset 0 0 0 3px #22d3ee; transition: box-shadow 320ms ease; }
-      `;
-      document.head.appendChild(bannerStyle);
-      const waitingBanner = document.createElement('div');
-      waitingBanner.id = 'waitingBanner';
-      waitingBanner.innerHTML = '<span class="badge">Waiting for your turn…</span>';
-      document.body.appendChild(waitingBanner);
-      let turnOrderInFlight = false;
-
-      const setSessionFlash = (message, tone = 'info') => {
-        if (!sessionFlashEl) return;
-
-        const classes = ['session-flash'];
-        if (message) classes.push('show');
-        if (tone === 'success') classes.push('success');
-        if (tone === 'error') classes.push('error');
-
-        sessionFlashEl.className = classes.join(' ');
-        sessionFlashEl.textContent = message;
-      };
-
-      const setSessionDebug = (detail = '') => {
-        if (!sessionDebugEl) return;
-
-        const hasDetail = Boolean(detail && detail.trim());
-        sessionDebugEl.hidden = !hasDetail;
-        sessionDebugEl.textContent = hasDetail ? detail : '';
-      };
-
-      const isAdminName = (name) => (name || '').trim().toLowerCase() === ADMIN_NAME.toLowerCase();
-
-      const generateClientToken = () => {
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-      };
-
-      const loadSavedSession = () => {
-        try {
-          const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-          return raw ? JSON.parse(raw) : null;
-        } catch (error) {
-          console.warn('Unable to parse saved session', error);
-          return null;
-        }
-      };
-
-      const loadIdentity = () => {
-        try {
-          const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
-          return raw ? JSON.parse(raw) : null;
-        } catch (error) {
-          console.warn('Unable to parse stored identity', error);
-          return null;
-        }
-      };
-
-      const persistIdentity = (playerName, clientToken) => {
-        if (!clientToken) return;
-        const payload = {
-          playerName: (playerName || '').trim(),
-          clientToken,
-        };
-        localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(payload));
-      };
-
-      const persistSessionState = (session, player) => {
-        if (!session?.code || !player?.id || !player?.client_token) return;
-        const payload = {
-          sessionCode: session.code,
-          sessionId: session.id,
-          playerId: player.id,
-          playerName: player.name,
-          clientToken: player.client_token,
-        };
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
-        persistIdentity(player.name, player.client_token);
-      };
-
-      const clearSavedSession = () => {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-      };
-
-      const resolveIdentity = (nameHint = '') => {
-        const trimmedName = (nameHint || '').trim();
-
-        if (currentPlayer?.client_token) {
-          const actorName = trimmedName || currentPlayer.name || '';
-          persistIdentity(actorName, currentPlayer.client_token);
-          return { playerName: actorName, clientToken: currentPlayer.client_token };
-        }
-
-        const savedSession = loadSavedSession();
-        if (savedSession?.clientToken) {
-          const actorName = trimmedName || savedSession.playerName || '';
-          persistIdentity(actorName, savedSession.clientToken);
-          return { playerName: actorName, clientToken: savedSession.clientToken };
-        }
-
-        const storedIdentity = loadIdentity();
-        if (storedIdentity?.clientToken) {
-          const actorName = trimmedName || storedIdentity.playerName || '';
-          persistIdentity(actorName, storedIdentity.clientToken);
-          return { playerName: actorName, clientToken: storedIdentity.clientToken };
-        }
-
-        const clientToken = generateClientToken();
-        const actorName = trimmedName || (playerNameInput?.value?.trim() || '');
-        persistIdentity(actorName, clientToken);
-        return { playerName: actorName, clientToken };
-      };
-
-      const closeSessionErrorModal = () => {
-        if (!sessionErrorModal) return;
-
-        sessionErrorModal.classList.remove('active');
-        sessionErrorModal.setAttribute('aria-hidden', 'true');
-
-        const aiOpen = aiModal?.classList.contains('active');
-        const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
-        if (!aiOpen && !rulesOpen) {
-          document.body.classList.remove('modal-open');
-        }
-      };
-
-      const clearSessionErrors = () => {
-        sessionErrorDetail = '';
-        setSessionFlash('');
-        setSessionDebug('');
-
-        if (sessionErrorBody) {
-          sessionErrorBody.textContent = '';
-        }
-
-        if (sessionErrorTitle) {
-          sessionErrorTitle.textContent = '';
-        }
-
-        if (sessionErrorModal?.classList.contains('active')) {
-          closeSessionErrorModal();
-        }
-      };
-
-      const presentSessionError = (summary, detail) => {
-        clearSessionErrors();
-
-        const fallbackSummary = summary || 'Unable to load sessions.';
-        const fallbackDetail = detail || fallbackSummary;
-
-        setSessionFlash(fallbackSummary, 'error');
-        sessionErrorDetail = fallbackDetail;
-        setSessionDebug(fallbackDetail);
-
-        if (sessionErrorTitle) {
-          sessionErrorTitle.textContent = fallbackSummary;
-        }
-
-        if (sessionErrorBody) {
-          sessionErrorBody.textContent = fallbackDetail;
-          sessionErrorBody.scrollTop = 0;
-        }
-
-        if (sessionErrorModal) {
-          sessionErrorModal.classList.add('active');
-          sessionErrorModal.setAttribute('aria-hidden', 'false');
-          document.body.classList.add('modal-open');
-        }
-      };
-
-      const describeHttpResponse = ({ requestLabel, response, reason, bodyText, contentType }) =>
-        [
-          requestLabel,
-          `Status: ${response?.status ?? 'network error'} ${response?.statusText ?? ''}`.trim(),
-          `Content-Type: ${contentType || 'none'}`,
-          reason ? `Reason: ${reason}` : null,
-          'Body preview:',
-          bodyText ? bodyText : '(empty response body)',
-        ]
-          .filter(Boolean)
-          .join('\n');
-
-      const parseJsonResponse = async (response, { requestLabel }) => {
-        const contentType = response.headers.get('content-type') || '';
-        const bodyText = await response.text();
-        const isJson = contentType.toLowerCase().includes('application/json');
-
-        if (!isJson) {
-          const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
-          error.detail = describeHttpResponse({
-            requestLabel,
-            response,
-            reason: 'Non-JSON response',
-            bodyText,
-            contentType,
-          });
-          throw error;
-        }
-
-        try {
-          const payload = JSON.parse(bodyText);
-          return { payload, bodyText, contentType, detail: describeHttpResponse({ requestLabel, response, bodyText, contentType }) };
-        } catch (parseError) {
-          const error = new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
-          error.detail = describeHttpResponse({
-            requestLabel,
-            response,
-            reason: 'Invalid JSON received',
-            bodyText,
-            contentType,
-          });
-          throw error;
-        }
-      };
-
-      if (sessionErrorClose) {
-        sessionErrorClose.addEventListener('click', () => closeSessionErrorModal());
-      }
-
-      if (sessionErrorAck) {
-        sessionErrorAck.addEventListener('click', () => closeSessionErrorModal());
-      }
-
-      if (sessionErrorCopy) {
-        sessionErrorCopy.addEventListener('click', async () => {
-          const text = (sessionErrorBody?.textContent || sessionErrorDetail || '').trim();
-          if (!text) return;
-
-          const original = sessionErrorCopy.textContent;
-          try {
-            await navigator.clipboard.writeText(text);
-            sessionErrorCopy.textContent = 'Copied!';
-          } catch (copyError) {
-            console.error(copyError);
-            sessionErrorCopy.textContent = 'Copy failed';
-          } finally {
-            setTimeout(() => {
-              sessionErrorCopy.textContent = original;
-            }, 1600);
-          }
-        });
-      }
-
-      if (sessionErrorModal) {
-        sessionErrorModal.addEventListener('click', (event) => {
-          if (event.target === sessionErrorModal) {
-            closeSessionErrorModal();
-          }
-        });
-      }
-
-      const openLobbySocket = () => {
-        if (lobbySocket && lobbyConnected) {
-          return lobbySocket;
-        }
-
-        try {
-          lobbySocket = new WebSocket(lobbyWsUrl);
-        } catch (error) {
-          console.error('Unable to connect to lobby WebSocket', error);
-          return null;
-        }
-
-        lobbySocket.addEventListener('open', () => {
-          lobbyConnected = true;
-          if (activeSession?.code) {
-            lobbySocket?.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
-            lobbySocket?.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-          }
-        });
-
-        lobbySocket.addEventListener('close', () => {
-          lobbyConnected = false;
-          setTimeout(() => {
-            lobbySocket = null;
-            if (activeSession?.code) {
-              openLobbySocket();
-            }
-          }, 800);
-        });
-
-        lobbySocket.addEventListener('message', (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'session.roster') {
-              renderRoster(payload);
-            }
-            if (payload.type === 'turn.started') {
-              currentTurnPlayerId = payload.playerId || null;
-              if (currentTurnPlayerId === currentPlayer?.id && !turnActive) {
-                setMessage('Your turn — draw tiles and play!', 'success');
-              }
-              if (currentTurnPlayerId && currentTurnPlayerId !== currentPlayer?.id) {
-                setMessage(`Waiting for player ${currentTurnPlayerId}…`, 'info');
-              }
-              syncTurnGate();
-            }
-            if (payload.type === 'turn.completed') {
-              currentTurnPlayerId = null;
-              const placements = Array.isArray(payload.placements) ? payload.placements : [];
-              if (placements.length) {
-                applyRemotePlacements(placements, payload.playerId);
-              }
-              syncTurnGate();
-            }
-            if (payload.type === 'turn.invalid_move' && payload.playerId === currentPlayer?.id) {
-              setMessage(payload.reason || 'Move rejected.', 'error');
-              playFx('invalid', { rate: 0.94 });
-            }
-            if (payload.type === 'session.started') {
-              renderLobbyStatus('started');
-              playFx('accept');
-            }
-            if (payload.type === 'turnorder.drawn' && payload.sessionCode === activeSession?.code) {
-              logTurnOrderEvent(`${payload.player.name} drew ${payload.tile.letter}.`);
-            }
-            if (payload.type === 'turnorder.tie' && payload.sessionCode === activeSession?.code) {
-              const names = (payload.players || []).map((player) => player.name).join(', ');
-              logTurnOrderEvent(`Tie on ${payload.distance} — redraw for ${names}.`, 'Tie');
-            }
-            if (payload.type === 'turnorder.resolved' && payload.sessionCode === activeSession?.code) {
-              turnOrderInFlight = false;
-              renderTurnOrderResult(payload.order || []);
-              if (drawTurnOrderBtn) {
-                drawTurnOrderBtn.disabled = !(Boolean(currentPlayer?.is_host) && (payload.order?.length ?? 0) >= 2);
-                drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
-              }
-            }
-            if (payload.type === 'turnorder.error' && payload.sessionCode === activeSession?.code) {
-              turnOrderInFlight = false;
-              logTurnOrderEvent(payload.message || 'Unable to draw turn order.', 'Error');
-              if (drawTurnOrderBtn) {
-                drawTurnOrderBtn.disabled = false;
-                drawTurnOrderBtn.setAttribute('aria-disabled', 'false');
-              }
-              setSessionFlash(payload.message || 'Unable to draw tiles for order.', 'error');
-            }
-            if (payload.type === 'player.sound' && payload.tone) {
-              playFx(payload.tone, { rate: 1.05 });
-            }
-          } catch (error) {
-            console.error('WS message error', error);
-          }
-        });
-
-        lobbySocket.addEventListener('error', (event) => {
-          console.error('Lobby WebSocket error', event);
-        });
-
-        return lobbySocket;
-      };
-
-      const renderLobbyStatus = (status) => {
-        if (!lobbyStatus || !activeSession) return;
-        const tone = status === 'started' ? 'In progress' : 'Waiting for players';
-        lobbyStatus.textContent = tone;
-      };
-
-      const updateLobbyActions = () => {
-        const isHost = Boolean(currentPlayer?.is_host);
-        const isAdmin = Boolean(
-          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(loadIdentity()?.playerName)
-        );
-
-        if (deleteSessionBtn) {
-          const canDelete = Boolean(activeSession?.code && (isHost || isAdmin));
-          deleteSessionBtn.hidden = !canDelete;
-          deleteSessionBtn.disabled = !canDelete;
-          deleteSessionBtn.setAttribute('aria-disabled', canDelete ? 'false' : 'true');
-        }
-      };
-
-      const renderRoster = (payload) => {
-        if (!lobbyCard || !lobbyRoster || !payload?.players) return;
-
-        const { players, sessionCode, canStart, status = 'pending' } = payload;
-        lobbyCard.hidden = false;
-        lobbyTitle.textContent = `Session ${sessionCode}`;
-        lobbyCapacity.textContent = `${players.length}/${payload.maxPlayers} players`;
-        renderLobbyStatus(status);
-        if (activeSession) {
-          activeSession.status = status;
-        }
-
-        lobbyRoster.innerHTML = '';
-
-        players.forEach((player) => {
-          const row = document.createElement('div');
-          row.className = 'lobby-player';
-
-          const order = document.createElement('span');
-          order.className = 'lobby-order';
-          order.textContent = player.join_order;
-
-          const name = document.createElement('div');
-          name.innerHTML = `<strong>${player.name}</strong>`;
-
-          const badges = document.createElement('div');
-          badges.className = 'lobby-meta';
-
-          if (player.is_host) {
-            const hostBadge = document.createElement('span');
-            hostBadge.className = 'badge host';
-            hostBadge.textContent = 'Host';
-            badges.appendChild(hostBadge);
-          }
-
-          if (currentPlayer?.id === player.id) {
-            const selfBadge = document.createElement('span');
-            selfBadge.className = 'badge self';
-            selfBadge.textContent = 'You';
-            badges.appendChild(selfBadge);
-            currentPlayer.is_host = !!player.is_host;
-            currentPlayer.join_order = player.join_order;
-          }
-
-          if (isAdminName(player.name)) {
-            const adminBadge = document.createElement('span');
-            adminBadge.className = 'badge admin';
-            adminBadge.textContent = 'Admin';
-            badges.appendChild(adminBadge);
-          }
-
-          row.appendChild(order);
-          row.appendChild(name);
-          row.appendChild(badges);
-
-          lobbyRoster.appendChild(row);
-        });
-
-        if (startGameBtn) {
-          const isHost = Boolean(currentPlayer?.is_host);
-          const readyToStart = canStart && status !== 'started';
-          startGameBtn.disabled = !(isHost && readyToStart);
-          startGameBtn.setAttribute('aria-disabled', startGameBtn.disabled ? 'true' : 'false');
-        }
-
-        const isHost = Boolean(currentPlayer?.is_host);
-        const canDraw = isHost && players.length >= 2 && status !== 'started';
-        if (drawTurnOrderBtn) {
-          drawTurnOrderBtn.disabled = !(canDraw && !turnOrderInFlight);
-          drawTurnOrderBtn.setAttribute('aria-disabled', drawTurnOrderBtn.disabled ? 'true' : 'false');
-        }
-
-        updateLobbyActions();
-      };
-
-      const setActiveSession = (session, player) => {
-        activeSession = session;
-        currentPlayer = player;
-        if (currentPlayer) {
-          currentPlayer.is_admin = Boolean(player?.is_admin || isAdminName(player?.name));
-        }
-        if (player?.client_token) {
-          persistSessionState(session, player);
-        }
-        if (playerNameInput && player?.name) {
-          playerNameInput.value = player.name;
-        }
-        resetTurnOrderUi();
-        openLobbySocket();
-        updateLobbyActions();
-        if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN) {
-          lobbySocket.send(JSON.stringify({ type: 'subscribe', sessionCode: activeSession.code }));
-          lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: activeSession.code }));
-        }
-      };
-
-      const refreshLobby = async (code) => {
-        try {
-          const response = await fetch(`/api/session_players.php?code=${encodeURIComponent(code)}`);
-          const data = await response.json();
-
-          if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Unable to load lobby.');
-          }
-
-          renderRoster({
-            sessionCode: data.session.code,
-            status: data.session.status,
-            maxPlayers: data.session.max_players,
-            players: data.players,
-            canStart: data.players.length >= 2,
-          });
-          adoptTurnState(data.turn_state);
-
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: data.session.code }));
-          }
-        } catch (error) {
-          console.error(error);
-          setSessionFlash('Unable to load lobby roster.', 'error');
-        }
-      };
-
-      const resetTurnOrderUi = (message = 'Waiting to draw tiles…') => {
-        if (turnOrderLogEl) {
-          turnOrderLogEl.innerHTML = '';
-          const placeholder = document.createElement('div');
-          placeholder.className = 'entry placeholder';
-          placeholder.textContent = message;
-          turnOrderLogEl.appendChild(placeholder);
-        }
-
-        if (turnOrderResultEl) {
-          turnOrderResultEl.textContent = '';
-        }
-
-        turnOrderInFlight = false;
-      };
-
-      const logTurnOrderEvent = (text, accent = '') => {
-        if (!turnOrderLogEl) return;
-        if (turnOrderLogEl.firstChild?.classList.contains('placeholder')) {
-          turnOrderLogEl.innerHTML = '';
-        }
-        const entry = document.createElement('div');
-        entry.className = 'entry';
-        entry.textContent = text;
-        if (accent) {
-          const badge = document.createElement('span');
-          badge.className = 'badge';
-          badge.textContent = accent;
-          entry.appendChild(badge);
-        }
-        turnOrderLogEl.appendChild(entry);
-        turnOrderLogEl.scrollTop = turnOrderLogEl.scrollHeight;
-      };
-
-      const renderTurnOrderResult = (order = []) => {
-        if (!turnOrderResultEl) return;
-        if (!order.length) {
-          turnOrderResultEl.textContent = '';
-          return;
-        }
-
-        const [first, ...rest] = order;
-        const leader = `${first.player.name} (drew ${first.tile.letter})`;
-        const runners = rest.map((entry) => `${entry.player.name} (${entry.tile.letter})`).join(', ');
-        turnOrderResultEl.innerHTML = `<strong>${leader}</strong> will start. ${runners ? `Then: ${runners}.` : ''}`;
-      };
-
-      const syncTurnGate = () => {
-        if (!waitingBanner) return;
-        const isMyTurn = currentTurnPlayerId && currentPlayer?.id === currentTurnPlayerId;
-        waitingBanner.classList.toggle('active', !isMyTurn);
-        waitingBanner.querySelector('.badge').textContent = isMyTurn
-          ? 'Your move — place tiles!'
-          : currentTurnPlayerId
-            ? `Waiting for player #${currentTurnPlayerId}`
-            : 'Waiting for turn order…';
-        if (toggleBtn) {
-          toggleBtn.disabled = !isMyTurn && !turnActive;
-        }
-      };
-
-      const adoptTurnState = (state) => {
-        if (!state) return;
-        currentTurnPlayerId = state.current_player_id || null;
-        syncTurnGate();
-      };
-
-      const startTurnOrderDraw = () => {
-        if (!activeSession?.code || !drawTurnOrderBtn) {
-          setSessionFlash('Join a session to draw turn order.', 'error');
-          return;
-        }
-
-        if (!currentPlayer?.is_host) {
-          setSessionFlash('Only the host can draw for turn order.', 'error');
-          return;
-        }
-
-        if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
-          setSessionFlash('Reconnecting to the lobby…', 'error');
-          openLobbySocket();
-          return;
-        }
-
-        turnOrderInFlight = true;
-        drawTurnOrderBtn.disabled = true;
-        drawTurnOrderBtn.setAttribute('aria-disabled', 'true');
-        resetTurnOrderUi('Drawing tiles…');
-        lobbySocket.send(JSON.stringify({ type: 'turnorder.draw', sessionCode: activeSession.code }));
-      };
-
-      const renderSessions = (sessions = []) => {
-        if (!sessionListEl || !sessionEmptyEl) return;
-
-        sessionListEl.innerHTML = '';
-
-        const storedIdentity = loadIdentity();
-        const canAdminDelete = Boolean(
-          currentPlayer?.is_admin || isAdminName(playerNameInput?.value) || isAdminName(storedIdentity?.playerName)
-        );
-
-        if (!sessions.length) {
-          sessionListEl.hidden = true;
-          sessionEmptyEl.hidden = false;
-          return;
-        }
-
-        sessionListEl.hidden = false;
-        sessionEmptyEl.hidden = true;
-
-        sessions.forEach((session) => {
-          const row = document.createElement('div');
-          row.className = 'session-row';
-          row.setAttribute('role', 'listitem');
-
-          const meta = document.createElement('div');
-          meta.className = 'session-meta';
-
-          const title = document.createElement('h3');
-          title.className = 'session-title';
-          title.textContent = session.code;
-
-          const status = document.createElement('span');
-          status.className = 'session-status';
-          status.textContent = session.status;
-
-          const players = document.createElement('p');
-          players.className = 'session-players';
-          players.textContent = `${session.player_count}/${MAX_PLAYERS} players`;
-
-          meta.appendChild(title);
-          meta.appendChild(status);
-          meta.appendChild(players);
-
-          const actions = document.createElement('div');
-          actions.className = 'session-actions';
-
-          const joinBtn = document.createElement('button');
-          joinBtn.type = 'button';
-          joinBtn.className = 'btn small';
-          joinBtn.textContent = session.player_count >= MAX_PLAYERS ? 'Full' : 'Join';
-          joinBtn.disabled = session.player_count >= MAX_PLAYERS;
-          joinBtn.addEventListener('click', () => {
-            if (sessionCodeInput) sessionCodeInput.value = session.code;
-            if (playerNameInput) playerNameInput.focus();
-            if (createSessionForm) {
-              const { top } = createSessionForm.getBoundingClientRect();
-              window.scrollTo({ top: window.scrollY + top - 80, behavior: 'smooth' });
-            }
-            setSessionFlash(`Joining ${session.code}? Add your name to continue.`, 'success');
-          });
-
-          actions.appendChild(joinBtn);
-
-          if (canAdminDelete) {
-            const deleteBtn = document.createElement('button');
-            deleteBtn.type = 'button';
-            deleteBtn.className = 'btn small ghost danger';
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => {
-              const confirmed = window.confirm(`Delete session ${session.code}?`);
-              if (!confirmed) return;
-              deleteSessionByCode(session.code);
-            });
-            actions.appendChild(deleteBtn);
-          }
-
-          row.appendChild(meta);
-          row.appendChild(actions);
-          sessionListEl.appendChild(row);
-        });
-      };
-
-      const fetchSessions = async () => {
-        if (!sessionListEl || !sessionEmptyEl) return;
-
-        try {
-          const response = await fetch('/api/sessions.php');
-          const contentType = response.headers.get('content-type') || '';
-          const bodyText = await response.text();
-          const isJson = contentType.toLowerCase().includes('application/json');
-          const describePayload = {
-            requestLabel: 'Request: GET /api/sessions.php',
-            response,
-            contentType,
-            bodyText,
-          };
-
-          if (!isJson) {
-            const looksLikeHtml = /<(!doctype html|html)/i.test(bodyText.trim().slice(0, 50));
-            const detail = describeHttpResponse({ ...describePayload, reason: 'Non-JSON response' });
-            if (response.ok && (contentType.includes('text/html') || looksLikeHtml)) {
-              renderSessions([]);
-              clearSessionErrors();
-              setSessionFlash('No sessions yet — start a session below to begin.', 'info');
-              setSessionDebug(
-                'Sessions endpoint responded with HTML (likely the app shell). Treated as an empty lobby.\n' +
-                  detail,
-              );
-              return;
-            }
-
-            const error = new Error(`Expected JSON but received ${contentType || 'unknown content type'}.`);
-            error.detail = detail;
-            throw error;
-          }
-
-          let payload;
-          try {
-            payload = JSON.parse(bodyText);
-          } catch (parseError) {
-            const error = new Error(
-              `Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`,
-            );
-            error.detail = describeHttpResponse({ ...describePayload, reason: 'Invalid JSON received' });
-            throw error;
-          }
-
-          if (!response.ok || !payload) {
-            const message =
-              payload && typeof payload.message === 'string'
-                ? payload.message
-                : `Unable to load sessions (HTTP ${response.status || 'network error'})`;
-            const error = new Error(message);
-            error.detail = payload?.detail || describeHttpResponse(describePayload);
-            throw error;
-          }
-
-          const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
-          if (payload.success === false) {
-            const error = new Error(payload?.message || 'Unable to load sessions.');
-            error.detail = payload?.detail || describeHttpResponse(describePayload);
-            throw error;
-          }
-
-          renderSessions(sessions);
-          clearSessionErrors();
-          if (!sessions.length) {
-            setSessionFlash('No sessions yet — start a session below to begin.', 'info');
-          }
-        } catch (error) {
-          sessionEmptyEl.hidden = false;
-          sessionListEl.hidden = true;
-          const message = error instanceof Error ? error.message : 'Unable to load sessions right now.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : [
-                  `Error: ${error instanceof Error ? error.message : String(error)}`,
-                  error instanceof Error && error.stack ? `Stack: ${error.stack}` : null,
-                ]
-                  .filter(Boolean)
-                  .join('\n');
-
-          presentSessionError(`${message} See details below.`, detail);
-          console.error(error);
-        }
-      };
-
-      const handleCreateSession = async (event) => {
-        event.preventDefault();
-
-        if (!sessionCodeInput || !playerNameInput) {
-          return;
-        }
-
-        const code = sessionCodeInput.value.trim();
-        const playerName = playerNameInput.value.trim();
-
-        if (code === '' || playerName === '') {
-          setSessionFlash('Enter a session code and your name to create a game.', 'error');
-          return;
-        }
-
-        setSessionFlash('Creating session…');
-
-        try {
-          const identity = resolveIdentity(playerName);
-          const response = await fetch('/api/sessions.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, { requestLabel: 'Request: POST /api/sessions.php' });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to create session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Session ${payload.session.code} created. You're the host.`, 'success');
-          sessionCodeInput.value = '';
-          playerNameInput.value = '';
-          setActiveSession(
-            {
-              id: payload.session.id,
-              code: payload.session.code,
-              status: payload.session.status,
-              max_players: payload.session.max_players ?? MAX_PLAYERS,
-            },
-            {
-              id: payload.player?.id ?? payload.session.host?.id,
-              name: payload.player?.name || payload.session.host?.name || playerName,
-              client_token: payload.player?.client_token ?? payload.session.host?.client_token,
-              is_host: true,
-              is_admin: payload.player?.is_admin ?? isAdminName(playerName),
-            }
-          );
-          refreshLobby(payload.session.code);
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to create session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
-        }
-      };
-
-      const handleJoinSession = async () => {
-        if (!sessionCodeInput || !playerNameInput) return;
-
-        const code = sessionCodeInput.value.trim();
-        const playerName = playerNameInput.value.trim();
-
-        if (code === '' || playerName === '') {
-          setSessionFlash('Enter a session code and your name to join.', 'error');
-          return;
-        }
-
-        setSessionFlash('Joining session…');
-
-        try {
-          const identity = resolveIdentity(playerName);
-          const response = await fetch('/api/session_players.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName, clientToken: identity.clientToken || '' }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to join session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Joined ${payload.session.code}.`, 'success');
-          setActiveSession({
-            id: payload.session.id,
-            code: payload.session.code,
-            status: payload.session.status,
-            max_players: payload.session.max_players ?? MAX_PLAYERS,
-          }, {
-            id: payload.player.id,
-            name: payload.player.name,
-            client_token: payload.player.client_token,
-            is_host: false,
-            is_admin: payload.player?.is_admin ?? isAdminName(playerName),
-          });
-          renderRoster({
-            sessionCode: payload.session.code,
-            status: payload.session.status,
-            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
-            players: payload.players,
-            canStart: payload.players.length >= 2,
-          });
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: payload.session.code, tone: 'accept' }));
-          }
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to join session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
-        }
-      };
-
-      const resetLobbyState = (flashMessage = '') => {
-        activeSession = null;
-        currentPlayer = null;
-        clearSavedSession();
-        resetTurnOrderUi('Not in a lobby.');
-        if (lobbyCard) {
-          lobbyCard.hidden = true;
-        }
-        if (lobbyRoster) {
-          lobbyRoster.innerHTML = '';
-        }
-        updateLobbyActions();
-
-        if (flashMessage) {
-          setSessionFlash(flashMessage, 'success');
-        }
-      };
-
-      const deleteSessionByCode = async (code) => {
-        const nameFromForm = playerNameInput?.value?.trim() || currentPlayer?.name || '';
-        const identity = resolveIdentity(nameFromForm);
-        const actorName = (nameFromForm || identity.playerName || '').trim();
-
-        if (!actorName) {
-          setSessionFlash('Enter your name to manage sessions. TomAdmin can delete any lobby.', 'error');
-          return;
-        }
-
-        setSessionFlash(`Deleting session ${code}…`);
-
-        try {
-          const response = await fetch('/api/sessions.php', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, playerName: actorName, clientToken: identity.clientToken }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: DELETE /api/sessions.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to delete session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          if (activeSession?.code === code) {
-            resetLobbyState('Session deleted.');
-          } else {
-            setSessionFlash(`Session ${code} deleted.`, 'success');
-          }
-
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to delete session.';
-          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
-          presentSessionError(message, detail || `Request to delete ${code} failed.`);
-        }
-      };
-
-      const handleLeaveSession = async () => {
-        if (!activeSession?.code || !currentPlayer?.id) {
-          return;
-        }
-
-        try {
-          const code = activeSession.code;
-          const response = await fetch('/api/session_players.php', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: activeSession.code, playerId: currentPlayer.id }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: DELETE /api/session_players.php',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to leave session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: code, tone: 'reset' }));
-            lobbySocket.send(JSON.stringify({ type: 'refresh', sessionCode: code }));
-          }
-
-          clearSessionErrors();
-          resetLobbyState('Left the lobby.');
-          fetchSessions();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to leave session.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
-        }
-      };
-
-      const handleStartGame = async () => {
-        if (!activeSession?.code || !currentPlayer?.id) return;
-
-        try {
-          const response = await fetch('/api/session_players.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'start', code: activeSession.code, playerId: currentPlayer.id }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php (start)',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to start game.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          activeSession.status = payload.session.status;
-          renderLobbyStatus('started');
-          if (lobbySocket?.readyState === WebSocket.OPEN) {
-            lobbySocket.send(JSON.stringify({ type: 'session.start', sessionCode: activeSession.code, by: currentPlayer.id }));
-            lobbySocket.send(JSON.stringify({ type: 'player.sound', sessionCode: activeSession.code, tone: 'accept' }));
-          }
-          clearSessionErrors();
-          setSessionFlash('Game started.', 'success');
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unable to start game.';
-          const detail =
-            error instanceof Error && typeof error.detail === 'string'
-              ? error.detail
-              : `Error: ${error instanceof Error ? error.message : String(error)}`;
-          presentSessionError(message, detail);
-        }
-      };
-
-      const attemptResumeSession = async () => {
-        const saved = loadSavedSession();
-        const identity = loadIdentity();
-        const targetCode = saved?.sessionCode || sessionFromUrl;
-        const clientToken = saved?.clientToken || identity?.clientToken;
-
-        if (!clientToken || !targetCode) {
-          return;
-        }
-
-        setSessionFlash('Restoring your last lobby…');
-
-        try {
-          const response = await fetch('/api/session_players.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'rejoin', code: targetCode, clientToken }),
-          });
-
-          const { payload, detail } = await parseJsonResponse(response, {
-            requestLabel: 'Request: POST /api/session_players.php (rejoin)',
-          });
-
-          if (!response.ok || !payload?.success) {
-            const error = new Error(payload?.message || 'Unable to restore session.');
-            error.detail = payload?.detail || detail;
-            throw error;
-          }
-
-          clearSessionErrors();
-          setSessionFlash(`Rejoined ${payload.session.code}.`, 'success');
-          setActiveSession(
-            {
-              id: payload.session.id,
-              code: payload.session.code,
-              status: payload.session.status,
-              max_players: payload.session.max_players ?? MAX_PLAYERS,
-            },
-            {
-              id: payload.player.id,
-              name: payload.player.name,
-              client_token: payload.player.client_token,
-              is_host: Boolean(payload.player.is_host),
-              join_order: payload.player.join_order,
-              is_admin: payload.player?.is_admin ?? isAdminName(payload.player?.name),
-            }
-          );
-          adoptTurnState(payload.turn_state);
-          renderRoster({
-            sessionCode: payload.session.code,
-            status: payload.session.status,
-            maxPlayers: payload.session.max_players ?? MAX_PLAYERS,
-            players: payload.players,
-            canStart: payload.players.length >= 2,
-          });
-        } catch (error) {
-          console.error(error);
-          clearSavedSession();
-          const message = error instanceof Error ? error.message : 'Unable to restore session.';
-          const detail = error instanceof Error && typeof error.detail === 'string' ? error.detail : '';
-          presentSessionError(message, detail);
-        }
-      };
-
-      if (createSessionForm) {
-        createSessionForm.addEventListener('submit', handleCreateSession);
-      }
-
-      if (joinSessionBtn) {
-        joinSessionBtn.addEventListener('click', handleJoinSession);
-      }
-
-      if (leaveSessionBtn) {
-        leaveSessionBtn.addEventListener('click', handleLeaveSession);
-      }
-
-      if (startGameBtn) {
-        startGameBtn.addEventListener('click', handleStartGame);
-      }
-
-      if (drawTurnOrderBtn) {
-        drawTurnOrderBtn.addEventListener('click', startTurnOrderDraw);
-      }
-
-      if (deleteSessionBtn) {
-        deleteSessionBtn.addEventListener('click', () => {
-          if (!activeSession?.code) {
-            setSessionFlash('No active lobby to delete.', 'error');
-            return;
-          }
-
-          const confirmed = window.confirm(`Delete session ${activeSession.code}?`);
-          if (!confirmed) return;
-          deleteSessionByCode(activeSession.code);
-        });
-      }
-
-      updateLobbyActions();
-      attemptResumeSession();
-      syncTurnGate();
-
+      const drawOverlay = document.getElementById('drawOverlay');
+      const drawStatusEl = document.getElementById('drawStatus');
+      const drawHintEl = document.getElementById('drawHint');
+      const drawTileBtn = document.getElementById('drawTileBtn');
+      const drawTable = document.getElementById('drawTable');
+      const orderTable = document.getElementById('orderTable');
+      const tileModal = document.getElementById('tileModal');
+      const drawTicker = document.getElementById('drawTicker');
+      const drawResultText = document.getElementById('drawResultText');
+      const startModal = document.getElementById('startModal');
+      const startModalTitle = document.getElementById('startModalTitle');
+      const startModalMessage = document.getElementById('startModalMessage');
+      const startCountdown = document.getElementById('startCountdown');
+      const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0 };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -3245,6 +2016,9 @@ $aiSetupNotes = [
       let panOrigin = { x: 0, y: 0 };
       let touchDragTileId = null;
       let touchDragLastPosition = null;
+      let startModalShown = false;
+      let startTimer = null;
+      let startDelayTimer = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -3337,6 +2111,49 @@ $aiSetupNotes = [
           jitter: 0.05,
         }),
       };
+
+      const randomLetterFromPool = (pool = []) => {
+        if (!pool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        return pool[Math.floor(Math.random() * pool.length)];
+      };
+
+      const runTileAnimation = (finalTile) => new Promise((resolve) => {
+        if (!tileModal || !drawTicker || !drawResultText) {
+          resolve();
+          return;
+        }
+
+        state.drawAnimationActive = true;
+        tileModal.classList.remove('hidden');
+        drawResultText.textContent = 'Shuffling tiles...';
+
+        const sourcePool = Array.isArray(state.game?.draw_pool)
+          ? state.game.draw_pool
+          : Object.keys(tileDistribution);
+        const sequence = Array.from({ length: 24 }, () => randomLetterFromPool(sourcePool));
+        let delay = 70;
+        let index = 0;
+
+        const tick = () => {
+          if (index >= sequence.length) {
+            drawTicker.textContent = finalTile;
+            drawResultText.textContent = `You drew ${finalTile}.`;
+            state.lastDrawRevealAt = Date.now();
+            setTimeout(() => {
+              tileModal.classList.add('hidden');
+              state.drawAnimationActive = false;
+              resolve();
+            }, 2000);
+            return;
+          }
+          drawTicker.textContent = sequence[index];
+          index += 1;
+          delay = Math.min(260, delay + 14);
+          setTimeout(tick, delay);
+        };
+
+        tick();
+      });
 
       const playFx = (name, { rate = 1 } = {}) => {
         const effect = fx[name];
@@ -3570,8 +2387,7 @@ $aiSetupNotes = [
 
       const pickTileFromBag = () => {
         if (!bag.length) return null;
-        const index = Math.floor(Math.random() * bag.length);
-        const [letter] = bag.splice(index, 1);
+        const [letter] = bag.splice(0, 1);
         return letter;
       };
 
@@ -3599,6 +2415,286 @@ $aiSetupNotes = [
           if (tone === 'error') {
             playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
           }
+        }
+      };
+
+      const renderDrawTables = () => {
+        if (!drawTable || !orderTable) return;
+        const draws = state.game?.draws || [];
+        const players = state.players || [];
+
+        drawTable.innerHTML = players.map((player) => {
+          const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
+          const status = entry ? 'Drawn' : 'Waiting';
+          const tile = entry ? entry.tile : '—';
+          return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
+        }).join('');
+
+        orderTable.innerHTML = (state.turnOrder || []).map((entry, idx) => {
+          return `<tr><td>${idx + 1}</td><td>${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
+        }).join('');
+      };
+
+      const triggerStartCountdown = () => {
+        if (!startModal || !startCountdown || startModalShown) return;
+        const first = state.turnOrder?.[0];
+        const firstName = first?.username || 'First player';
+        if (state.game?.board_state?.length) {
+          return;
+        }
+        startModalShown = true;
+        let counter = 3;
+        startModalTitle.textContent = 'Game starting';
+        startModalMessage.textContent = `${firstName} will go first.`;
+        startCountdown.textContent = String(counter);
+        startModal.classList.remove('hidden');
+        startModal.setAttribute('aria-hidden', 'false');
+
+        const tick = () => {
+          counter -= 1;
+          if (counter <= 0) {
+            startModal.classList.add('hidden');
+            startModal.setAttribute('aria-hidden', 'true');
+            if (isMyTurn() && !turnActive) {
+              const started = startTurn();
+              if (started) {
+                turnActive = true;
+                updateTurnButton();
+                updateAiButton();
+              }
+            }
+            setTurnMessaging();
+            startTimer = null;
+            return;
+          }
+          startCountdown.textContent = String(counter);
+          startTimer = setTimeout(tick, 1000);
+        };
+
+        startTimer = setTimeout(tick, 1000);
+      };
+
+      const updateDrawUi = () => {
+        if (!drawOverlay || !state.user) return;
+        const draws = state.game?.draws || [];
+        const players = state.players || [];
+        const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
+        const everyoneDrew = players.length > 0 && draws.length >= players.length;
+        renderDrawTables();
+
+        if (drawStatusEl) {
+          drawStatusEl.textContent = 'Draw a tile to see who plays first!';
+        }
+        if (drawHintEl) {
+          drawHintEl.textContent = alreadyDrew ? 'Waiting for the rest of the table to draw...' : 'Tap draw to reveal your tile.';
+        }
+        if (drawTileBtn) {
+          drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+        }
+
+        const readyToStart = everyoneDrew && state.turnOrder.length > 0;
+        drawOverlay.classList.toggle('hidden', readyToStart);
+
+        if (!readyToStart && startDelayTimer) {
+          clearTimeout(startDelayTimer);
+          startDelayTimer = null;
+        }
+
+        const scheduleCountdown = () => {
+          if (state.drawAnimationActive) {
+            startDelayTimer = setTimeout(scheduleCountdown, 300);
+            return;
+          }
+          const elapsed = state.lastDrawRevealAt ? (Date.now() - state.lastDrawRevealAt) : 0;
+          const wait = elapsed >= 1000 ? 0 : 1000 - elapsed;
+          startDelayTimer = setTimeout(() => {
+            startDelayTimer = null;
+            triggerStartCountdown();
+          }, wait);
+        };
+
+        if (readyToStart && !startModalShown && !startDelayTimer) {
+          scheduleCountdown();
+        }
+      };
+
+      const isMyTurn = () => {
+        const current = state.turnOrder[state.turnIndex];
+        return current && state.user && Number(current.user_id) === Number(state.user.id);
+      };
+
+      const currentTurnName = () => state.turnOrder[state.turnIndex]?.username || 'Opponent';
+
+      const serializeBoard = () => {
+        const placements = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile) {
+              placements.push({
+                row: r,
+                col: c,
+                letter: tile.letter,
+                assignedLetter: tile.assignedLetter || '',
+                isBlank: tile.isBlank,
+              });
+            }
+          }
+        }
+        return placements;
+      };
+
+      const applyBoardState = (placements = []) => {
+        board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+        placements.forEach((placement) => {
+          const row = Number(placement.row ?? -1);
+          const col = Number(placement.col ?? -1);
+          if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) return;
+          const tile = createTile((placement.letter || '?').toUpperCase());
+          tile.assignedLetter = placement.assignedLetter || '';
+          tile.isBlank = !!placement.isBlank;
+          tile.locked = true;
+          tile.justPlaced = false;
+          board[row][col] = tile;
+        });
+        firstTurn = placements.length === 0;
+        renderBoard();
+      };
+
+      const applyRackState = () => {
+        if (!state.user) return;
+        const letters = state.racks[state.user.id] || [];
+        rack = letters.map((letter) => {
+          const tile = createTile(String(letter).toUpperCase());
+          tile.position = { type: 'rack' };
+          return tile;
+        });
+        renderRack();
+      };
+
+      const hydrateFromGame = (game) => {
+        state.game = game;
+        state.turnOrder = game.turn_order || [];
+        state.turnIndex = game.current_turn_index || 0;
+        state.racks = game.racks || {};
+        state.draws = game.draws || [];
+        state.draw_pool = game.draw_pool || [];
+        bag = Array.isArray(game.bag) ? [...game.bag] : [];
+        applyBoardState(game.board_state || []);
+        applyRackState();
+        updateBagCount();
+        updateTurnButton();
+      };
+
+      const fetchUser = async () => {
+        try {
+          const res = await fetch('/api/auth.php');
+          if (!res.ok) return;
+          const data = await res.json();
+          state.user = data.user;
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const fetchGameState = async (options = { silent: false }) => {
+        if (!lobbyId) return;
+        if (turnActive && isMyTurn()) return;
+        try {
+          const res = await fetch(`/api/game.php?lobbyId=${encodeURIComponent(lobbyId)}`);
+          const data = await res.json();
+          if (!data.success) {
+            if (!options.silent) setMessage(data.message || 'Unable to load game', 'error');
+            return;
+          }
+          state.players = data.players || state.players;
+          hydrateFromGame(data.game);
+          updateDrawUi();
+          setTurnMessaging();
+        } catch (error) {
+          if (!options.silent) setMessage('Unable to reach the game server right now.', 'error');
+        }
+      };
+
+      const syncGameState = async ({ advanceTurn = false, actingIndex = null } = {}) => {
+        if (!lobbyId || !state.user) return;
+        const activeIndex = actingIndex !== null ? actingIndex : state.turnIndex;
+        state.racks[state.user.id] = rack.map((tile) => (tile.isBlank && tile.assignedLetter)
+          ? tile.assignedLetter.toUpperCase()
+          : tile.letter.toUpperCase());
+        const nextIndex = advanceTurn && state.turnOrder.length
+          ? (activeIndex + 1) % state.turnOrder.length
+          : activeIndex;
+
+        const res = await fetch('/api/game.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'sync',
+            lobbyId,
+            board: serializeBoard(),
+            racks: state.racks,
+            bag,
+            turnIndex: nextIndex,
+            actingIndex: activeIndex,
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && data.game) {
+          hydrateFromGame(data.game);
+          updateDrawUi();
+          setTurnMessaging();
+        }
+      };
+
+      const handleDrawTile = async () => {
+        if (!lobbyId || !drawTileBtn) return;
+        drawTileBtn.disabled = true;
+        try {
+          const res = await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'draw', lobbyId }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            setMessage(data.message || 'Unable to draw a tile.', 'error');
+            drawTileBtn.disabled = false;
+            return;
+          }
+          const tile = data.result?.tile || '?';
+          await runTileAnimation(tile);
+          await fetchGameState();
+        } catch (error) {
+          setMessage('Unable to reach the draw server right now.', 'error');
+        } finally {
+          drawTileBtn.disabled = false;
+        }
+      };
+
+      const setTurnMessaging = () => {
+        if (!messageEl) return;
+        if (!state.turnOrder.length) {
+          messageEl.textContent = 'Draw a tile to see who goes first.';
+          messageEl.classList.add('waiting');
+          if (boardChromeEl) boardChromeEl.classList.add('locked');
+          if (rackEl) rackEl.classList.add('locked');
+          toggleBtn?.setAttribute('disabled', 'true');
+          return;
+        }
+        const waiting = !isMyTurn();
+        messageEl.classList.toggle('waiting', waiting);
+        if (boardChromeEl) boardChromeEl.classList.toggle('locked', waiting);
+        if (rackEl) rackEl.classList.toggle('locked', waiting);
+        if (waiting) {
+          messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          toggleBtn?.setAttribute('disabled', 'true');
+        } else {
+          toggleBtn?.removeAttribute('disabled');
+          messageEl.textContent = turnActive
+            ? 'Place tiles and submit your move.'
+            : 'Start your turn to draw tiles from the shared bag.';
         }
       };
 
@@ -3641,11 +2737,15 @@ $aiSetupNotes = [
         if (!toggleBtn) return;
         toggleBtn.classList.toggle('start', !turnActive);
         toggleBtn.classList.toggle('stop', turnActive);
+        const waiting = !isMyTurn();
+        toggleBtn.disabled = waiting;
         if (turnTitleEl) {
-          turnTitleEl.textContent = turnActive ? 'Submit move' : 'Start turn';
+          turnTitleEl.textContent = waiting ? `${currentTurnName()} is up` : (turnActive ? 'Submit move' : 'Start turn');
         }
         if (turnSubtitleEl) {
-          turnSubtitleEl.textContent = turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word';
+          turnSubtitleEl.textContent = waiting
+            ? 'Please wait for your turn'
+            : (turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word');
         }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
@@ -3996,7 +3096,7 @@ $aiSetupNotes = [
 
       const fetchAiSuggestions = async () => {
         try {
-          const response = await fetch('index.php?action=suggestions', {
+          const response = await fetch('game.php?action=suggestions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4076,10 +3176,10 @@ $aiSetupNotes = [
         });
         renderBoard();
         setTimeout(() => { renderBoard(); }, 640);
-        if (actorId && actorId !== currentPlayer?.id) {
-          setMessage(`Player ${actorId} locked in their play.`, 'info');
-        }
-      };
+          if (actorId) {
+            setMessage(`Player ${actorId} locked in their play.`, 'info');
+          }
+        };
 
       const applySuggestedMove = (move) => {
         if (!move || !move.word) {
@@ -4227,8 +3327,7 @@ $aiSetupNotes = [
         aiModal.classList.remove('active');
         aiModal.setAttribute('aria-hidden', 'true');
         const rulesOpen = document.getElementById('rulesModal')?.classList.contains('active');
-        const sessionErrorOpen = sessionErrorModal?.classList.contains('active');
-        if (!rulesOpen && !sessionErrorOpen) {
+        if (!rulesOpen) {
           document.body.classList.remove('modal-open');
         }
         clearAiTimers();
@@ -4305,6 +3404,10 @@ $aiSetupNotes = [
       };
 
       const startTurn = () => {
+        if (!isMyTurn()) {
+          setMessage(`${currentTurnName()} is still playing. Please wait your turn.`, 'error');
+          return false;
+        }
         let drewTiles = false;
 
         while (rack.length < RACK_SIZE) {
@@ -4327,6 +3430,9 @@ $aiSetupNotes = [
         } else {
           setMessage('Bag is empty—continue with the tiles you have.', 'success');
         }
+
+        syncGameState();
+        setTurnMessaging();
 
         return true;
       };
@@ -4529,18 +3635,13 @@ $aiSetupNotes = [
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
-        if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN && currentPlayer?.id) {
-          lobbySocket.send(
-            JSON.stringify({
-              type: 'turn.complete',
-              sessionCode: activeSession.code,
-              playerId: currentPlayer.id,
-              placements: serializedPlacements,
-              score: turnScore,
-            })
-          );
-        }
         playFx('accept', { rate: 1.02 });
+        const actingIndex = state.turnIndex;
+        if (state.turnOrder.length) {
+          state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
+        }
+        syncGameState({ advanceTurn: true, actingIndex });
+        setTurnMessaging();
       };
 
       const resetBoard = () => {
@@ -4550,12 +3651,14 @@ $aiSetupNotes = [
         totalScore = 0;
         firstTurn = true;
         turnActive = false;
-        buildBag();
-        updateBagCount();
-        renderRack();
-        renderBoard();
+        if (state.game) {
+          bag = Array.isArray(state.game.bag) ? [...state.game.bag] : [];
+          applyBoardState(state.game.board_state || []);
+          applyRackState();
+          updateBagCount();
+        }
         scoreEl.textContent = '0';
-        setMessage('Board reset. Start a turn to draw tiles.', 'success');
+        setMessage('Board reset to the last synced state.', 'success');
         updateTurnButton();
         updateAiButton();
         playFx('reset', { rate: 0.96 });
@@ -4612,15 +3715,6 @@ $aiSetupNotes = [
 
         const handleToggleClick = () => {
           if (!turnActive) {
-            if (currentTurnPlayerId && currentTurnPlayerId !== currentPlayer?.id) {
-              setMessage('Waiting for your turn.', 'error');
-              return;
-            }
-            if (activeSession?.code && lobbySocket?.readyState === WebSocket.OPEN && currentPlayer?.id) {
-              lobbySocket.send(
-                JSON.stringify({ type: 'turn.start', sessionCode: activeSession.code, playerId: currentPlayer.id })
-              );
-            }
             const started = startTurn();
             if (started) {
               turnActive = true;
@@ -4674,6 +3768,7 @@ $aiSetupNotes = [
         };
 
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
+      if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
@@ -4688,9 +3783,6 @@ $aiSetupNotes = [
           if (event.key === 'Escape') {
             if (aiModal.classList.contains('active')) {
               closeAiModal();
-            }
-            if (sessionErrorModal?.classList.contains('active')) {
-              closeSessionErrorModal();
             }
             closeHudMenu();
             closeRackHelp();
@@ -4743,9 +3835,6 @@ $aiSetupNotes = [
 
       window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
 
-      buildBag();
-      updateBagCount();
-      renderRack();
       renderBoard();
       updateTurnButton();
       updateAiButton();
@@ -4753,23 +3842,15 @@ $aiSetupNotes = [
       setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
       setupDragAndDrop();
       loadDictionary();
-      fetchSessions();
+      fetchUser().then(() => fetchGameState()).then(() => {
+        setTurnMessaging();
+        if (isMyTurn() && rack.length === 0) {
+          startTurn();
+        }
+      });
+      setInterval(() => fetchGameState({ silent: true }), 2500);
     });
   </script>
-
-  <div class="modal-backdrop" id="sessionErrorModal" aria-hidden="true">
-    <div class="modal session-error-modal" role="dialog" aria-modal="true" aria-labelledby="sessionErrorTitle">
-      <div class="modal-header">
-        <h3 id="sessionErrorTitle">Session error</h3>
-        <button class="modal-close" type="button" id="closeSessionError" aria-label="Close error dialog">×</button>
-      </div>
-      <div class="session-error-body" id="sessionErrorBody" tabindex="0">No additional details available.</div>
-      <div class="modal-actions">
-        <button class="btn small ghost" type="button" id="copySessionError">Copy details</button>
-        <button class="btn small" type="button" id="ackSessionError">Got it</button>
-      </div>
-    </div>
-  </div>
 
   <div class="modal-backdrop" id="aiModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
@@ -4835,8 +3916,7 @@ $aiSetupNotes = [
           document.body.classList.add('modal-open');
         } else {
           const aiOpen = document.getElementById('aiModal')?.classList.contains('active');
-          const sessionErrorOpen = document.getElementById('sessionErrorModal')?.classList.contains('active');
-          if (!aiOpen && !sessionErrorOpen) {
+          if (!aiOpen) {
             document.body.classList.remove('modal-open');
           }
         }
