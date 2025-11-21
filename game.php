@@ -2725,27 +2725,17 @@ $aiSetupNotes = [
         const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
         const padding = getViewportPadding();
-        const reach = Math.max(padding * 1.75, 28);
+        const reach = Math.max(padding * 1.25, 18);
 
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
 
-        let minPanX = viewportRect.width - scaledWidth - reach;
-        let maxPanX = reach;
-        let minPanY = viewportRect.height - scaledHeight - reach;
-        let maxPanY = reach;
-
-        if (scaledWidth <= viewportRect.width) {
-          const centeredX = (viewportRect.width - scaledWidth) / 2;
-          minPanX = centeredX - reach;
-          maxPanX = centeredX + reach;
-        }
-
-        if (scaledHeight <= viewportRect.height) {
-          const centeredY = (viewportRect.height - scaledHeight) / 2;
-          minPanY = centeredY - reach;
-          maxPanY = centeredY + reach;
-        }
+        // Allow the board to travel from edge-to-edge of the viewport (plus a small
+        // buffer) regardless of whether it is smaller or larger than the viewport.
+        const minPanX = viewportRect.width - scaledWidth - reach;
+        const maxPanX = reach;
+        const minPanY = viewportRect.height - scaledHeight - reach;
+        const maxPanY = reach;
 
         panX = clamp(panX, minPanX, maxPanX);
         panY = clamp(panY, minPanY, maxPanY);
