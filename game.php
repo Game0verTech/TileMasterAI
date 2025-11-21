@@ -2786,13 +2786,19 @@ $aiSetupNotes = [
       };
 
       const getBasePadding = () => {
-        const target = boardCanvas || boardViewport;
+        const target = boardViewport || boardCanvas;
         if (!target) return 24;
         const rect = target.getBoundingClientRect();
-        return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
+        const shortestSide = Math.max(1, Math.min(rect.width, rect.height));
+        return clamp(shortestSide * 0.05, 18, 120);
       };
 
-      const computeCanvasPadding = (viewportRect, scaledWidth, scaledHeight, { topInset = 0, bottomInset = 0 } = {}) => {
+      const computeCanvasPadding = (
+        viewportRect,
+        scaledWidth,
+        scaledHeight,
+        { topInset = 0, bottomInset = 0, scale = getFinalScale() } = {},
+      ) => {
         const basePadding = getBasePadding();
         if (!viewportRect?.width || !viewportRect?.height) {
           return {
@@ -2802,14 +2808,36 @@ $aiSetupNotes = [
           };
         }
 
-        const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2);
-        const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2);
+        const overflowX = Math.max(0, scaledWidth - viewportRect.width);
+        const overflowY = Math.max(0, scaledHeight - viewportRect.height);
+        const zoomFactor = Math.max(1, scale / (baseScale || 1));
+        const panAllowance = Math.max(0, zoomFactor - 1);
+
+        const extraPanX = panAllowance > 0
+          ? Math.max(
+            basePadding * 0.9,
+            overflowX * 0.16,
+            (viewportRect.width || 0) * 0.12 * panAllowance,
+          )
+          : 0;
+        const extraPanY = panAllowance > 0
+          ? Math.max(
+            basePadding * 0.9,
+            overflowY * 0.16,
+            (viewportRect.height || 0) * 0.12 * panAllowance,
+          )
+          : 0;
+
+        const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2) + extraPanX;
+        const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2) + extraPanY;
         const topPad = padY + Math.max(0, topInset * 0.5);
         const bottomPad = padY + Math.max(0, bottomInset * 0.35);
+        const padClampX = viewportRect.width ? Math.max(24, viewportRect.width * 0.8) : 480;
+        const padClampY = viewportRect.height ? Math.max(24, viewportRect.height * 0.8) : 480;
         return {
-          x: Number.isFinite(padX) ? padX : basePadding,
-          top: Number.isFinite(topPad) ? topPad : basePadding,
-          bottom: Number.isFinite(bottomPad) ? bottomPad : basePadding,
+          x: Number.isFinite(padX) ? clamp(padX, 12, padClampX) : basePadding,
+          top: Number.isFinite(topPad) ? clamp(topPad, 12, padClampY) : basePadding,
+          bottom: Number.isFinite(bottomPad) ? clamp(bottomPad, 12, padClampY) : basePadding,
         };
       };
 
@@ -2856,11 +2884,11 @@ $aiSetupNotes = [
       const applyBoardTransform = (scale = getFinalScale(), viewportRect = null) => {
         if (!boardScaleEl || !boardCanvas || !boardFrameEl) return null;
         const boardRect = measureBoardRect();
-        const targetViewport = viewportRect || boardCanvas.getBoundingClientRect();
+        const targetViewport = viewportRect || boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
         const scaledWidth = Math.max(0, boardRect.width * scale);
         const scaledHeight = Math.max(0, boardRect.height * scale);
 
-        canvasPadding = computeCanvasPadding(targetViewport, scaledWidth, scaledHeight);
+        canvasPadding = computeCanvasPadding(targetViewport, scaledWidth, scaledHeight, { scale });
         boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
 
         boardFrameEl.style.width = `${scaledWidth}px`;
@@ -2874,7 +2902,8 @@ $aiSetupNotes = [
 
       const getContentBounds = (scale = getFinalScale()) => {
         if (!boardCanvas) return { maxLeft: 0, maxTop: 0 };
-        const viewportRect = boardCanvas.getBoundingClientRect();
+        const viewportWidth = boardCanvas?.clientWidth || 0;
+        const viewportHeight = boardCanvas?.clientHeight || 0;
         const boardRect = measureBoardRect();
         const padX = canvasPadding.x || 0;
         const padTop = canvasPadding.top || 0;
@@ -2883,8 +2912,8 @@ $aiSetupNotes = [
         const height = Math.max(0, boardRect.height * scale) + padTop + padBottom;
 
         return {
-          maxLeft: Math.max(0, width - viewportRect.width),
-          maxTop: Math.max(0, height - viewportRect.height),
+          maxLeft: Math.max(0, width - viewportWidth),
+          maxTop: Math.max(0, height - viewportHeight),
         };
       };
 
@@ -2899,7 +2928,7 @@ $aiSetupNotes = [
         if (!boardCanvas || !boardScaleEl) return;
         const finalScale = getFinalScale();
         const layout = applyBoardTransform(finalScale);
-        const viewportRect = layout?.viewportRect || boardCanvas.getBoundingClientRect();
+        const viewportRect = layout?.viewportRect || boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
         const { x, y, width, height } = measureBoardCenter();
         const scaledRect = boardScaleEl.getBoundingClientRect();
         const scaledWidth = Math.max(0, width * finalScale || scaledRect.width);
@@ -2942,7 +2971,7 @@ $aiSetupNotes = [
 
         boardViewport.style.height = `${availableHeight}px`;
 
-        const viewportRect = boardCanvas.getBoundingClientRect();
+        const viewportRect = (boardViewport || boardCanvas).getBoundingClientRect();
         const boardRect = measureBoardRect();
         const basePadding = getBasePadding();
 
@@ -2954,7 +2983,11 @@ $aiSetupNotes = [
         let scaledWidth = Math.max(0, boardRect.width * safeDraftScale);
         let scaledHeight = Math.max(0, boardRect.height * safeDraftScale);
 
-        canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight, { topInset: topHeight, bottomInset: bottomHeight });
+        canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight, {
+          topInset: topHeight,
+          bottomInset: bottomHeight,
+          scale: safeDraftScale,
+        });
         boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
 
         const prevScale = lastScale || getFinalScale();
@@ -2996,7 +3029,7 @@ $aiSetupNotes = [
         const currentPadding = { ...canvasPadding };
         userZoom = clampedZoom;
         if (boardCanvas) {
-          const viewportRect = boardCanvas.getBoundingClientRect();
+          const viewportRect = boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
           const pivotPoint = pivot || { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 };
           const pivotX = pivotPoint.x - viewportRect.left;
           const pivotY = pivotPoint.y - viewportRect.top;
@@ -3062,7 +3095,7 @@ $aiSetupNotes = [
 
       const viewportCenter = () => {
         if (!boardCanvas) return null;
-        const rect = boardCanvas.getBoundingClientRect();
+        const rect = boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
       };
 
