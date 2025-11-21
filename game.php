@@ -1708,6 +1708,18 @@ $aiSetupNotes = [
       width: 100%;
     }
 
+    .message.waiting {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #4338ca;
+      animation: pulseNotice 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulseNotice {
+      0%, 100% { opacity: 0.82; }
+      50% { opacity: 1; }
+    }
+
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1967,8 +1979,21 @@ $aiSetupNotes = [
       const boardChromeEl = document.getElementById('boardChrome');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
+      const drawOverlay = document.getElementById('drawOverlay');
+      const drawStatusEl = document.getElementById('drawStatus');
+      const drawHintEl = document.getElementById('drawHint');
+      const drawTileBtn = document.getElementById('drawTileBtn');
+      const drawTable = document.getElementById('drawTable');
+      const orderTable = document.getElementById('orderTable');
+      const tileModal = document.getElementById('tileModal');
+      const drawTicker = document.getElementById('drawTicker');
+      const drawResultText = document.getElementById('drawResultText');
+      const startModal = document.getElementById('startModal');
+      const startModalTitle = document.getElementById('startModalTitle');
+      const startModalMessage = document.getElementById('startModalMessage');
+      const startCountdown = document.getElementById('startCountdown');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [] };
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [] };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -1991,6 +2016,8 @@ $aiSetupNotes = [
       let panOrigin = { x: 0, y: 0 };
       let touchDragTileId = null;
       let touchDragLastPosition = null;
+      let startModalShown = false;
+      let startTimer = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -2083,6 +2110,46 @@ $aiSetupNotes = [
           jitter: 0.05,
         }),
       };
+
+      const randomLetterFromPool = (pool = []) => {
+        if (!pool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        return pool[Math.floor(Math.random() * pool.length)];
+      };
+
+      const runTileAnimation = (finalTile) => new Promise((resolve) => {
+        if (!tileModal || !drawTicker || !drawResultText) {
+          resolve();
+          return;
+        }
+
+        tileModal.classList.remove('hidden');
+        drawResultText.textContent = 'Shuffling tiles...';
+
+        const sourcePool = Array.isArray(state.game?.draw_pool)
+          ? state.game.draw_pool
+          : Object.keys(tileDistribution);
+        const sequence = Array.from({ length: 24 }, () => randomLetterFromPool(sourcePool));
+        let delay = 70;
+        let index = 0;
+
+        const tick = () => {
+          if (index >= sequence.length) {
+            drawTicker.textContent = finalTile;
+            drawResultText.textContent = `You drew ${finalTile}.`;
+            setTimeout(() => {
+              tileModal.classList.add('hidden');
+              resolve();
+            }, 1800);
+            return;
+          }
+          drawTicker.textContent = sequence[index];
+          index += 1;
+          delay = Math.min(260, delay + 14);
+          setTimeout(tick, delay);
+        };
+
+        tick();
+      });
 
       const playFx = (name, { rate = 1 } = {}) => {
         const effect = fx[name];
@@ -2347,6 +2414,87 @@ $aiSetupNotes = [
         }
       };
 
+      const renderDrawTables = () => {
+        if (!drawTable || !orderTable) return;
+        const draws = state.game?.draws || [];
+        const players = state.players || [];
+
+        drawTable.innerHTML = players.map((player) => {
+          const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
+          const status = entry ? 'Drawn' : 'Waiting';
+          const tile = entry ? entry.tile : '—';
+          return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
+        }).join('');
+
+        orderTable.innerHTML = (state.turnOrder || []).map((entry, idx) => {
+          return `<tr><td>${idx + 1}</td><td>${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
+        }).join('');
+      };
+
+      const triggerStartCountdown = () => {
+        if (!startModal || !startCountdown || startModalShown) return;
+        const first = state.turnOrder?.[0];
+        const firstName = first?.username || 'First player';
+        if (state.game?.board_state?.length) {
+          return;
+        }
+        startModalShown = true;
+        let counter = 3;
+        startModalTitle.textContent = 'Game starting';
+        startModalMessage.textContent = `${firstName} will go first.`;
+        startCountdown.textContent = String(counter);
+        startModal.classList.remove('hidden');
+        startModal.setAttribute('aria-hidden', 'false');
+
+        const tick = () => {
+          counter -= 1;
+          if (counter <= 0) {
+            startModal.classList.add('hidden');
+            startModal.setAttribute('aria-hidden', 'true');
+            if (isMyTurn() && !turnActive) {
+              const started = startTurn();
+              if (started) {
+                turnActive = true;
+                updateTurnButton();
+                updateAiButton();
+              }
+            }
+            setTurnMessaging();
+            startTimer = null;
+            return;
+          }
+          startCountdown.textContent = String(counter);
+          startTimer = setTimeout(tick, 1000);
+        };
+
+        startTimer = setTimeout(tick, 1000);
+      };
+
+      const updateDrawUi = () => {
+        if (!drawOverlay || !state.user) return;
+        const draws = state.game?.draws || [];
+        const players = state.players || [];
+        const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
+        const everyoneDrew = players.length > 0 && draws.length >= players.length;
+        renderDrawTables();
+
+        if (drawStatusEl) {
+          drawStatusEl.textContent = 'Draw a tile to see who plays first!';
+        }
+        if (drawHintEl) {
+          drawHintEl.textContent = alreadyDrew ? 'Waiting for the rest of the table to draw...' : 'Tap draw to reveal your tile.';
+        }
+        if (drawTileBtn) {
+          drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+        }
+
+        drawOverlay.classList.toggle('hidden', everyoneDrew && state.turnOrder.length > 0);
+
+        if (everyoneDrew && state.turnOrder.length > 0) {
+          triggerStartCountdown();
+        }
+      };
+
       const isMyTurn = () => {
         const current = state.turnOrder[state.turnIndex];
         return current && state.user && Number(current.user_id) === Number(state.user.id);
@@ -2406,6 +2554,8 @@ $aiSetupNotes = [
         state.turnOrder = game.turn_order || [];
         state.turnIndex = game.current_turn_index || 0;
         state.racks = game.racks || {};
+        state.draws = game.draws || [];
+        state.draw_pool = game.draw_pool || [];
         bag = Array.isArray(game.bag) ? [...game.bag] : [];
         applyBoardState(game.board_state || []);
         applyRackState();
@@ -2434,7 +2584,9 @@ $aiSetupNotes = [
             if (!options.silent) setMessage(data.message || 'Unable to load game', 'error');
             return;
           }
+          state.players = data.players || state.players;
           hydrateFromGame(data.game);
+          updateDrawUi();
           setTurnMessaging();
         } catch (error) {
           if (!options.silent) setMessage('Unable to reach the game server right now.', 'error');
@@ -2468,12 +2620,46 @@ $aiSetupNotes = [
         const data = await res.json();
         if (data.success && data.game) {
           hydrateFromGame(data.game);
+          updateDrawUi();
           setTurnMessaging();
+        }
+      };
+
+      const handleDrawTile = async () => {
+        if (!lobbyId || !drawTileBtn) return;
+        drawTileBtn.disabled = true;
+        try {
+          const res = await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'draw', lobbyId }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            setMessage(data.message || 'Unable to draw a tile.', 'error');
+            drawTileBtn.disabled = false;
+            return;
+          }
+          const tile = data.result?.tile || '?';
+          await runTileAnimation(tile);
+          await fetchGameState();
+        } catch (error) {
+          setMessage('Unable to reach the draw server right now.', 'error');
+        } finally {
+          drawTileBtn.disabled = false;
         }
       };
 
       const setTurnMessaging = () => {
         if (!messageEl) return;
+        if (!state.turnOrder.length) {
+          messageEl.textContent = 'Draw a tile to see who goes first.';
+          messageEl.classList.add('waiting');
+          if (boardChromeEl) boardChromeEl.classList.add('locked');
+          if (rackEl) rackEl.classList.add('locked');
+          toggleBtn?.setAttribute('disabled', 'true');
+          return;
+        }
         const waiting = !isMyTurn();
         messageEl.classList.toggle('waiting', waiting);
         if (boardChromeEl) boardChromeEl.classList.toggle('locked', waiting);
@@ -3559,6 +3745,7 @@ $aiSetupNotes = [
         };
 
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
+      if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
