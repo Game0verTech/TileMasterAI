@@ -1445,23 +1445,11 @@ $aiSetupNotes = [
 
     .board-top {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      align-items: center;
+      justify-content: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-
-    .board-status { display: grid; gap: 6px; min-width: 0; }
-
-    .turn-message {
-      margin: 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
-    }
-
-    .turn-message.success { color: #166534; }
-    .turn-message.error { color: #b91c1c; }
 
     .board-viewport {
       position: relative;
@@ -1478,12 +1466,13 @@ $aiSetupNotes = [
       min-height: clamp(480px, 68vh, 880px);
       padding: 12px 12px 16px;
       overflow: hidden;
+      align-items: center;
     }
 
     .board-canvas {
       position: relative;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
       flex: 1;
       width: 100%;
@@ -2244,10 +2233,6 @@ $aiSetupNotes = [
       <section class="board-pane" aria-label="Board focus area">
         <div class="board-card">
           <div class="board-top">
-            <div class="board-status">
-              <p class="hud-eyebrow" style="margin:0;">Current turn</p>
-              <p class="turn-message" id="turnMessage">Place tiles and start your word.</p>
-            </div>
             <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
               <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
               <div class="toolbar-buttons" id="boardToolbarButtons">
