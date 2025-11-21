@@ -187,6 +187,12 @@ $aiSetupNotes = [
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TileMasterAI | Phase 4 Move Generation Preview</title>
+  <!--
+    Layout plan:
+    - Sticky top dock keeps the TileMasterAI brand, mode label, active player scores, and bag count aligned as a single header.
+    - Main area becomes a responsive two-column grid: the board pane on the left sits inside a lifted card with integrated status line, while the right rail hosts log/AI info and the view tools toolbar instead of floating over the board.
+    - Bottom dock prioritizes the rack at the top edge with a slimmer, collapsible control row beneath it so the board remains the visual focus on all viewports.
+  -->
   <style>
     :root {
       color-scheme: light;
@@ -198,6 +204,9 @@ $aiSetupNotes = [
       --accent: #6366f1;
       --accent-strong: #4f46e5;
       --border: #e2e8f0;
+      --panel: rgba(255, 255, 255, 0.7);
+      --panel-border: rgba(226, 232, 240, 0.8);
+      --panel-shadow: 0 24px 50px rgba(15, 23, 42, 0.12);
       --tile-wood: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)),
         linear-gradient(115deg, rgba(210, 167, 110, 0.35), rgba(210, 167, 110, 0)),
         repeating-linear-gradient(
@@ -211,16 +220,20 @@ $aiSetupNotes = [
       --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
-      --cell-size: clamp(40px, 4vw + 10px, 56px);
+      --cell-size: clamp(44px, 4vw + 12px, 60px);
       --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 76px;
-      --bottom-dock-height: 132px;
+      --top-dock-height: 84px;
+      --bottom-dock-height: 150px;
       --board-toolbar: rgba(15, 23, 42, 0.86);
+      --shell-width: 1420px;
     }
 
-    * {
-      box-sizing: border-box;
+    * { box-sizing: border-box; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
     body {
@@ -234,7 +247,7 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       gap: 0;
-      overflow: hidden;
+      overflow-x: hidden;
     }
 
     .hidden { display: none !important; }
@@ -702,36 +715,57 @@ $aiSetupNotes = [
       pointer-events: auto;
     }
 
-    .rack-bar {
+    .rack-panel {
+      position: relative;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 10px 12px 12px;
+      box-shadow: var(--panel-shadow);
+      display: grid;
+      gap: 10px;
+    }
+
+    .rack-header {
       display: flex;
-      gap: 6px;
-      align-items: center;
-      flex-wrap: nowrap;
-      padding: 8px 10px;
-      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
-        linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
-      justify-content: center;
-      min-height: 72px;
-      overflow-x: auto;
-      scrollbar-width: thin;
-      grid-area: rack;
-      margin: 0 auto;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
     }
 
     .rack-actions {
-      display: flex;
-      justify-content: flex-end;
+      display: inline-flex;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 0;
-      grid-area: actions;
     }
 
-    .rack-actions .btn { flex: 1 1 120px; min-width: 0; }
+    .rack-title { display: grid; gap: 4px; }
+
+    .rack-rail {
+      padding: 10px;
+      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.22), transparent 40%),
+        linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.18));
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
+    }
+
+    .rack-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: nowrap;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 26px rgba(79, 70, 229, 0.16);
+      justify-content: center;
+      min-height: 86px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      margin: 0 auto;
+    }
 
     .rack-shuffle {
       display: inline-flex;
@@ -1398,18 +1432,53 @@ $aiSetupNotes = [
 
     .app-shell {
       width: 100%;
-      max-width: none;
-      margin: 0;
-      padding: 0;
+      max-width: var(--shell-width);
+      margin: 0 auto;
+      padding: 12px 18px 22px;
+      display: grid;
+      gap: 16px;
+      min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+    }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: minmax(680px, 1.7fr) minmax(280px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .board-pane { display: grid; gap: 12px; }
+
+    .board-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      box-shadow: var(--panel-shadow);
+      padding: 14px 14px 16px;
       display: grid;
       gap: 12px;
-      min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      grid-template-rows: 1fr;
-      grid-template-columns: 1fr;
-      justify-items: stretch;
-      align-items: stretch;
+      backdrop-filter: blur(12px);
     }
+
+    .board-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .board-status { display: grid; gap: 6px; min-width: 0; }
+
+    .turn-message {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .turn-message.success { color: #166534; }
+    .turn-message.error { color: #b91c1c; }
 
     .board-viewport {
       position: relative;
@@ -1419,13 +1488,11 @@ $aiSetupNotes = [
       max-width: 100%;
       min-width: 0;
       margin: 0;
-      background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.45), rgba(226, 232, 240, 0.1));
       border-radius: 16px;
-      border: 1px solid rgba(226, 232, 240, 0.8);
+      border: 1px solid rgba(226, 232, 240, 0.9);
       overscroll-behavior: contain;
-      min-height: 320px;
-      height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
+      min-height: clamp(480px, 68vh, 880px);
       padding: 12px 12px 16px;
       overflow: hidden;
     }
@@ -1449,6 +1516,39 @@ $aiSetupNotes = [
     }
 
     .board-canvas.dragging { cursor: grabbing; }
+
+    .side-rail {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .side-card {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 14px 14px 12px;
+      box-shadow: var(--panel-shadow);
+      backdrop-filter: blur(10px);
+      display: grid;
+      gap: 8px;
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-title { margin: 0; font-size: 16px; letter-spacing: -0.1px; }
+    .panel-note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    .info-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .info-item { padding: 10px 12px; border-radius: 12px; background: #f8fafc; border: 1px solid var(--border); }
+    .info-item.success { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+    .info-item.error { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+    .info-item.info { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
 
     .board-scale {
       position: relative;
@@ -1486,31 +1586,28 @@ $aiSetupNotes = [
     }
 
     .board-toolbar {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      right: 12px;
+      position: relative;
       display: inline-flex;
       gap: 8px;
       align-items: center;
-      justify-self: end;
+      justify-self: stretch;
       justify-content: flex-end;
       flex-wrap: wrap;
-      background: rgba(15, 23, 42, 0.7);
-      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--ink);
       padding: 8px 10px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 22px rgba(15, 23, 42, 0.08);
       backdrop-filter: blur(10px);
-      z-index: 40;
       transition: opacity 140ms ease, transform 140ms ease;
+      width: 100%;
     }
 
     .board-toolbar.collapsed {
       gap: 0;
       padding: 6px 8px;
-      transform: translateY(-2px);
+      transform: translateY(-1px);
       justify-content: flex-end;
     }
 
@@ -1518,21 +1615,21 @@ $aiSetupNotes = [
     .board-toolbar.collapsed .toolbar-buttons { display: none; }
 
     .toolbar-btn {
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      background: rgba(255, 255, 255, 0.12);
-      color: #f8fafc;
+      border: 1px solid rgba(99, 102, 241, 0.16);
+      background: #eef2ff;
+      color: #312e81;
       border-radius: 10px;
-      padding: 6px 8px;
+      padding: 8px 10px;
       font-weight: 800;
       letter-spacing: 0.2px;
       cursor: pointer;
       transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-      min-width: 36px;
+      min-width: 40px;
       line-height: 1;
     }
 
-    .toolbar-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.18); }
-    .toolbar-btn:active { transform: translateY(0); background: rgba(255, 255, 255, 0.24); }
+    .toolbar-btn:hover { transform: translateY(-1px); background: #e0e7ff; }
+    .toolbar-btn:active { transform: translateY(0); background: #cbd5ff; }
 
     .toolbar-toggle {
       border: 1px solid rgba(226, 232, 240, 0.65);
@@ -1560,12 +1657,13 @@ $aiSetupNotes = [
 
     .hud-inner {
       width: 100%;
+      max-width: var(--shell-width);
       margin: 0 auto;
       padding: 10px 18px 10px;
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
     .hud-right {
@@ -1592,13 +1690,13 @@ $aiSetupNotes = [
       display: inline-flex;
       gap: 8px;
       padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 14px;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
       overflow-x: auto;
       scrollbar-width: thin;
-      max-width: min(640px, 100%);
+      max-width: min(720px, 100%);
     }
 
     .score-chip {
@@ -1612,6 +1710,11 @@ $aiSetupNotes = [
       border: 1px solid rgba(255, 255, 255, 0.08);
       min-width: 0;
       flex: 0 0 auto;
+    }
+
+    .score-chip.active {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25), 0 10px 24px rgba(34, 197, 94, 0.24);
     }
 
     .score-chip.leader { border-color: #22c55e; box-shadow: 0 6px 14px rgba(34, 197, 94, 0.3); }
@@ -1776,59 +1879,69 @@ $aiSetupNotes = [
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(79, 70, 229, 0.9));
-      backdrop-filter: blur(12px);
-      border-top: 1px solid #0ea5e9;
-      box-shadow: 0 -18px 38px rgba(79, 70, 229, 0.24);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.92));
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: 0 -12px 24px rgba(15, 23, 42, 0.26);
       z-index: 800;
     }
 
     .dock-inner {
       width: 100%;
+      max-width: var(--shell-width);
       margin: 0 auto;
-      padding: 10px 18px 12px;
+      padding: 8px 16px 12px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
-    .dock-row {
+    .control-bar {
       display: grid;
-      grid-template-columns: minmax(210px, 1fr) minmax(420px, 1.5fr) minmax(210px, 1fr);
-      grid-template-areas: 'cta rack ai';
+      grid-template-columns: minmax(240px, 0.8fr) 1fr;
+      gap: 8px;
       align-items: center;
-      gap: 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(15, 23, 42, 0.3);
+      backdrop-filter: blur(8px);
+    }
+
+    .control-bar .btn {
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      box-shadow: none;
     }
 
     .dock-cta {
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
-      min-width: 180px;
-      grid-area: cta;
+      min-width: 200px;
     }
 
-    .dock-ai {
-      grid-area: ai;
+    .action-group {
       display: flex;
       justify-content: flex-end;
-      min-width: 0;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     .ai-cta {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      background: linear-gradient(135deg, #f97316, #f43f5e);
-      color: #fff;
-      border-color: #ea580c;
-      box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      padding-inline: 12px 14px;
+      gap: 6px;
+      padding: 9px 11px;
       border-radius: 12px;
-      margin-left: 0;
-      flex-shrink: 0;
-      justify-self: start;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e2e8f0;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.16));
+      font-weight: 700;
+      box-shadow: 0 8px 16px rgba(59, 130, 246, 0.18);
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
     }
 
     .ai-cta.disabled,
@@ -1841,29 +1954,56 @@ $aiSetupNotes = [
     }
 
     .ai-cta:hover {
-      background: linear-gradient(135deg, #f43f5e, #e11d48);
       transform: translateY(-1px);
-      box-shadow: 0 20px 42px rgba(225, 29, 72, 0.36);
+      border-color: rgba(125, 211, 252, 0.7);
+      box-shadow: 0 12px 20px rgba(14, 165, 233, 0.22);
     }
 
     .ai-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.16);
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
       display: grid;
       place-items: center;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1;
+    }
+
+    .controls-toggle {
+      appearance: none;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .controls-toggle:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(226, 232, 240, 0.7); }
+
+    .controls-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+
+    .turn-dock.controls-hidden .control-bar {
+      display: none;
+    }
+
+    .turn-dock.controls-hidden .dock-inner {
+      padding-bottom: 10px;
     }
 
     .turn-toggle {
       position: relative;
       overflow: hidden;
-      min-width: clamp(240px, 52vw, 420px);
-      padding: 12px 20px;
-      border-radius: 14px;
-      font-size: 19px;
+      min-width: clamp(200px, 45vw, 340px);
+      padding: 11px 16px;
+      border-radius: 13px;
+      font-size: 18px;
       letter-spacing: 0.3px;
       display: inline-flex;
       align-items: center;
@@ -1932,14 +2072,12 @@ $aiSetupNotes = [
       color: var(--ink);
     }
 
-    @media (max-width: 1100px) {
-      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; }
-      .dock-cta { justify-content: stretch; }
-      .dock-cta .turn-toggle { width: 100%; }
-      .dock-ai { justify-content: stretch; }
-      .dock-ai .ai-cta { width: 100%; justify-content: center; }
-      .rack-wrap { grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; gap: 8px; }
-      .rack-actions { justify-content: flex-start; }
+    @media (max-width: 1200px) {
+      .game-layout { grid-template-columns: 1fr; }
+      .side-rail { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+      .board-viewport { min-height: clamp(420px, 62vh, 760px); }
+      .control-bar { grid-template-columns: 1fr; }
+      .action-group { justify-content: flex-start; }
     }
 
 
@@ -1949,11 +2087,11 @@ $aiSetupNotes = [
       .grid .card:first-child { grid-column: span 2; }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 800px) {
       :root {
         --top-dock-height: 74px;
-        --bottom-dock-height: 104px;
-        --cell-size: clamp(34px, 7vw + 6px, 44px);
+        --bottom-dock-height: 110px;
+        --cell-size: clamp(34px, 7vw + 6px, 46px);
         --cell-gap: 3px;
       }
 
@@ -1969,12 +2107,10 @@ $aiSetupNotes = [
       .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
 
       .dock-inner { padding: 8px 10px 9px; gap: 10px; }
-      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; align-items: stretch; }
+      .control-bar { grid-template-columns: 1fr; }
       .dock-cta { min-width: 0; grid-column: auto; }
       .turn-toggle { width: 100%; min-width: 0; }
-      .dock-ai { width: 100%; }
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
-      .rack-wrap { grid-column: auto; grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; }
 
       .tile .letter,
       .rack-tile .letter { font-size: 18px; }
@@ -2121,82 +2257,144 @@ $aiSetupNotes = [
   </header>
 
   <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="board-viewport" id="boardViewport">
-      <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
-        <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
-        <div class="toolbar-buttons" id="boardToolbarButtons">
-          <button class="toolbar-btn" type="button" id="zoomOutBtn" aria-label="Zoom out">−</button>
-          <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
-          <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
-          <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
-        </div>
-      </div>
-      <div class="board-canvas" id="boardCanvas">
-        <div class="board-scale" id="boardScale">
-          <div class="board-frame" id="boardFrame">
-            <div class="board-chrome" id="boardChrome">
-            <div class="board-preview" aria-label="Game board">
-              <div class="board-grid" role="presentation">
-              <?php foreach ($premiumBoard as $rowIndex => $row): ?>
-                <?php foreach ($row as $colIndex => $cellType):
-                  $rowLabel = $rowLabels[$rowIndex];
-                  $colLabel = $columnLabels[$colIndex];
-                  $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
-                  $isCenter = $rowIndex === 7 && $colIndex === 7;
-                  $classes = 'cell';
+    <div class="game-layout">
+      <section class="board-pane" aria-label="Board focus area">
+        <div class="board-card">
+          <div class="board-top">
+            <div class="board-status">
+              <p class="hud-eyebrow" style="margin:0;">Current turn</p>
+              <p class="turn-message" id="turnMessage">Place tiles and start your word.</p>
+            </div>
+            <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
+              <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
+              <div class="toolbar-buttons" id="boardToolbarButtons">
+                <button class="toolbar-btn" type="button" id="zoomOutBtn" aria-label="Zoom out">−</button>
+                <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
+                <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
+                <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
+              </div>
+            </div>
+          </div>
+          <div class="board-viewport" id="boardViewport">
+            <div class="board-canvas" id="boardCanvas">
+              <div class="board-scale" id="boardScale">
+                <div class="board-frame" id="boardFrame">
+                  <div class="board-chrome" id="boardChrome">
+                  <div class="board-preview" aria-label="Game board">
+                    <div class="board-grid" role="presentation">
+                    <?php foreach ($premiumBoard as $rowIndex => $row): ?>
+                      <?php foreach ($row as $colIndex => $cellType):
+                        $rowLabel = $rowLabels[$rowIndex];
+                        $colLabel = $columnLabels[$colIndex];
+                        $tile = $boardModel->tileAtPosition($rowIndex + 1, $colIndex + 1);
+                        $isCenter = $rowIndex === 7 && $colIndex === 7;
+                        $classes = 'cell';
 
-                  if ($cellType === 'TW') { $classes .= ' triple-word'; }
-                  if ($cellType === 'DW') { $classes .= ' double-word'; }
-                  if ($cellType === 'TL') { $classes .= ' triple-letter'; }
-                  if ($cellType === 'DL') { $classes .= ' double-letter'; }
-                  if ($isCenter) { $classes .= ' center-star'; }
+                        if ($cellType === 'TW') { $classes .= ' triple-word'; }
+                        if ($cellType === 'DW') { $classes .= ' double-word'; }
+                        if ($cellType === 'TL') { $classes .= ' triple-letter'; }
+                        if ($cellType === 'DL') { $classes .= ' double-letter'; }
+                        if ($isCenter) { $classes .= ' center-star'; }
 
-                  $cellName = match ($cellType) {
-                    'TW' => 'triple word',
-                    'DW' => 'double word',
-                    'TL' => 'triple letter',
-                    'DL' => 'double letter',
-                    default => 'regular'
-                  };
+                        $cellName = match ($cellType) {
+                          'TW' => 'triple word',
+                          'DW' => 'double word',
+                          'TL' => 'triple letter',
+                          'DL' => 'double letter',
+                          default => 'regular'
+                        };
 
-                  $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
-                  if ($isCenter) { $ariaParts[] = 'start star'; }
-                  if ($tile) {
-                    if ($tile->isBlank()) {
-                      $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
-                    } else {
-                      $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
-                    }
-                  }
-                  $ariaLabel = implode(' · ', $ariaParts);
-                ?>
-                <div
-                  class="<?php echo $classes; ?>"
-                  aria-label="<?php echo $ariaLabel; ?>"
-                  data-row="<?php echo $rowIndex; ?>"
-                  data-col="<?php echo $colIndex; ?>"
-                  data-premium="<?php echo $cellType; ?>"
-                  data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
-                >
-                  <?php if ($isCenter): ?>
-                    <span class="cell-label">★ DW</span>
-                  <?php elseif ($cellType !== ''): ?>
-                    <span class="cell-label"><?php echo $cellType; ?></span>
-                  <?php endif; ?>
+                        $ariaParts = ["{$rowLabel}{$colLabel}", $cellName];
+                        if ($isCenter) { $ariaParts[] = 'start star'; }
+                        if ($tile) {
+                          if ($tile->isBlank()) {
+                            $ariaParts[] = $tile->letter() === '?' ? 'blank tile (0 pt)' : "blank tile as {$tile->letter()} (0 pt)";
+                          } else {
+                            $ariaParts[] = "tile {$tile->letter()} ({$tile->value()} pt)";
+                          }
+                        }
+                        $ariaLabel = implode(' · ', $ariaParts);
+                      ?>
+                      <div
+                        class="<?php echo $classes; ?>"
+                        aria-label="<?php echo $ariaLabel; ?>"
+                        data-row="<?php echo $rowIndex; ?>"
+                        data-col="<?php echo $colIndex; ?>"
+                        data-premium="<?php echo $cellType; ?>"
+                        data-center="<?php echo $isCenter ? 'true' : 'false'; ?>"
+                      >
+                        <?php if ($isCenter): ?>
+                          <span class="cell-label">★ DW</span>
+                        <?php elseif ($cellType !== ''): ?>
+                          <span class="cell-label"><?php echo $cellType; ?></span>
+                        <?php endif; ?>
+                      </div>
+                      <?php endforeach; ?>
+                    <?php endforeach; ?>
+                    </div>
+                  </div>
                 </div>
-                <?php endforeach; ?>
-              <?php endforeach; ?>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+      <aside class="side-rail" aria-label="Game insights">
+        <div class="side-card">
+          <div class="panel-heading">
+            <h3 class="panel-title">Move log</h3>
+            <span class="hud-pill">Live</span>
+          </div>
+          <p class="panel-note">Turn updates and errors will appear here as you play.</p>
+          <ul class="info-list" id="gameLog">
+            <li class="info-item" id="logEmpty">Waiting for turns to start.</li>
+          </ul>
+        </div>
+        <div class="side-card">
+          <div class="panel-heading">
+            <h3 class="panel-title">AI assist</h3>
+            <span class="hud-pill" aria-hidden="true">🤖</span>
+          </div>
+          <p class="panel-note">Use AI suggested moves to preview placements without losing your current rack.</p>
+          <p class="panel-note">Start your turn, then tap <strong>AI suggested moves</strong> in the control bar.</p>
+        </div>
+        <div class="side-card">
+          <div class="panel-heading">
+            <h3 class="panel-title">View tools</h3>
+            <p class="panel-note" style="margin:0;">Zoom or re-center the board.</p>
+          </div>
+          <p class="panel-note">Use the toolbar above the board to zoom, fit, or re-center. Keyboard: +/- to zoom, C to center.</p>
+        </div>
+      </aside>
     </div>
   </main>
 
-  <footer class="turn-dock" aria-label="Turn controls">
+  <footer class="turn-dock" aria-label="Turn controls" id="turnDock">
     <div class="dock-inner">
-      <div class="dock-row">
+      <div class="rack-panel">
+        <div class="rack-header">
+          <div class="rack-title">
+            <p class="hud-eyebrow" style="margin:0;">Your rack</p>
+            <p class="panel-note" style="margin:2px 0 0;">Drag tiles onto the board. Double-click to send them back.</p>
+          </div>
+          <div class="rack-actions">
+            <button class="controls-toggle" type="button" id="controlToggle" aria-expanded="true" aria-controls="controlBar" aria-label="Toggle turn controls">
+              <span aria-hidden="true">⬆</span>
+              <span class="control-toggle-text">Hide controls</span>
+            </button>
+            <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+          </div>
+        </div>
+        <div class="rack-rail">
+          <div class="rack-bar" aria-label="Rack" id="rack"></div>
+        </div>
+        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+          <strong>Rack tips</strong>
+          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+          <span>Double-click a placed tile to return it to the rack.</span>
+        </div>
+      </div>
+      <div class="control-bar" role="group" aria-label="Primary turn actions" id="controlBar">
         <div class="dock-cta">
           <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
             <span class="turn-label">
@@ -2205,25 +2403,14 @@ $aiSetupNotes = [
             </span>
           </button>
         </div>
-        <div class="dock-ai">
+        <div class="action-group" aria-label="Secondary actions">
+          <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
+          <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Skip turn">⏭️ Skip</button>
+          <button class="btn rack-shuffle" type="button" id="exchangeBtn" aria-label="Exchange all tiles">🔄 Exchange all</button>
           <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
             <span class="ai-icon" aria-hidden="true">🤖</span>
             <span class="ai-text">AI suggested moves</span>
           </button>
-        </div>
-        <div class="rack-wrap">
-          <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-          <div class="rack-bar" aria-label="Rack" id="rack"></div>
-          <div class="rack-actions">
-            <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Skip turn">⏭️ Skip</button>
-            <button class="btn rack-shuffle" type="button" id="exchangeBtn" aria-label="Exchange all tiles">🔄 Exchange all</button>
-          </div>
-          <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
-            <strong>Rack tips</strong>
-            <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-            <span>Drag tiles onto the board. Double-click a placed tile to send it back.</span>
-          </div>
         </div>
       </div>
     </div>
@@ -2241,6 +2428,8 @@ $aiSetupNotes = [
       const RACK_SIZE = 7;
       const rackEl = document.getElementById('rack');
       const messageEl = document.getElementById('turnMessage');
+      const logList = document.getElementById('gameLog');
+      const logEmpty = document.getElementById('logEmpty');
       const bagCountEl = document.getElementById('bagCount');
       const scoreEl = document.getElementById('scoreTotal');
       const toggleBtn = document.getElementById('turnToggleBtn');
@@ -2276,6 +2465,9 @@ $aiSetupNotes = [
       const centerBoardBtn = document.getElementById('centerBoardBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
+      const controlBar = document.getElementById('controlBar');
+      const controlToggle = document.getElementById('controlToggle');
+      const turnDock = document.getElementById('turnDock');
       const drawOverlay = document.getElementById('drawOverlay');
       const drawStatusEl = document.getElementById('drawStatus');
       const drawHintEl = document.getElementById('drawHint');
@@ -2956,13 +3148,22 @@ $aiSetupNotes = [
         const hasMessage = Boolean(messageEl);
         if (hasMessage) {
           messageEl.textContent = text;
-          messageEl.classList.remove('error', 'success');
+          messageEl.classList.remove('error', 'success', 'info');
+          if (tone) messageEl.classList.add(tone);
         }
-        if (tone) {
-          if (hasMessage) messageEl.classList.add(tone);
-          if (tone === 'error') {
-            playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
+        if (logList) {
+          if (logEmpty?.parentElement) {
+            logEmpty.remove();
           }
+          const entry = document.createElement('li');
+          entry.className = `info-item${tone ? ` ${tone}` : ''}`;
+          entry.textContent = text;
+          logList.prepend(entry);
+          const items = Array.from(logList.querySelectorAll('.info-item'));
+          items.slice(6).forEach((item) => item.remove());
+        }
+        if (tone === 'error') {
+          playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
         }
       };
 
@@ -3633,6 +3834,7 @@ $aiSetupNotes = [
         const players = (state.turnOrder && state.turnOrder.length) ? state.turnOrder : (state.players || []);
         const scores = state.scores || {};
         const topScore = Object.values(scores).reduce((max, value) => Math.max(max, Number(value) || 0), 0);
+        const activePlayerId = state.turnOrder?.[state.turnIndex]?.user_id ?? state.turnOrder?.[state.turnIndex]?.id;
 
         if (!players.length) {
           playerScoresEl.innerHTML = '<div class="hud-text" style="color:#cbd5e1;">Waiting for players…</div>';
@@ -3644,11 +3846,12 @@ $aiSetupNotes = [
           const name = player.username || 'Player';
           const score = scores[userId] ?? 0;
           const leader = score === topScore && topScore > 0;
+          const active = Number(userId) === Number(activePlayerId);
           const initial = name.substring(0, 1).toUpperCase();
           return `
-            <div class="score-chip${leader ? ' leader' : ''}" aria-label="${name} has ${score} points">
+            <div class="score-chip${leader ? ' leader' : ''}${active ? ' active' : ''}" aria-label="${name} has ${score} points${active ? ' and is playing' : ''}">
               <div class="avatar">${initial}</div>
-              <div class="meta"><strong>${name}</strong><span>${score} pts</span></div>
+              <div class="meta"><strong>${name}${active ? ' • playing' : ''}</strong><span>${score} pts</span></div>
             </div>
           `;
         }).join('');
@@ -4819,6 +5022,23 @@ $aiSetupNotes = [
         rackHelpBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           toggleRackHelp();
+        });
+      }
+
+      if (controlToggle && turnDock && controlBar) {
+        controlToggle.addEventListener('click', () => {
+          const hidden = turnDock.classList.toggle('controls-hidden');
+          controlToggle.setAttribute('aria-expanded', String(!hidden));
+          const label = controlToggle.querySelector('.control-toggle-text');
+          if (label) {
+            label.textContent = hidden ? 'Show controls' : 'Hide controls';
+          }
+          const glyph = controlToggle.querySelector('span[aria-hidden="true"]');
+          if (glyph) {
+            glyph.textContent = hidden ? '⬇' : '⬆';
+          }
+          syncDockHeights();
+          resizeBoardToViewport({ resetView: false });
         });
       }
 

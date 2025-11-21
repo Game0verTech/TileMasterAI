@@ -44,3 +44,8 @@ The response should return a ranked `moves` array with `word`, `start`, `directi
 
 ## Roadmap & design
 Active tasks and design notes live in [TODO.md](./TODO.md). This checklist will evolve as we shape the UX (board grid, rack input, move list, uploads) and hook in the solver/back-end work.
+
+## UI layout overview
+- `game.php` renders the live board experience with a two-column layout (board on the left, insights on the right) beneath a sticky header.
+- The bottom control bar groups Submit/Shuffle/Pass/Exchange/AI controls with the rack in a raised panel for emphasis.
+- View tools sit alongside the board header so zoom/fit/center options stay connected to the play area, while a sidebar log captures recent turn feedback.
