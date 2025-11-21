@@ -266,21 +266,23 @@ $aiSetupNotes = [
 
     .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; }
     .draw-stage { display: flex; align-items: stretch; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; }
-    .draw-bag { width: 180px; min-height: 180px; position: relative; display: grid; place-items: center; }
-    .bag-body { width: 100%; height: 120px; border-radius: 20px; background: linear-gradient(180deg, #c08457, #92502b); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 18px 32px rgba(0,0,0,0.35); position: relative; top: 18px; }
-    .bag-mouth { width: 140px; height: 36px; background: linear-gradient(90deg, #f3d8a2, #d9a05b); border-radius: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 10px 18px rgba(0,0,0,0.18); position: relative; z-index: 2; }
-    .bag-burst { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.22)); opacity: 0; }
+    .draw-bag { width: 200px; min-height: 200px; position: relative; display: grid; place-items: center; cursor: pointer; }
+    .draw-bag.disabled { pointer-events: none; opacity: 0.65; }
+    .bag-img { width: 100%; max-width: 200px; filter: drop-shadow(0 16px 28px rgba(0,0,0,0.32)); transition: transform 280ms ease, filter 280ms ease; }
+    .bag-img:hover { transform: translateY(-4px); filter: drop-shadow(0 18px 32px rgba(99,102,241,0.25)); }
+    .bag-open .bag-img { transform: rotate(-6deg) translateY(2px); }
+    .bag-pop .bag-img { animation: bag-pop 480ms ease; }
+    .bag-burst { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.22)); opacity:0; }
     .bag-burst::before, .bag-burst::after { content: ""; position: absolute; width: 32px; height: 32px; background: radial-gradient(circle, rgba(255,255,255,0.8), transparent 60%); border-radius: 50%; opacity: 0.8; }
     .bag-burst::before { top: 20%; left: 8%; }
     .bag-burst::after { top: 12%; right: 6%; }
-    .bag-pop { animation: bag-pop 480ms ease; }
     .bag-pop .bag-burst { animation: burst 520ms ease; }
     .draw-spill { flex: 1; min-width: 280px; display: grid; gap: 10px; align-content: start; }
     .spill-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; position: relative; min-height: 120px; }
-    .spill-tile { position: relative; width: 100%; aspect-ratio: 1; border: none; border-radius: 12px; background: linear-gradient(180deg, #0f172a, #111827); box-shadow: 0 16px 32px rgba(0,0,0,0.32), 0 0 0 1px rgba(148, 163, 184, 0.24); cursor: pointer; transform: translate3d(0, 10px, 0) rotate(calc(var(--angle, 0deg))); transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms ease, opacity 260ms ease; overflow: hidden; }
-    .spill-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); pointer-events: none; }
-    .spill-tile .tile-back { position: absolute; inset: 0; display: grid; place-items: center; color: #e2e8f0; font-size: 26px; letter-spacing: 0.6px; }
-    .spill-tile .tile-front { position: absolute; inset: 0; display: grid; place-items: center; background: var(--tile-wood); color: #0f172a; font-size: 34px; font-weight: 900; transform: rotateY(90deg); backface-visibility: hidden; }
+    .spill-tile { position: relative; width: 100%; aspect-ratio: 1; border: none; border-radius: 12px; background: var(--tile-wood); box-shadow: 0 16px 32px rgba(0,0,0,0.32), 0 0 0 1px rgba(148, 163, 184, 0.24); cursor: pointer; transform: translate3d(0, 10px, 0) rotate(calc(var(--angle, 0deg))); transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms ease, opacity 260ms ease; overflow: hidden; }
+    .spill-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -6px 18px rgba(0,0,0,0.15); pointer-events: none; }
+    .spill-tile .tile-back { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(140deg, rgba(255,255,255,0.25), rgba(0,0,0,0.05)), var(--tile-wood); color: #0f172a; font-size: 20px; font-weight: 800; letter-spacing: 0.6px; }
+    .spill-tile .tile-front { position: absolute; inset: 0; display: grid; place-items: center; background: var(--tile-wood); color: #0f172a; font-size: 34px; font-weight: 900; transform: rotateY(90deg); backface-visibility: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4); }
     .spill-tile.landed { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) rotate(calc(var(--angle, 0deg))); box-shadow: 0 18px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(148, 163, 184, 0.22); }
     .spill-tile:hover { box-shadow: 0 16px 32px rgba(79, 70, 229, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.4); transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(1.03) rotate(calc(var(--angle, 0deg))); }
     .spill-tile.revealed { animation: tile-pop 360ms ease; }
@@ -2018,14 +2020,19 @@ $aiSetupNotes = [
       </div>
       <div class="draw-hero">
         <div class="draw-stage">
-          <div class="draw-bag" id="drawBag" aria-hidden="true">
-            <div class="bag-mouth"></div>
-            <div class="bag-body"></div>
+          <div class="draw-bag" id="drawBag" aria-label="Tile bag" role="button" tabindex="0">
+            <img
+              src="assets/Tile_Bag_01.png"
+              alt="Tile bag"
+              class="bag-img"
+              id="drawBagImg"
+              data-placeholder="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='240' viewBox='0 0 220 240'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23e2e8f0'/%3E%3Cstop offset='100%25' stop-color='%23f8fafc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='220' height='240' rx='28' fill='url(%23g)' stroke='%23cbd5e1' stroke-width='3' stroke-dasharray='8 10'/%3E%3Ctext x='110' y='115' text-anchor='middle' fill='%2394a3b8' font-family='Inter,sans-serif' font-size='16'%3EBag art%3C/text%3E%3Ctext x='110' y='140' text-anchor='middle' fill='%23748396' font-family='Inter,sans-serif' font-size='13'%3E(assets/Tile_Bag_01.png)%3C/text%3E%3C/svg%3E"
+            />
             <div class="bag-burst" id="bagBurst"></div>
           </div>
           <div class="draw-spill" id="drawSpill">
             <div class="spill-tiles" id="spillTiles" role="list"></div>
-            <p class="hud-text spill-hint" id="spillHint">Press “Spill tiles,” then tap one facedown tile to claim your starter.</p>
+            <p class="hud-text spill-hint" id="spillHint">Click the bag to spill some tiles.</p>
             <div class="draw-meter">
               <div class="meter-track" aria-hidden="true"><span class="meter-fill" id="drawMeterFill"></span></div>
               <p class="hud-text" id="drawMeterText" style="margin:0; color:#94a3b8;">0 of 0 players revealed.</p>
@@ -2034,14 +2041,10 @@ $aiSetupNotes = [
               <div class="draw-chip" id="drawCardTop">?</div>
               <div class="draw-reveal-copy">
                 <p class="hud-eyebrow" style="margin:0;">Your pick</p>
-                <p class="hud-text" id="drawResultCopy" style="margin:4px 0 0; color:#cbd5e1;">Tap a tile to reveal it.</p>
+                <p class="hud-text" id="drawResultCopy" style="margin:4px 0 0; color:#cbd5e1;">Click the bag to spill some tiles.</p>
               </div>
             </div>
           </div>
-        </div>
-        <div class="draw-bubble" style="align-self: stretch; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12);">
-          <p class="hud-eyebrow" style="margin:0;">How it works</p>
-          <p class="hud-text" style="margin:6px 0 0; color:#cbd5e1;">We spill a handful of blank-free tiles for turn order. Tap any facedown tile to pick yours—once every player reveals, the full bag (blanks included) is reshuffled for racks.</p>
         </div>
       </div>
       <div class="draw-grid" style="margin-top:10px;">
@@ -2300,6 +2303,7 @@ $aiSetupNotes = [
       const drawCardTop = document.getElementById('drawCardTop');
       const drawResultCopy = document.getElementById('drawResultCopy');
       const drawBag = document.getElementById('drawBag');
+      const drawBagImg = document.getElementById('drawBagImg');
       const bagBurst = document.getElementById('bagBurst');
       const spillTiles = document.getElementById('spillTiles');
       const spillHint = document.getElementById('spillHint');
@@ -2319,7 +2323,7 @@ $aiSetupNotes = [
       const rematchBtn = document.getElementById('rematchBtn');
       const closeWinnerBtn = document.getElementById('closeWinnerBtn');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null };
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null, bagSpilled: false };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -2484,6 +2488,41 @@ $aiSetupNotes = [
         }),
       };
 
+      const BAG_IMAGES = { closed: 'assets/Tile_Bag_01.png', open: 'assets/Tile_Bag_02.png' };
+
+      const ensureBagImageReady = () => {
+        if (!drawBagImg) return;
+        const placeholder = drawBagImg.dataset.placeholder || '';
+
+        drawBagImg.addEventListener('error', () => {
+          if (!placeholder || drawBagImg.src === placeholder) return;
+          drawBagImg.dataset.fallbackUsed = 'true';
+          drawBagImg.src = placeholder;
+        });
+
+        if (drawBagImg.complete && drawBagImg.naturalWidth === 0 && placeholder) {
+          drawBagImg.dataset.fallbackUsed = 'true';
+          drawBagImg.src = placeholder;
+        }
+      };
+
+      const setBagFrame = (open = false) => {
+        if (!drawBagImg) return;
+
+        if (drawBagImg.dataset.fallbackUsed === 'true') {
+          const placeholder = drawBagImg.dataset.placeholder || '';
+          if (placeholder) {
+            drawBagImg.src = placeholder;
+          }
+        } else {
+          drawBagImg.src = open ? BAG_IMAGES.open : BAG_IMAGES.closed;
+        }
+
+        drawBag?.classList.toggle('bag-open', open);
+      };
+
+      ensureBagImageReady();
+
       const randomLetterFromPool = (pool = []) => {
         const cleanPool = pool.filter((letter) => letter !== '?');
         if (!cleanPool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
@@ -2506,14 +2545,15 @@ $aiSetupNotes = [
           : randomLetterFromPool(sourcePool)));
 
         state.drawAnimationActive = true;
+        state.bagSpilled = true;
         if (tileModal) tileModal.classList.add('hidden');
+        setBagFrame(true);
         spillTiles.innerHTML = '';
-        if (spillHint) spillHint.textContent = 'Tap any facedown tile to pick your starter.';
-        if (drawResultCopy) drawResultCopy.textContent = 'Tap a tile to reveal it.';
-        if (drawResultText) drawResultText.textContent = 'Shuffling tiles...';
+        if (spillHint) spillHint.textContent = 'Select a tile!';
+        if (drawResultCopy) drawResultCopy.textContent = 'Select a tile!';
+        if (drawResultText) drawResultText.textContent = 'Tiles spilled—pick one.';
         if (drawTicker) drawTicker.textContent = '…';
         drawOverlay?.classList.remove('hidden');
-        playFx('spill', { rate: 0.96 });
 
         if (drawBag) {
           drawBag.classList.remove('bag-pop');
@@ -2538,7 +2578,7 @@ $aiSetupNotes = [
           chip.style.setProperty('--tx', `${tx}px`);
           chip.style.setProperty('--ty', `${ty}px`);
           chip.setAttribute('aria-label', 'Facedown tile');
-          chip.innerHTML = '<span class="tile-back">★</span><span class="tile-front">?</span>';
+          chip.innerHTML = '<span class="tile-back"></span><span class="tile-front">?</span>';
           chip.addEventListener('click', () => revealTile(index));
           spillTiles.appendChild(chip);
           requestAnimationFrame(() => chip.classList.add('landed'));
@@ -3093,21 +3133,31 @@ $aiSetupNotes = [
         const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
         const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
+        const readyToDraw = !alreadyDrew && !everyoneDrew;
         renderDrawTables();
 
         if (drawStatusEl) {
           const leader = state.turnOrder?.[0];
           drawStatusEl.textContent = leader && everyoneRevealed
             ? `${leader.username} starts the game`
-            : 'Spill the bag and tap a tile to see who starts!';
+            : 'Click the bag, spill some tiles, and tap one to see who starts!';
         }
         if (drawHintEl) {
           drawHintEl.textContent = alreadyDrew
             ? 'You drew already—waiting for the table to finish.'
-            : 'Press “Spill tiles,” then tap any facedown tile to reveal yours.';
+            : 'Click the bag to spill some tiles, then pick one.';
         }
         if (drawTileBtn) {
           drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+        }
+        if (drawBag) {
+          drawBag.classList.toggle('disabled', !readyToDraw);
+        }
+        if (!state.bagSpilled && readyToDraw) {
+          setBagFrame(false);
+          if (spillTiles) spillTiles.innerHTML = '';
+          if (spillHint) spillHint.textContent = 'Click the bag to spill some tiles.';
+          if (drawResultCopy) drawResultCopy.textContent = 'Click the bag to spill some tiles.';
         }
 
         const revealedCount = draws.filter((entry) => entry.revealed).length;
@@ -3211,6 +3261,11 @@ $aiSetupNotes = [
         state.draw_pool = game.draw_pool || [];
         state.scores = game.scores || {};
         state.winnerUserId = game.winner_user_id || null;
+        if (!state.drawAnimationActive && state.draws.length === 0) {
+          state.bagSpilled = false;
+          setBagFrame(false);
+          if (spillTiles) spillTiles.innerHTML = '';
+        }
         bag = Array.isArray(game.bag) ? [...game.bag] : [];
         if (!state.winnerUserId) {
           winnerShown = false;
@@ -3298,20 +3353,33 @@ $aiSetupNotes = [
       };
 
       const handleDrawTile = async () => {
-        if (!lobbyId || !drawTileBtn) return;
-        drawTileBtn.disabled = true;
+        if (!lobbyId) return;
+        if (state.drawAnimationActive) return;
+        if (drawTileBtn) drawTileBtn.disabled = true;
+        if (drawBag) {
+          drawBag.classList.add('disabled');
+          drawBag.classList.remove('bag-pop');
+          void drawBag.offsetWidth;
+          drawBag.classList.add('bag-pop');
+        }
+        state.bagSpilled = true;
+        setBagFrame(true);
+        playFx('spill', { rate: 0.96 });
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'draw', lobbyId }),
           });
-          const data = await res.json();
-          if (!data.success) {
-            setMessage(data.message || 'Unable to draw a tile.', 'error');
-            drawTileBtn.disabled = false;
-            return;
-          }
+            const data = await res.json();
+            if (!data.success) {
+              setMessage(data.message || 'Unable to draw a tile.', 'error');
+              if (drawTileBtn) drawTileBtn.disabled = false;
+              if (drawBag) drawBag.classList.remove('disabled');
+            state.bagSpilled = false;
+            setBagFrame(false);
+              return;
+            }
           const tile = data.result?.tile || '?';
           await runTileAnimation(tile);
           await fetch('/api/game.php', {
@@ -3322,8 +3390,11 @@ $aiSetupNotes = [
           await fetchGameState();
         } catch (error) {
           setMessage('Unable to reach the draw server right now.', 'error');
+          state.bagSpilled = false;
+          setBagFrame(false);
         } finally {
-          drawTileBtn.disabled = false;
+          if (drawTileBtn) drawTileBtn.disabled = false;
+          if (drawBag) drawBag.classList.remove('disabled');
         }
       };
 
@@ -4568,6 +4639,15 @@ $aiSetupNotes = [
 
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
       if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
+      if (drawBag) {
+        drawBag.addEventListener('click', handleDrawTile);
+        drawBag.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleDrawTile();
+          }
+        });
+      }
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (rematchBtn) rematchBtn.addEventListener('click', requestRematch);
       if (closeWinnerBtn) closeWinnerBtn.addEventListener('click', closeWinnerModal);
