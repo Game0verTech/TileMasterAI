@@ -265,12 +265,32 @@ $aiSetupNotes = [
     }
 
     .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; }
-    .draw-stage { display: flex; align-items: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
-    .draw-stack { position: relative; width: 120px; height: 120px; display: grid; place-items: center; }
-    .draw-card { width: 96px; height: 96px; border-radius: 12px; background: var(--tile-wood); border: 1px solid #b9874c; box-shadow: 0 14px 30px rgba(0,0,0,0.32); display: grid; place-items: center; font-size: 42px; font-weight: 900; color: #0f172a; transform: rotate(-6deg); position: absolute; transition: transform 0.4s ease, opacity 0.35s ease; }
-    .draw-card:nth-child(2) { transform: translate3d(10px, 12px, 0) rotate(4deg); opacity: 0.7; }
-    .draw-card:nth-child(3) { transform: translate3d(-12px, 16px, 0) rotate(-10deg); opacity: 0.6; }
-    .draw-card.revealed { animation: card-pop 420ms ease; }
+    .draw-stage { display: flex; align-items: stretch; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; }
+    .draw-bag { width: 180px; min-height: 180px; position: relative; display: grid; place-items: center; }
+    .bag-body { width: 100%; height: 120px; border-radius: 20px; background: linear-gradient(180deg, #c08457, #92502b); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 18px 32px rgba(0,0,0,0.35); position: relative; top: 18px; }
+    .bag-mouth { width: 140px; height: 36px; background: linear-gradient(90deg, #f3d8a2, #d9a05b); border-radius: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 10px 18px rgba(0,0,0,0.18); position: relative; z-index: 2; }
+    .bag-burst { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.22)); opacity: 0; }
+    .bag-burst::before, .bag-burst::after { content: ""; position: absolute; width: 32px; height: 32px; background: radial-gradient(circle, rgba(255,255,255,0.8), transparent 60%); border-radius: 50%; opacity: 0.8; }
+    .bag-burst::before { top: 20%; left: 8%; }
+    .bag-burst::after { top: 12%; right: 6%; }
+    .bag-pop { animation: bag-pop 480ms ease; }
+    .bag-pop .bag-burst { animation: burst 520ms ease; }
+    .draw-spill { flex: 1; min-width: 280px; display: grid; gap: 10px; align-content: start; }
+    .spill-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; position: relative; min-height: 120px; }
+    .spill-tile { position: relative; width: 100%; aspect-ratio: 1; border: none; border-radius: 12px; background: linear-gradient(180deg, #0f172a, #111827); box-shadow: 0 16px 32px rgba(0,0,0,0.32), 0 0 0 1px rgba(148, 163, 184, 0.24); cursor: pointer; transform: translate3d(0, 10px, 0) rotate(calc(var(--angle, 0deg))); transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms ease, opacity 260ms ease; overflow: hidden; }
+    .spill-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); pointer-events: none; }
+    .spill-tile .tile-back { position: absolute; inset: 0; display: grid; place-items: center; color: #e2e8f0; font-size: 26px; letter-spacing: 0.6px; }
+    .spill-tile .tile-front { position: absolute; inset: 0; display: grid; place-items: center; background: var(--tile-wood); color: #0f172a; font-size: 34px; font-weight: 900; transform: rotateY(90deg); backface-visibility: hidden; }
+    .spill-tile.landed { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) rotate(calc(var(--angle, 0deg))); box-shadow: 0 18px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(148, 163, 184, 0.22); }
+    .spill-tile:hover { box-shadow: 0 16px 32px rgba(79, 70, 229, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.4); transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(1.03) rotate(calc(var(--angle, 0deg))); }
+    .spill-tile.revealed { animation: tile-pop 360ms ease; }
+    .spill-tile.revealed .tile-front { animation: tile-flip 400ms ease forwards; }
+    .spill-tile.revealed .tile-back { opacity: 0; }
+    .spill-hint { margin: 0; color: #cbd5e1; }
+    .draw-reveal { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(148, 163, 184, 0.12); }
+    .draw-chip { width: 64px; height: 64px; border-radius: 14px; background: var(--tile-wood); border: 1px solid #b9874c; display: grid; place-items: center; font-size: 30px; font-weight: 900; color: #0f172a; box-shadow: 0 12px 22px rgba(0,0,0,0.28); }
+    .draw-chip.revealed { animation: card-pop 420ms ease; }
+    .draw-reveal-copy { display: grid; gap: 4px; }
     .draw-bubble { flex: 1; display: grid; gap: 6px; }
     .draw-meter { display: grid; gap: 6px; }
     .meter-track { width: 100%; height: 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.2); overflow: hidden; }
@@ -358,6 +378,30 @@ $aiSetupNotes = [
       0% { transform: translateY(18px) scale(0.96) rotate(-8deg); opacity: 0; }
       60% { transform: translateY(-6px) scale(1.05) rotate(-2deg); opacity: 1; }
       100% { transform: translateY(0) scale(1) rotate(-6deg); opacity: 1; }
+    }
+
+    @keyframes bag-pop {
+      0% { transform: translateY(10px) scale(0.96); }
+      40% { transform: translateY(-12px) scale(1.04); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    @keyframes burst {
+      0% { transform: scale(0.6); opacity: 0; }
+      40% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    @keyframes tile-pop {
+      0% { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(0.95); }
+      70% { transform: translate3d(calc(var(--tx, 0px) * 0.9), calc(var(--ty, 0px) * 0.9), 0) scale(1.06); }
+      100% { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(1); }
+    }
+
+    @keyframes tile-flip {
+      0% { transform: rotateY(90deg); }
+      60% { transform: rotateY(-10deg) scale(1.04); }
+      100% { transform: rotateY(0deg) scale(1); }
     }
 
     header {
@@ -1970,26 +2014,34 @@ $aiSetupNotes = [
           <h2 style="margin:4px 0 0;">Reveal your starting tile</h2>
           <p class="hud-text" id="drawStatus" style="margin:6px 0 0; color:#cbd5e1;">Waiting for lobby...</p>
         </div>
-        <button type="button" id="drawTileBtn">Draw tile</button>
+        <button type="button" id="drawTileBtn">Spill tiles</button>
       </div>
       <div class="draw-hero">
         <div class="draw-stage">
-          <div class="draw-stack" aria-hidden="true">
-            <span class="draw-card" id="drawCardTop">?</span>
-            <span class="draw-card"></span>
-            <span class="draw-card"></span>
+          <div class="draw-bag" id="drawBag" aria-hidden="true">
+            <div class="bag-mouth"></div>
+            <div class="bag-body"></div>
+            <div class="bag-burst" id="bagBurst"></div>
           </div>
-          <div class="draw-bubble">
-            <p class="hud-text" style="margin:0; color:#cbd5e1;">Drag the top tile to the spotlight and reveal it with the button.</p>
+          <div class="draw-spill" id="drawSpill">
+            <div class="spill-tiles" id="spillTiles" role="list"></div>
+            <p class="hud-text spill-hint" id="spillHint">Press “Spill tiles,” then tap one facedown tile to claim your starter.</p>
             <div class="draw-meter">
               <div class="meter-track" aria-hidden="true"><span class="meter-fill" id="drawMeterFill"></span></div>
               <p class="hud-text" id="drawMeterText" style="margin:0; color:#94a3b8;">0 of 0 players revealed.</p>
+            </div>
+            <div class="draw-reveal" aria-live="polite">
+              <div class="draw-chip" id="drawCardTop">?</div>
+              <div class="draw-reveal-copy">
+                <p class="hud-eyebrow" style="margin:0;">Your pick</p>
+                <p class="hud-text" id="drawResultCopy" style="margin:4px 0 0; color:#cbd5e1;">Tap a tile to reveal it.</p>
+              </div>
             </div>
           </div>
         </div>
         <div class="draw-bubble" style="align-self: stretch; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12);">
           <p class="hud-eyebrow" style="margin:0;">How it works</p>
-          <p class="hud-text" style="margin:6px 0 0; color:#cbd5e1;">We pull a single tile from a blank-free bag to set turn order. Once all tiles are revealed, the full bag (blanks included) is reshuffled for racks.</p>
+          <p class="hud-text" style="margin:6px 0 0; color:#cbd5e1;">We spill a handful of blank-free tiles for turn order. Tap any facedown tile to pick yours—once every player reveals, the full bag (blanks included) is reshuffled for racks.</p>
         </div>
       </div>
       <div class="draw-grid" style="margin-top:10px;">
@@ -2246,6 +2298,11 @@ $aiSetupNotes = [
       const drawTicker = document.getElementById('drawTicker');
       const drawResultText = document.getElementById('drawResultText');
       const drawCardTop = document.getElementById('drawCardTop');
+      const drawResultCopy = document.getElementById('drawResultCopy');
+      const drawBag = document.getElementById('drawBag');
+      const bagBurst = document.getElementById('bagBurst');
+      const spillTiles = document.getElementById('spillTiles');
+      const spillHint = document.getElementById('spillHint');
       const drawMeterFill = document.getElementById('drawMeterFill');
       const drawMeterText = document.getElementById('drawMeterText');
       const startModal = document.getElementById('startModal');
@@ -2383,6 +2440,15 @@ $aiSetupNotes = [
           ],
           jitter: 0.05,
         }),
+        spill: createSynthFx({
+          steps: [
+            { frequency: 240, duration: 0.1, type: 'triangle', gainValue: 0.09 },
+            { frequency: 180, start: 0.04, duration: 0.16, type: 'sawtooth', gainValue: 0.07 },
+            { frequency: 520, start: 0.12, duration: 0.12, type: 'sine', gainValue: 0.05 },
+            { frequency: 320, start: 0.2, duration: 0.16, type: 'triangle', gainValue: 0.05 },
+          ],
+          jitter: 0.08,
+        }),
         turnBell: createSynthFx({
           steps: [
             { frequency: 660, duration: 0.22, type: 'triangle', gainValue: 0.08 },
@@ -2425,46 +2491,96 @@ $aiSetupNotes = [
       };
 
       const runTileAnimation = (finalTile) => new Promise((resolve) => {
-        if (!tileModal || !drawTicker || !drawResultText) {
+        if (!spillTiles) {
           resolve();
           return;
         }
 
-        state.drawAnimationActive = true;
-        tileModal.classList.remove('hidden');
-        drawResultText.textContent = 'Shuffling tiles...';
-
         const sourcePool = Array.isArray(state.game?.draw_pool)
           ? state.game.draw_pool
           : Object.keys(tileDistribution);
-        const sequence = Array.from({ length: 24 }, () => randomLetterFromPool(sourcePool));
-        let delay = 70;
-        let index = 0;
+        const spillCount = Math.min(8, Math.max(5, (state.players?.length || 4) + 2));
+        const revealIndex = Math.floor(Math.random() * spillCount);
+        const letters = Array.from({ length: spillCount }, (_, i) => (i === revealIndex
+          ? finalTile
+          : randomLetterFromPool(sourcePool)));
 
-        const tick = () => {
-          if (index >= sequence.length) {
-            drawTicker.textContent = finalTile;
-            drawResultText.textContent = `You drew ${finalTile}.`;
-            if (drawCardTop) {
-              drawCardTop.textContent = finalTile;
-              drawCardTop.classList.add('revealed');
-              setTimeout(() => drawCardTop.classList.remove('revealed'), 420);
+        state.drawAnimationActive = true;
+        if (tileModal) tileModal.classList.add('hidden');
+        spillTiles.innerHTML = '';
+        if (spillHint) spillHint.textContent = 'Tap any facedown tile to pick your starter.';
+        if (drawResultCopy) drawResultCopy.textContent = 'Tap a tile to reveal it.';
+        if (drawResultText) drawResultText.textContent = 'Shuffling tiles...';
+        if (drawTicker) drawTicker.textContent = '…';
+        drawOverlay?.classList.remove('hidden');
+        playFx('spill', { rate: 0.96 });
+
+        if (drawBag) {
+          drawBag.classList.remove('bag-pop');
+          void drawBag.offsetWidth;
+          drawBag.classList.add('bag-pop');
+        }
+        if (bagBurst) {
+          bagBurst.style.animation = 'none';
+          void bagBurst.offsetWidth;
+          bagBurst.style.animation = 'burst 520ms ease';
+        }
+
+        const chips = [];
+        letters.forEach((letter, index) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'spill-tile';
+          const angle = (Math.random() * 24) - 12;
+          const tx = (Math.random() * 90) - 45;
+          const ty = 16 + Math.random() * 48;
+          chip.style.setProperty('--angle', `${angle}deg`);
+          chip.style.setProperty('--tx', `${tx}px`);
+          chip.style.setProperty('--ty', `${ty}px`);
+          chip.setAttribute('aria-label', 'Facedown tile');
+          chip.innerHTML = '<span class="tile-back">★</span><span class="tile-front">?</span>';
+          chip.addEventListener('click', () => revealTile(index));
+          spillTiles.appendChild(chip);
+          requestAnimationFrame(() => chip.classList.add('landed'));
+          chips.push(chip);
+        });
+
+        let resolved = false;
+        const autoReveal = setTimeout(() => revealTile(revealIndex), 4200);
+
+        function revealTile(index) {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(autoReveal);
+          chips.forEach((chip, idx) => {
+            chip.disabled = true;
+            chip.classList.toggle('revealed', idx === index);
+            if (idx === index) {
+              const front = chip.querySelector('.tile-front');
+              if (front) front.textContent = finalTile;
+              chip.setAttribute('aria-label', `Tile ${finalTile}`);
+            } else {
+              chip.style.opacity = 0.4;
             }
-            state.lastDrawRevealAt = Date.now();
-            setTimeout(() => {
-              tileModal.classList.add('hidden');
-              state.drawAnimationActive = false;
-              resolve();
-            }, 2000);
-            return;
-          }
-          drawTicker.textContent = sequence[index];
-          index += 1;
-          delay = Math.min(260, delay + 14);
-          setTimeout(tick, delay);
-        };
+          });
 
-        tick();
+          if (drawCardTop) {
+            drawCardTop.textContent = finalTile;
+            drawCardTop.classList.add('revealed');
+            setTimeout(() => drawCardTop.classList.remove('revealed'), 520);
+          }
+          if (drawResultCopy) drawResultCopy.textContent = `You drew ${finalTile}.`;
+          if (drawResultText) drawResultText.textContent = `You drew ${finalTile}.`;
+          if (drawTicker) drawTicker.textContent = finalTile;
+          if (spillHint) spillHint.textContent = 'Great pick! Waiting for the table to finish drawing.';
+          state.lastDrawRevealAt = Date.now();
+          playFx('place', { rate: 0.94 });
+
+          setTimeout(() => {
+            state.drawAnimationActive = false;
+            resolve();
+          }, 900);
+        }
       });
 
       const playFx = (name, { rate = 1 } = {}) => {
@@ -2983,10 +3099,12 @@ $aiSetupNotes = [
           const leader = state.turnOrder?.[0];
           drawStatusEl.textContent = leader && everyoneRevealed
             ? `${leader.username} starts the game`
-            : 'Draw a tile to see who plays first!';
+            : 'Spill the bag and tap a tile to see who starts!';
         }
         if (drawHintEl) {
-          drawHintEl.textContent = alreadyDrew ? 'Waiting for the rest of the table to draw...' : 'Tap draw to reveal your tile.';
+          drawHintEl.textContent = alreadyDrew
+            ? 'You drew already—waiting for the table to finish.'
+            : 'Press “Spill tiles,” then tap any facedown tile to reveal yours.';
         }
         if (drawTileBtn) {
           drawTileBtn.disabled = alreadyDrew || everyoneDrew;
