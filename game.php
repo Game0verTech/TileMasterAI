@@ -2673,20 +2673,29 @@ $aiSetupNotes = [
       };
 
       const measureBoardCenter = () => {
-        if (!boardScaleEl || !boardChromeEl) return { x: 0, y: 0, width: 0, height: 0 };
+        if (!boardScaleEl || !boardChromeEl || !boardViewport) {
+          return { x: 0, y: 0, width: 0, height: 0 };
+        }
+
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const centerCell = boardChromeEl.querySelector('[data-center="true"]');
+
+        let x = boardRect.width / 2;
+        let y = boardRect.height / 2;
+
+        if (centerCell instanceof HTMLElement) {
+          const cellRect = centerCell.getBoundingClientRect();
+          x = cellRect.left - viewportRect.left + cellRect.width / 2;
+          y = cellRect.top - viewportRect.top + cellRect.height / 2;
+        }
 
         boardScaleEl.style.transform = previousTransform;
 
-        return {
-          x: boardRect.width / 2,
-          y: boardRect.height / 2,
-          width: boardRect.width,
-          height: boardRect.height,
-        };
+        return { x, y, width: boardRect.width, height: boardRect.height };
       };
 
       const centerBoard = () => {
@@ -2716,27 +2725,17 @@ $aiSetupNotes = [
         const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
         const padding = getViewportPadding();
-        const reach = Math.max(padding * 1.75, 28);
+        const reach = Math.max(padding * 1.25, 18);
 
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
 
-        let minPanX = viewportRect.width - scaledWidth - reach;
-        let maxPanX = reach;
-        let minPanY = viewportRect.height - scaledHeight - reach;
-        let maxPanY = reach;
-
-        if (scaledWidth <= viewportRect.width) {
-          const centeredX = (viewportRect.width - scaledWidth) / 2;
-          minPanX = centeredX - reach;
-          maxPanX = centeredX + reach;
-        }
-
-        if (scaledHeight <= viewportRect.height) {
-          const centeredY = (viewportRect.height - scaledHeight) / 2;
-          minPanY = centeredY - reach;
-          maxPanY = centeredY + reach;
-        }
+        // Allow the board to travel from edge-to-edge of the viewport (plus a small
+        // buffer) regardless of whether it is smaller or larger than the viewport.
+        const minPanX = viewportRect.width - scaledWidth - reach;
+        const maxPanX = reach;
+        const minPanY = viewportRect.height - scaledHeight - reach;
+        const maxPanY = reach;
 
         panX = clamp(panX, minPanX, maxPanX);
         panY = clamp(panY, minPanY, maxPanY);
@@ -2849,6 +2848,16 @@ $aiSetupNotes = [
         panY = 0;
         userZoom = 1;
         centerBoard();
+      };
+
+      let pendingResizeReset = false;
+      const scheduleResizeAndCenter = () => {
+        if (pendingResizeReset) return;
+        pendingResizeReset = true;
+        requestAnimationFrame(() => {
+          pendingResizeReset = false;
+          resizeBoardToViewport({ resetView: true });
+        });
       };
 
       const fitBoard = () => {
@@ -4795,7 +4804,17 @@ $aiSetupNotes = [
       if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
       if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
 
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: false }));
+      const topDock = document.querySelector('.hud-dock');
+      const bottomDock = document.querySelector('.turn-dock');
+      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter()) : null;
+
+      if (layoutObserver) {
+        if (boardViewport) layoutObserver.observe(boardViewport);
+        if (topDock) layoutObserver.observe(topDock);
+        if (bottomDock) layoutObserver.observe(bottomDock);
+      }
+
+      window.addEventListener('resize', () => scheduleResizeAndCenter());
 
       renderBoard();
       updateTurnButton();
