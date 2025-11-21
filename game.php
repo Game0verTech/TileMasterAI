@@ -774,24 +774,6 @@ $aiSetupNotes = [
       line-height: 1;
     }
 
-    .message {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    .message.waiting {
-      border-color: #bfdbfe;
-      background: #eff6ff;
-      color: #1d4ed8;
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-
-    .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
-    .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-
     .cell.invalid {
       outline: 2px solid #ef4444;
       outline-offset: -2px;
@@ -1429,21 +1411,26 @@ $aiSetupNotes = [
       width: 100%;
       margin: 0;
       overflow: auto;
-      touch-action: pan-x pan-y;
-      cursor: default;
+      touch-action: none;
+      cursor: grab;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 8px;
+      padding: 12px;
       overscroll-behavior: contain;
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
       opacity: 0;
       transition: opacity 200ms ease;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      align-items: start;
     }
 
     .board-viewport.ready { opacity: 1; }
+
+    .board-viewport.panning { cursor: grabbing; }
 
     .board-scale {
       position: relative;
@@ -1451,7 +1438,7 @@ $aiSetupNotes = [
       transform-origin: top left;
       will-change: transform;
       display: inline-block;
-      padding: 120px;
+      padding: clamp(48px, 7vw, 120px);
       min-width: 100%;
       min-height: 100%;
     }
@@ -1487,9 +1474,10 @@ $aiSetupNotes = [
     }
 
     .board-toolbar {
-      position: absolute;
-      top: 12px;
-      right: 12px;
+      position: sticky;
+      top: 8px;
+      right: 0;
+      justify-self: end;
       display: inline-flex;
       gap: 8px;
       align-items: center;
@@ -1502,6 +1490,7 @@ $aiSetupNotes = [
       backdrop-filter: blur(10px);
       z-index: 40;
       transition: opacity 140ms ease, transform 140ms ease;
+      pointer-events: auto;
     }
 
     .board-toolbar.collapsed {
@@ -1928,28 +1917,6 @@ $aiSetupNotes = [
       color: var(--ink);
     }
 
-    .message {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-      width: 100%;
-    }
-
-    .message.waiting {
-      background: #eef2ff;
-      border-color: #c7d2fe;
-      color: #4338ca;
-      animation: pulseNotice 1.6s ease-in-out infinite;
-    }
-
-    @keyframes pulseNotice {
-      0%, 100% { opacity: 0.82; }
-      50% { opacity: 1; }
-    }
-
     @media (max-width: 1100px) {
       .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; }
       .dock-cta { justify-content: stretch; }
@@ -2147,12 +2114,11 @@ $aiSetupNotes = [
           <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
           <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
           <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
-          <button class="toolbar-btn" type="button" id="resetViewBtn" aria-label="Reset pan and zoom">Reset</button>
         </div>
       </div>
       <div class="board-scale" id="boardScale">
         <div class="board-frame" id="boardFrame">
-          <div class="board-chrome" id="boardChrome">
+            <div class="board-chrome" id="boardChrome">
             <div class="board-preview" aria-label="Game board">
               <div class="board-grid" role="presentation">
               <?php foreach ($premiumBoard as $rowIndex => $row): ?>
@@ -2206,8 +2172,6 @@ $aiSetupNotes = [
               <?php endforeach; ?>
               </div>
             </div>
-
-            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
           </div>
         </div>
       </div>
@@ -2293,7 +2257,6 @@ $aiSetupNotes = [
       const zoomOutBtn = document.getElementById('zoomOutBtn');
       const fitBoardBtn = document.getElementById('fitBoardBtn');
       const centerBoardBtn = document.getElementById('centerBoardBtn');
-      const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
       const drawOverlay = document.getElementById('drawOverlay');
@@ -2347,6 +2310,8 @@ $aiSetupNotes = [
       let pinchDistance = null;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
+      let panPointerId = null;
+      let panStart = null;
       let startModalShown = false;
       let winnerShown = false;
       let lastTurnUserId = null;
@@ -2653,10 +2618,10 @@ $aiSetupNotes = [
       };
 
       const measureBoardRect = () => {
-        if (!boardChromeEl || !boardScaleEl) return { width: 0, height: 0 };
+        if (!boardScaleEl) return { width: 0, height: 0 };
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
-        const rect = boardChromeEl.getBoundingClientRect();
+        const rect = boardScaleEl.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
         return rect;
       };
@@ -2676,16 +2641,19 @@ $aiSetupNotes = [
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
-        const containerRect = boardChromeEl.getBoundingClientRect();
+        const scaleRect = boardScaleEl.getBoundingClientRect();
         const centerCell = boardChromeEl.querySelector('[data-center="true"]');
 
-        let x = boardRect.width / 2;
-        let y = boardRect.height / 2;
+        const offsetX = boardRect.left - scaleRect.left;
+        const offsetY = boardRect.top - scaleRect.top;
+
+        let x = offsetX + boardRect.width / 2;
+        let y = offsetY + boardRect.height / 2;
 
         if (centerCell instanceof HTMLElement) {
           const cellRect = centerCell.getBoundingClientRect();
-          x = cellRect.left - containerRect.left + cellRect.width / 2;
-          y = cellRect.top - containerRect.top + cellRect.height / 2;
+          x = offsetX + cellRect.left - boardRect.left + cellRect.width / 2;
+          y = offsetY + cellRect.top - boardRect.top + cellRect.height / 2;
         }
 
         boardScaleEl.style.transform = previousTransform;
@@ -2779,12 +2747,6 @@ $aiSetupNotes = [
         applyBoardScale();
       };
 
-      const resetBoardView = () => {
-        userScale = 1;
-        applyBoardScale();
-        centerBoard();
-      };
-
       let pendingResizeReset = false;
       const scheduleResizeAndCenter = () => {
         if (pendingResizeReset) return;
@@ -2862,6 +2824,50 @@ $aiSetupNotes = [
         pinchDistance = null;
       };
 
+      const shouldIgnorePan = (target) => {
+        if (!target) return false;
+        return Boolean(target.closest('.toolbar-btn, .board-toolbar, .rack, .rack-tile, .tile'));
+      };
+
+      const handlePanStart = (event) => {
+        if (!boardViewport) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        if (event.pointerType === 'touch' && event.isPrimary === false) return;
+        if (pinchDistance !== null) return;
+        if (shouldIgnorePan(event.target)) return;
+        panPointerId = event.pointerId;
+        panStart = {
+          x: event.clientX,
+          y: event.clientY,
+          left: boardViewport.scrollLeft,
+          top: boardViewport.scrollTop,
+        };
+        boardViewport.setPointerCapture(event.pointerId);
+        boardViewport.classList.add('panning');
+      };
+
+      const handlePanMove = (event) => {
+        if (!boardViewport) return;
+        if (panPointerId === null || event.pointerId !== panPointerId) return;
+        event.preventDefault();
+        const dx = event.clientX - panStart.x;
+        const dy = event.clientY - panStart.y;
+        boardViewport.scrollTo({ left: panStart.left - dx, top: panStart.top - dy });
+      };
+
+      const handlePanEnd = (event) => {
+        if (!boardViewport) return;
+        if (panPointerId === null || event.pointerId !== panPointerId) return;
+        boardViewport.classList.remove('panning');
+        try {
+          boardViewport.releasePointerCapture(event.pointerId);
+        } catch (error) {
+          // ignore
+        }
+        panPointerId = null;
+        panStart = null;
+      };
+
       const buildBag = () => {
         bag = [];
         Object.entries(tileDistribution).forEach(([letter, entry]) => {
@@ -2894,10 +2900,13 @@ $aiSetupNotes = [
       };
 
       const setMessage = (text, tone = '') => {
-        messageEl.textContent = text;
-        messageEl.classList.remove('error', 'success');
+        const hasMessage = Boolean(messageEl);
+        if (hasMessage) {
+          messageEl.textContent = text;
+          messageEl.classList.remove('error', 'success');
+        }
         if (tone) {
-          messageEl.classList.add(tone);
+          if (hasMessage) messageEl.classList.add(tone);
           if (tone === 'error') {
             playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
           }
@@ -3406,12 +3415,14 @@ $aiSetupNotes = [
       };
 
       const setTurnMessaging = () => {
-        if (!messageEl) return;
+        const hasMessage = Boolean(messageEl);
         if (state.winnerUserId) {
           const winnerEntry = state.players.find((p) => Number(p.user_id ?? p.id) === Number(state.winnerUserId));
           const winnerName = winnerEntry?.username || 'Winner';
-          messageEl.textContent = `${winnerName} has won the game.`;
-          messageEl.classList.add('waiting');
+          if (hasMessage) {
+            messageEl.textContent = `${winnerName} has won the game.`;
+            messageEl.classList.add('waiting');
+          }
           toggleBtn?.setAttribute('disabled', 'true');
           if (boardChromeEl) boardChromeEl.classList.add('locked');
           if (rackEl) rackEl.classList.add('locked');
@@ -3419,8 +3430,10 @@ $aiSetupNotes = [
           return;
         }
         if (!state.turnOrder.length) {
-          messageEl.textContent = 'Draw a tile to see who goes first.';
-          messageEl.classList.add('waiting');
+          if (hasMessage) {
+            messageEl.textContent = 'Draw a tile to see who goes first.';
+            messageEl.classList.add('waiting');
+          }
           if (boardChromeEl) boardChromeEl.classList.add('locked');
           if (rackEl) rackEl.classList.add('locked');
           toggleBtn?.setAttribute('disabled', 'true');
@@ -3428,17 +3441,23 @@ $aiSetupNotes = [
           return;
         }
         const waiting = !isMyTurn();
-        messageEl.classList.toggle('waiting', waiting);
+        if (hasMessage) {
+          messageEl.classList.toggle('waiting', waiting);
+        }
         if (boardChromeEl) boardChromeEl.classList.toggle('locked', waiting);
         if (rackEl) rackEl.classList.toggle('locked', waiting);
         if (waiting) {
-          messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          if (hasMessage) {
+            messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          }
           toggleBtn?.setAttribute('disabled', 'true');
         } else {
           toggleBtn?.removeAttribute('disabled');
-          messageEl.textContent = turnActive
-            ? 'Place tiles and submit your move.'
-            : 'Start your turn to draw tiles from the shared bag.';
+          if (hasMessage) {
+            messageEl.textContent = turnActive
+              ? 'Place tiles and submit your move.'
+              : 'Start your turn to draw tiles from the shared bag.';
+          }
         }
         updateActionButtons();
       };
@@ -4657,6 +4676,10 @@ $aiSetupNotes = [
       }
 
       if (boardViewport) {
+        boardViewport.addEventListener('pointerdown', handlePanStart);
+        boardViewport.addEventListener('pointermove', handlePanMove);
+        boardViewport.addEventListener('pointerup', handlePanEnd);
+        boardViewport.addEventListener('pointercancel', handlePanEnd);
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
         boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
         boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -4679,7 +4702,6 @@ $aiSetupNotes = [
       if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(0.9, viewportCenter()));
       if (centerBoardBtn) centerBoardBtn.addEventListener('click', () => centerBoard());
       if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
-      if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
 
       const topDock = document.querySelector('.hud-dock');
       const bottomDock = document.querySelector('.turn-dock');
@@ -4696,8 +4718,7 @@ $aiSetupNotes = [
       const bootstrapBoard = () => {
         renderBoard();
         applyBoardScale();
-        resizeBoardToViewport({ resetView: true });
-        centerBoard();
+        fitBoard();
         if (boardViewport) boardViewport.classList.add('ready');
       };
 
