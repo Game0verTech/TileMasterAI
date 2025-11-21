@@ -518,14 +518,13 @@ $aiSetupNotes = [
     .board-preview {
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
       border-radius: var(--radius);
-      padding: 14px;
+      padding: 12px;
       border: 1px dashed #cbd5e1;
-      overflow: visible;
-      width: max-content;
-      min-width: max-content;
-      max-width: none;
-      display: grid;
-      place-items: center;
+      overflow: hidden;
+      width: min(1100px, 100%);
+      display: flex;
+      justify-content: center;
+      max-width: 100%;
     }
 
     .board-grid {
@@ -537,7 +536,7 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      max-width: none;
+      max-width: min(100%, 960px);
       margin: 0 auto;
     }
 
@@ -1838,14 +1837,12 @@ $aiSetupNotes = [
       .board-preview {
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
         border-radius: var(--radius);
-        padding: 14px;
+        padding: 12px;
         border: 1px dashed #cbd5e1;
-        overflow: visible;
-        width: max-content;
-        min-width: max-content;
-        max-width: none;
-        display: grid;
-        place-items: center;
+        overflow: hidden;
+        width: min(1100px, 100%);
+        display: flex;
+        justify-content: center;
       }
 
     .turn-dock {
