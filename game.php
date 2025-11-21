@@ -191,7 +191,7 @@ $aiSetupNotes = [
     Layout plan:
     - Sticky top dock keeps the TileMasterAI brand, mode label, active player scores, and bag count aligned as a single header.
     - Main area becomes a responsive two-column grid: the board pane on the left sits inside a lifted card with integrated status line, while the right rail hosts log/AI info and the view tools toolbar instead of floating over the board.
-    - Bottom control bar centers the rack with a raised feel and groups Submit/Shuffle/Pass/Exchange/AI actions into a cohesive row for clarity.
+    - Bottom dock prioritizes the rack at the top edge with a slimmer, collapsible control row beneath it so the board remains the visual focus on all viewports.
   -->
   <style>
     :root {
@@ -224,7 +224,7 @@ $aiSetupNotes = [
       --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
       --top-dock-height: 84px;
-      --bottom-dock-height: 180px;
+      --bottom-dock-height: 150px;
       --board-toolbar: rgba(15, 23, 42, 0.86);
       --shell-width: 1420px;
     }
@@ -720,7 +720,7 @@ $aiSetupNotes = [
       background: rgba(255, 255, 255, 0.85);
       border: 1px solid var(--panel-border);
       border-radius: 16px;
-      padding: 12px 12px 14px;
+      padding: 10px 12px 12px;
       box-shadow: var(--panel-shadow);
       display: grid;
       gap: 10px;
@@ -731,6 +731,12 @@ $aiSetupNotes = [
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
+    }
+
+    .rack-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .rack-title { display: grid; gap: 4px; }
@@ -1873,10 +1879,10 @@ $aiSetupNotes = [
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(59, 130, 246, 0.9));
-      backdrop-filter: blur(14px);
-      border-top: 1px solid rgba(59, 130, 246, 0.65);
-      box-shadow: 0 -18px 38px rgba(59, 130, 246, 0.25);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.92));
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: 0 -12px 24px rgba(15, 23, 42, 0.26);
       z-index: 800;
     }
 
@@ -1884,54 +1890,58 @@ $aiSetupNotes = [
       width: 100%;
       max-width: var(--shell-width);
       margin: 0 auto;
-      padding: 10px 18px 14px;
+      padding: 8px 16px 12px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .control-bar {
       display: grid;
-      grid-template-columns: minmax(260px, 0.9fr) 1.1fr;
-      gap: 10px;
+      grid-template-columns: minmax(240px, 0.8fr) 1fr;
+      gap: 8px;
       align-items: center;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      border-radius: 16px;
-      padding: 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 38px rgba(15, 23, 42, 0.35);
-      backdrop-filter: blur(12px);
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(15, 23, 42, 0.3);
+      backdrop-filter: blur(8px);
+    }
+
+    .control-bar .btn {
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      box-shadow: none;
     }
 
     .dock-cta {
       display: flex;
       justify-content: flex-start;
       align-items: center;
-      min-width: 220px;
+      min-width: 200px;
     }
 
     .action-group {
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
     .ai-cta {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      background: linear-gradient(135deg, #f97316, #f43f5e);
-      color: #fff;
-      border-color: #ea580c;
-      box-shadow: 0 18px 38px rgba(244, 63, 94, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      padding-inline: 12px 14px;
+      gap: 6px;
+      padding: 9px 11px;
       border-radius: 12px;
-      margin-left: 0;
-      flex-shrink: 0;
-      justify-self: start;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e2e8f0;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.16));
+      font-weight: 700;
+      box-shadow: 0 8px 16px rgba(59, 130, 246, 0.18);
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
     }
 
     .ai-cta.disabled,
@@ -1944,29 +1954,56 @@ $aiSetupNotes = [
     }
 
     .ai-cta:hover {
-      background: linear-gradient(135deg, #f43f5e, #e11d48);
       transform: translateY(-1px);
-      box-shadow: 0 20px 42px rgba(225, 29, 72, 0.36);
+      border-color: rgba(125, 211, 252, 0.7);
+      box-shadow: 0 12px 20px rgba(14, 165, 233, 0.22);
     }
 
     .ai-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.16);
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
       display: grid;
       place-items: center;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1;
+    }
+
+    .controls-toggle {
+      appearance: none;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .controls-toggle:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(226, 232, 240, 0.7); }
+
+    .controls-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+
+    .turn-dock.controls-hidden .control-bar {
+      display: none;
+    }
+
+    .turn-dock.controls-hidden .dock-inner {
+      padding-bottom: 10px;
     }
 
     .turn-toggle {
       position: relative;
       overflow: hidden;
-      min-width: clamp(240px, 52vw, 420px);
-      padding: 12px 20px;
-      border-radius: 14px;
-      font-size: 19px;
+      min-width: clamp(200px, 45vw, 340px);
+      padding: 11px 16px;
+      border-radius: 13px;
+      font-size: 18px;
       letter-spacing: 0.3px;
       display: inline-flex;
       align-items: center;
@@ -2053,7 +2090,7 @@ $aiSetupNotes = [
     @media (max-width: 800px) {
       :root {
         --top-dock-height: 74px;
-        --bottom-dock-height: 120px;
+        --bottom-dock-height: 110px;
         --cell-size: clamp(34px, 7vw + 6px, 46px);
         --cell-gap: 3px;
       }
@@ -2332,9 +2369,32 @@ $aiSetupNotes = [
     </div>
   </main>
 
-  <footer class="turn-dock" aria-label="Turn controls">
+  <footer class="turn-dock" aria-label="Turn controls" id="turnDock">
     <div class="dock-inner">
-      <div class="control-bar" role="group" aria-label="Primary turn actions">
+      <div class="rack-panel">
+        <div class="rack-header">
+          <div class="rack-title">
+            <p class="hud-eyebrow" style="margin:0;">Your rack</p>
+            <p class="panel-note" style="margin:2px 0 0;">Drag tiles onto the board. Double-click to send them back.</p>
+          </div>
+          <div class="rack-actions">
+            <button class="controls-toggle" type="button" id="controlToggle" aria-expanded="true" aria-controls="controlBar" aria-label="Toggle turn controls">
+              <span aria-hidden="true">⬆</span>
+              <span class="control-toggle-text">Hide controls</span>
+            </button>
+            <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
+          </div>
+        </div>
+        <div class="rack-rail">
+          <div class="rack-bar" aria-label="Rack" id="rack"></div>
+        </div>
+        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
+          <strong>Rack tips</strong>
+          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
+          <span>Double-click a placed tile to return it to the rack.</span>
+        </div>
+      </div>
+      <div class="control-bar" role="group" aria-label="Primary turn actions" id="controlBar">
         <div class="dock-cta">
           <button class="btn turn-toggle start" type="button" id="turnToggleBtn" aria-pressed="false">
             <span class="turn-label">
@@ -2351,23 +2411,6 @@ $aiSetupNotes = [
             <span class="ai-icon" aria-hidden="true">🤖</span>
             <span class="ai-text">AI suggested moves</span>
           </button>
-        </div>
-      </div>
-      <div class="rack-panel">
-        <div class="rack-header">
-          <div class="rack-title">
-            <p class="hud-eyebrow" style="margin:0;">Your rack</p>
-            <p class="panel-note" style="margin:2px 0 0;">Drag tiles onto the board. Double-click to send them back.</p>
-          </div>
-          <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-        </div>
-        <div class="rack-rail">
-          <div class="rack-bar" aria-label="Rack" id="rack"></div>
-        </div>
-        <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
-          <strong>Rack tips</strong>
-          <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-          <span>Double-click a placed tile to return it to the rack.</span>
         </div>
       </div>
     </div>
@@ -2422,6 +2465,9 @@ $aiSetupNotes = [
       const centerBoardBtn = document.getElementById('centerBoardBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
+      const controlBar = document.getElementById('controlBar');
+      const controlToggle = document.getElementById('controlToggle');
+      const turnDock = document.getElementById('turnDock');
       const drawOverlay = document.getElementById('drawOverlay');
       const drawStatusEl = document.getElementById('drawStatus');
       const drawHintEl = document.getElementById('drawHint');
@@ -4976,6 +5022,23 @@ $aiSetupNotes = [
         rackHelpBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           toggleRackHelp();
+        });
+      }
+
+      if (controlToggle && turnDock && controlBar) {
+        controlToggle.addEventListener('click', () => {
+          const hidden = turnDock.classList.toggle('controls-hidden');
+          controlToggle.setAttribute('aria-expanded', String(!hidden));
+          const label = controlToggle.querySelector('.control-toggle-text');
+          if (label) {
+            label.textContent = hidden ? 'Show controls' : 'Hide controls';
+          }
+          const glyph = controlToggle.querySelector('span[aria-hidden="true"]');
+          if (glyph) {
+            glyph.textContent = hidden ? '⬇' : '⬆';
+          }
+          syncDockHeights();
+          resizeBoardToViewport({ resetView: false });
         });
       }
 
