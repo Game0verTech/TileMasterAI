@@ -2860,6 +2860,16 @@ $aiSetupNotes = [
         centerBoard();
       };
 
+      let pendingResizeReset = false;
+      const scheduleResizeAndCenter = () => {
+        if (pendingResizeReset) return;
+        pendingResizeReset = true;
+        requestAnimationFrame(() => {
+          pendingResizeReset = false;
+          resizeBoardToViewport({ resetView: true });
+        });
+      };
+
       const fitBoard = () => {
         resizeBoardToViewport({ resetView: true });
       };
@@ -4804,7 +4814,17 @@ $aiSetupNotes = [
       if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
       if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
 
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: false }));
+      const topDock = document.querySelector('.hud-dock');
+      const bottomDock = document.querySelector('.turn-dock');
+      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter()) : null;
+
+      if (layoutObserver) {
+        if (boardViewport) layoutObserver.observe(boardViewport);
+        if (topDock) layoutObserver.observe(topDock);
+        if (bottomDock) layoutObserver.observe(bottomDock);
+      }
+
+      window.addEventListener('resize', () => scheduleResizeAndCenter());
 
       renderBoard();
       updateTurnButton();
