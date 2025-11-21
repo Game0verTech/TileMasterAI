@@ -408,6 +408,12 @@ $aiSetupNotes = [
       100% { transform: rotateY(0deg) scale(1); }
     }
 
+    @keyframes rack-pop {
+      0% { transform: scale(0.85); opacity: 0; }
+      60% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     header {
       display: flex;
       flex-direction: column;
@@ -579,10 +585,8 @@ $aiSetupNotes = [
       box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
       position: relative;
       display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
-      padding: 6px 8px;
+      place-items: center;
+      padding: 10px;
       color: #0f172a;
     }
 
@@ -592,25 +596,24 @@ $aiSetupNotes = [
       border-color: var(--tile-wood-border);
     }
 
-    .tile .letter,
-    .tile .value {
-      grid-area: stack;
-    }
-
     .tile .letter {
       font-size: 22px;
       font-weight: 800;
       letter-spacing: 0.3px;
       line-height: 1;
+      position: relative;
+      z-index: 1;
     }
 
     .tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      color: #4b5563;
     }
 
     .letter.blank-empty { color: transparent; }
@@ -627,6 +630,9 @@ $aiSetupNotes = [
       box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
     }
 
+    .tile.new,
+    .rack-tile.new { animation: rack-pop 360ms ease forwards; }
+
     .rack-wrap {
       display: grid;
       grid-template-areas: 'help rack actions';
@@ -636,6 +642,7 @@ $aiSetupNotes = [
       position: relative;
       width: 100%;
       min-width: 0;
+      justify-items: center;
     }
 
     .rack-wrap > .dock-help { grid-area: help; }
@@ -711,6 +718,7 @@ $aiSetupNotes = [
       overflow-x: auto;
       scrollbar-width: thin;
       grid-area: rack;
+      margin: 0 auto;
     }
 
     .rack-actions {
@@ -743,9 +751,7 @@ $aiSetupNotes = [
       height: var(--tile-size);
       position: relative;
       display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
+      place-items: center;
       background: var(--tile-wood);
       border-radius: 5px;
       border: 1px solid var(--tile-wood-border);
@@ -754,24 +760,23 @@ $aiSetupNotes = [
       font-weight: 800;
     }
 
-    .rack-tile .letter,
-    .rack-tile .value {
-      grid-area: stack;
-    }
-
     .rack-tile .letter {
       font-size: 22px;
       letter-spacing: 0.3px;
       line-height: 1;
+      position: relative;
+      z-index: 1;
     }
 
     .rack-tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      color: #4b5563;
     }
 
     .cell.invalid {
@@ -1411,6 +1416,8 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       margin: 0;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
@@ -1420,11 +1427,17 @@ $aiSetupNotes = [
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
       padding: 12px 12px 16px;
+      overflow: hidden;
     }
 
     .board-canvas {
       position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
       flex: 1;
+      width: 100%;
+      height: 100%;
       overflow: auto;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.4);
@@ -1442,6 +1455,7 @@ $aiSetupNotes = [
       transform-origin: top left;
       will-change: transform;
       display: inline-block;
+      flex-shrink: 0;
     }
 
     .board-frame {
@@ -1474,11 +1488,14 @@ $aiSetupNotes = [
     .board-toolbar {
       position: absolute;
       top: 12px;
+      left: 12px;
       right: 12px;
       display: inline-flex;
       gap: 8px;
       align-items: center;
       justify-self: end;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       background: rgba(15, 23, 42, 0.7);
       color: #e2e8f0;
       padding: 8px 10px;
@@ -1494,6 +1511,7 @@ $aiSetupNotes = [
       gap: 0;
       padding: 6px 8px;
       transform: translateY(-2px);
+      justify-content: flex-end;
     }
 
     .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
@@ -1541,13 +1559,13 @@ $aiSetupNotes = [
     }
 
     .hud-inner {
-      width: min(1200px, 100%);
+      width: 100%;
       margin: 0 auto;
-      padding: 8px 14px 8px;
+      padding: 10px 18px 10px;
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .hud-right {
@@ -1766,19 +1784,19 @@ $aiSetupNotes = [
     }
 
     .dock-inner {
-      width: min(1200px, 100%);
+      width: 100%;
       margin: 0 auto;
-      padding: 10px 12px 12px;
+      padding: 10px 18px 12px;
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: minmax(210px, 1fr) minmax(420px, 1.5fr) minmax(210px, 1fr);
       grid-template-areas: 'cta rack ai';
       align-items: center;
-      gap: 10px;
+      gap: 14px;
     }
 
     .dock-cta {
@@ -1962,7 +1980,7 @@ $aiSetupNotes = [
       .rack-tile .letter { font-size: 18px; }
 
       .tile .value,
-      .rack-tile .value { font-size: 10px; margin: 0 3px 3px 0; }
+      .rack-tile .value { font-size: 10px; right: 3px; bottom: 3px; }
 
       .board-chrome { padding: 10px 10px 8px; }
       .board-preview { padding: 6px; }
@@ -2198,7 +2216,7 @@ $aiSetupNotes = [
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
           <div class="rack-actions">
             <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Pass turn">⏭️ Pass</button>
+            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Skip turn">⏭️ Skip</button>
             <button class="btn rack-shuffle" type="button" id="exchangeBtn" aria-label="Exchange all tiles">🔄 Exchange all</button>
           </div>
           <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
@@ -2297,6 +2315,7 @@ $aiSetupNotes = [
       let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
       let totalScore = 0;
       let firstTurn = true;
+      let refillingRack = false;
       let turnActive = false;
       let dictionaryReady = false;
       let dictionary = new Set();
@@ -2329,6 +2348,11 @@ $aiSetupNotes = [
       };
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const letterDistance = (letter = '') => {
+        const code = String(letter).toUpperCase().charCodeAt(0);
+        return Number.isFinite(code) ? Math.max(0, code - 65) : 26;
+      };
 
       const scheduleTone = (ctx, {
         frequency,
@@ -2926,6 +2950,8 @@ $aiSetupNotes = [
         return tile;
       };
 
+      const delay = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+
       const setMessage = (text, tone = '') => {
         const hasMessage = Boolean(messageEl);
         if (hasMessage) {
@@ -2949,8 +2975,11 @@ $aiSetupNotes = [
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
           const isSelf = Number(player.user_id ?? player.id) === Number(state.user?.id);
+          const needsRedraw = entry?.redraw_required;
           const status = entry
-            ? (entry.revealed ? `Revealed · ${entry.value} pts` : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal'))
+            ? (needsRedraw
+              ? 'Tiebreaker: redraw needed'
+              : (entry.revealed ? 'Revealed' : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal')))
             : 'Waiting to draw';
           const tile = entry && entry.revealed ? entry.tile : '—';
           return `<tr><td>${player.username}${isSelf ? ' (you)' : ''}</td><td>${status}</td><td>${tile}</td></tr>`;
@@ -2974,16 +3003,19 @@ $aiSetupNotes = [
           return;
         }
         startModalShown = true;
-        let counter = 3;
+        let counter = 5;
         startModalTitle.textContent = 'Game starting';
         const draws = state.game?.draws || [];
-        const sorted = [...draws].sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || String(b.tile).localeCompare(String(a.tile)));
+        const sorted = [...draws]
+          .filter((entry) => entry.revealed && entry.tile)
+          .sort((a, b) => (Number(a.distance ?? letterDistance(a.tile)) - Number(b.distance ?? letterDistance(b.tile)))
+            || String(a.tile).localeCompare(String(b.tile)));
         const winnerDraw = draws.find((entry) => Number(entry.user_id) === Number(first?.user_id));
         const runnerUp = sorted[1];
         const reason = winnerDraw
-          ? `${firstName} drew ${winnerDraw.tile} (${winnerDraw.value} pts)`
-          : `${firstName} has the highest draw`;
-        const versus = runnerUp ? `, edging out ${runnerUp.username}'s ${runnerUp.tile}.` : '.';
+          ? `${firstName} drew ${winnerDraw.tile}, the closest tile to A.`
+          : `${firstName} has the closest tile to A.`;
+        const versus = runnerUp ? ` ${runnerUp.username}'s ${runnerUp.tile} was next closest.` : '';
         startModalMessage.textContent = `${reason}${versus}`;
         startCountdown.textContent = String(counter);
         startModal.classList.remove('hidden');
@@ -3123,20 +3155,37 @@ $aiSetupNotes = [
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
         const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
         const readyToDraw = !hasRevealed && (!everyoneDrew || hasPending);
+        const revealedDraws = draws.filter((entry) => entry.revealed && entry.tile);
+        const closestDistance = revealedDraws.length
+          ? Math.min(...revealedDraws.map((entry) => Number(entry.distance ?? letterDistance(entry.tile))))
+          : null;
+        const leaders = closestDistance !== null
+          ? revealedDraws.filter((entry) => Number(entry.distance ?? letterDistance(entry.tile)) === closestDistance)
+          : [];
+        const redrawPending = draws.some((entry) => entry.redraw_required);
         renderDrawTables();
 
         if (drawStatusEl) {
           const leader = state.turnOrder?.[0];
-          drawStatusEl.textContent = leader && everyoneRevealed
-            ? `${leader.username} starts the game`
-            : 'Spill the bag, pick a tile, and reveal to lock turn order.';
+          if (redrawPending) {
+            drawStatusEl.textContent = 'Tiebreaker needed: tied players must draw again.';
+          } else if (leader && everyoneRevealed) {
+            drawStatusEl.textContent = `${leader.username} starts the game`;
+          } else {
+            drawStatusEl.textContent = 'Spill the bag, pick a tile, and reveal to lock turn order.';
+          }
         }
         if (drawHintEl) {
-          drawHintEl.textContent = hasPending
-            ? 'Tap any face-down tile to claim it.'
-            : alreadyDrew
-              ? 'You revealed—waiting for the table to finish.'
-              : 'Click the bag to spill some tiles, then pick one.';
+          const tiedLeader = leaders.find((entry) => Number(entry.user_id) === Number(state.user?.id));
+          drawHintEl.textContent = redrawPending
+            ? (myEntry?.redraw_required || (!myEntry?.revealed && tiedLeader)
+              ? 'You tied for first—draw again to break the tie.'
+              : 'Waiting for the tied players to redraw.')
+            : hasPending
+              ? 'Tap any face-down tile to claim it.'
+              : alreadyDrew
+                ? 'You revealed—waiting for the table to finish.'
+                : 'Click the bag to spill some tiles, then pick one.';
         }
         if (drawTileBtn) {
           drawTileBtn.disabled = hasRevealed || (everyoneDrew && !hasPending);
@@ -3177,7 +3226,7 @@ $aiSetupNotes = [
             return;
           }
           const elapsed = state.lastDrawRevealAt ? (Date.now() - state.lastDrawRevealAt) : 0;
-          const wait = elapsed >= 1000 ? 0 : 1000 - elapsed;
+          const wait = elapsed >= 2500 ? 0 : 2500 - elapsed;
           startDelayTimer = setTimeout(() => {
             startDelayTimer = null;
             triggerStartCountdown();
@@ -3396,6 +3445,10 @@ $aiSetupNotes = [
           setMessage('Only the active player can pass.', 'error');
           return;
         }
+        returnLooseTilesToRack(false);
+        turnActive = false;
+        updateTurnButton();
+        updateAiButton();
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
@@ -3420,7 +3473,14 @@ $aiSetupNotes = [
           setMessage('Only the active player can exchange tiles.', 'error');
           return;
         }
-        returnLooseTilesToRack();
+        returnLooseTilesToRack(false);
+        const hadTiles = rack.length;
+        await animateRackToBag();
+        rack = [];
+        renderRack();
+        turnActive = false;
+        updateTurnButton();
+        updateAiButton();
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
@@ -3435,8 +3495,11 @@ $aiSetupNotes = [
           hydrateFromGame(data.game);
           setTurnMessaging();
           renderRack();
+          animateRackArrival();
           setMessage('Tiles exchanged. Next player is up.', 'success');
-          playFx('shuffle', { rate: 0.9 });
+          if (hadTiles) {
+            playFx('shuffle', { rate: 0.9 });
+          }
         } catch (error) {
           setMessage('Unable to exchange right now.', 'error');
         }
@@ -3552,10 +3615,10 @@ $aiSetupNotes = [
       };
 
       const updateActionButtons = () => {
-        const waiting = !isMyTurn() || !!state.winnerUserId;
+        const waiting = !isMyTurn() || !!state.winnerUserId || refillingRack;
         [passBtn, exchangeBtn].forEach((btn) => {
           if (!btn) return;
-          const disabled = waiting || turnActive;
+          const disabled = waiting;
           btn.disabled = disabled;
           btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         });
@@ -3818,6 +3881,69 @@ $aiSetupNotes = [
         if (movable.length && announce) {
           setMessage('Tiles returned to your rack for the new AI run.', 'success');
         }
+      };
+
+      const animateRackToBag = () => new Promise((resolve) => {
+        if (!rackEl || !bagCountEl) {
+          resolve();
+          return;
+        }
+        const target = bagCountEl.closest('.hud-pill') || bagCountEl;
+        const targetRect = target?.getBoundingClientRect();
+        const tiles = Array.from(rackEl.querySelectorAll('.rack-tile'));
+        if (!tiles.length || !targetRect) {
+          resolve();
+          return;
+        }
+
+        let finished = 0;
+        tiles.forEach((tileEl, index) => {
+          const rect = tileEl.getBoundingClientRect();
+          const ghost = tileEl.cloneNode(true);
+          ghost.classList.add('tile-ghost');
+          ghost.style.position = 'fixed';
+          ghost.style.top = `${rect.top}px`;
+          ghost.style.left = `${rect.left}px`;
+          ghost.style.width = `${rect.width}px`;
+          ghost.style.height = `${rect.height}px`;
+          ghost.style.transform = 'translate(0, 0) scale(1)';
+          ghost.style.opacity = '1';
+          ghost.style.transition = 'transform 260ms ease, opacity 260ms ease';
+          ghost.style.zIndex = '2000';
+          ghost.style.pointerEvents = 'none';
+          document.body.appendChild(ghost);
+
+          requestAnimationFrame(() => {
+            const targetX = targetRect.left + (targetRect.width / 2);
+            const targetY = targetRect.top + (targetRect.height / 2);
+            const sourceX = rect.left + (rect.width / 2);
+            const sourceY = rect.top + (rect.height / 2);
+            ghost.style.transform = `translate(${targetX - sourceX}px, ${targetY - sourceY}px) scale(0.4)`;
+            ghost.style.opacity = '0';
+          });
+
+          setTimeout(() => {
+            ghost.remove();
+            finished += 1;
+            if (finished === tiles.length) {
+              resolve();
+            }
+          }, 300 + (index * 24));
+        });
+      });
+
+      const animateRackArrival = (tileIds = []) => {
+        const ids = tileIds.length ? tileIds : rack.map((tile) => tile.id);
+        ids.forEach((id, index) => {
+          const el = document.querySelector(`[data-tile-id="${id}"][data-location="rack"]`);
+          if (!el) return;
+          el.classList.add('new');
+          el.style.animationDelay = `${index * 60}ms`;
+          setTimeout(() => {
+            el.classList.remove('new');
+            el.style.animationDelay = '';
+          }, 720 + (index * 10));
+        });
       };
 
       let latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
@@ -4281,29 +4407,8 @@ $aiSetupNotes = [
           setMessage(`${currentTurnName()} is still playing. Please wait your turn.`, 'error');
           return false;
         }
-        let drewTiles = false;
-
-        while (rack.length < RACK_SIZE) {
-          const letter = pickTileFromBag();
-          if (!letter) break;
-          const tile = createTile(letter);
-          tile.position = { type: 'rack' };
-          rack.push(tile);
-          drewTiles = true;
-        }
-
-        updateBagCount();
-        renderRack();
-
-        if (rack.length === RACK_SIZE) {
-          setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
-          if (drewTiles) {
-            playFx('accept', { rate: 1.08 });
-          }
-        } else {
-          setMessage('Bag is empty—continue with the tiles you have.', 'success');
-        }
-
+        returnLooseTilesToRack(false);
+        setMessage('Your turn is live. Place tiles and submit your move.', 'success');
         syncGameState();
         setTurnMessaging();
 
@@ -4391,6 +4496,24 @@ $aiSetupNotes = [
         return total * wordMultiplier;
       };
 
+      const drawReplacementTiles = (slotsNeeded) => {
+        const drawnIds = [];
+        const slots = Math.max(0, slotsNeeded);
+        for (let i = 0; i < slots; i += 1) {
+          const letter = pickTileFromBag();
+          if (!letter) break;
+          const tile = createTile(letter);
+          tile.position = { type: 'rack' };
+          rack.push(tile);
+          drawnIds.push(tile.id);
+        }
+        if (drawnIds.length) {
+          renderRack();
+          updateBagCount();
+        }
+        return drawnIds;
+      };
+
       const hasAdjacentLocked = (coords) => coords.some(({ row, col }) => {
         const deltas = [[1, 0], [-1, 0], [0, 1], [0, -1]];
         return deltas.some(([dr, dc]) => {
@@ -4402,7 +4525,7 @@ $aiSetupNotes = [
         });
       });
 
-      const validateTurn = () => {
+      const validateTurn = async () => {
         resetInvalidMarkers();
         const placements = tilesPlacedThisTurn();
         if (placements.length === 0) {
@@ -4481,19 +4604,12 @@ $aiSetupNotes = [
         }
 
         const total = wordsToCheck.reduce((sum, coords) => sum + wordScore(coords), 0) + (placements.length === 7 ? 50 : 0);
-        finalizeTurn(total, placements.length === 7, placements);
+        await finalizeTurn(total, placements.length === 7, placements);
         return true;
       };
 
-      const finalizeTurn = (turnScore, bingo, placements = []) => {
+      const finalizeTurn = async (turnScore, bingo, placements = []) => {
         const committed = placements.length ? placements : tilesPlacedThisTurn();
-        const serializedPlacements = committed.map(({ row, col, tile }) => ({
-          row,
-          col,
-          letter: tile.letter,
-          assignedLetter: tile.assignedLetter || '',
-          isBlank: tile.isBlank,
-        }));
 
         committed.forEach(({ tile }) => {
           tile.locked = true;
@@ -4505,16 +4621,37 @@ $aiSetupNotes = [
         turnActive = false;
         updateTurnButton();
         updateAiButton();
+        refillingRack = true;
+        updateActionButtons();
+        if (passBtn) passBtn.disabled = true;
+        if (exchangeBtn) exchangeBtn.disabled = true;
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
-        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
-        playFx('accept', { rate: 1.02 });
         const actingIndex = state.turnIndex;
-        if (state.turnOrder.length) {
-          state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
+        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Saving your board…`, 'success');
+        playFx('accept', { rate: 1.02 });
+
+        try {
+          await syncGameState({ advanceTurn: false, actingIndex, scoreDelta: turnScore });
+          setTurnMessaging();
+
+          const missing = Math.max(0, RACK_SIZE - rack.length);
+          if (missing > 0 && bag.length) {
+            setMessage(`Move accepted for ${turnScore} points${scoreNote}. Drawing replacements in 2 seconds…`, 'success');
+            await delay(2000);
+            const drawnIds = drawReplacementTiles(missing);
+            if (drawnIds.length) {
+              animateRackArrival(drawnIds);
+            }
+          }
+
+          await syncGameState({ advanceTurn: true, actingIndex, scoreDelta: null });
+          setTurnMessaging();
+          setMessage(`Move accepted for ${turnScore} points${scoreNote}. ${currentTurnName()} is up.`, 'success');
+        } finally {
+          refillingRack = false;
+          updateActionButtons();
         }
-        syncGameState({ advanceTurn: true, actingIndex, scoreDelta: turnScore });
-        setTurnMessaging();
       };
 
       const resetBoard = () => {
@@ -4586,7 +4723,7 @@ $aiSetupNotes = [
         }
       };
 
-        const handleToggleClick = () => {
+        const handleToggleClick = async () => {
           if (!turnActive) {
             const started = startTurn();
             if (started) {
@@ -4602,12 +4739,7 @@ $aiSetupNotes = [
             return;
           }
 
-          const valid = validateTurn();
-          if (valid) {
-            turnActive = false;
-            updateTurnButton();
-            updateAiButton();
-          }
+          await validateTurn();
         };
 
         const handleAiClick = async () => {
