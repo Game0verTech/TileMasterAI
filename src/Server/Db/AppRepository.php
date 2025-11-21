@@ -257,6 +257,13 @@ class AppRepository
             ? (int) ($turnOrder[$currentTurnIndex]['user_id'] ?? 0)
             : null;
 
+        $normalizedRacks = $this->normalizeRackCollection($racks);
+
+        $normalizedScores = [];
+        foreach ($scores as $userId => $score) {
+            $normalizedScores[(int) $userId] = (int) $score;
+        }
+
         return [
             'id' => (int) $game['id'],
             'lobby_id' => (int) $game['lobby_id'],
@@ -266,11 +273,11 @@ class AppRepository
             'draw_pool_remaining' => is_array($drawPool) ? count($drawPool) : 0,
             'draws' => is_array($draws) ? $draws : [],
             'board_state' => is_array($boardState) ? $boardState : [],
-            'racks' => is_array($racks) ? $racks : [],
+            'racks' => $normalizedRacks,
             'bag' => is_array($bag) ? $bag : [],
             'current_turn_index' => $currentTurnIndex,
             'current_turn_user_id' => $currentTurn,
-            'scores' => is_array($scores) ? $scores : [],
+            'scores' => $normalizedScores,
             'winner_user_id' => $winnerUserId ? (int) $winnerUserId : null,
             'status' => $game['status'] ?? 'active',
         ];
@@ -393,18 +400,24 @@ class AppRepository
             $scores[$actingUserId] = ($scores[$actingUserId] ?? 0) + $scoreDelta;
         }
 
+        $racks = $this->normalizeRackCollection($racks);
+
         $winnerUserId = $game['winner_user_id'] ?? null;
         $status = $game['status'] ?? 'active';
         $completedAt = $game['completed_at'] ?? null;
 
         if ($actingUserId !== null) {
-            $rackLetters = $racks[$actingUserId] ?? [];
+            $rackLetters = $this->rackTiles($racks[$actingUserId] ?? []);
             $bagEmpty = count($bag) === 0;
             if (is_array($rackLetters) && count($rackLetters) === 0 && $bagEmpty) {
-                $winnerUserId = $actingUserId;
+                $winnerUserId = $this->determineHighestScorer($scores) ?? $actingUserId;
                 $status = 'complete';
                 $completedAt = date('c');
             }
+        }
+
+        if ($status === 'complete' && !$winnerUserId) {
+            $winnerUserId = $this->determineHighestScorer($scores);
         }
 
         $statement = $this->pdo->prepare(
@@ -459,9 +472,11 @@ class AppRepository
             throw new \RuntimeException('Only the active player can exchange.');
         }
 
-        $racks = $game['racks'];
+        $racks = $this->normalizeRackCollection($game['racks']);
         $bag = $game['bag'];
-        $playerRack = $racks[$userId] ?? [];
+        $playerRack = $this->rackTiles($racks[$userId] ?? []);
+        $playerTokens = $this->rackTokens($racks[$userId] ?? []);
+
         if (count($bag) < count($playerRack)) {
             throw new \RuntimeException('Not enough tiles in the bag to exchange.');
         }
@@ -480,7 +495,7 @@ class AppRepository
             $newRack[] = $tile;
         }
 
-        $racks[$userId] = $newRack;
+        $racks[$userId] = $this->wrapRack($newRack, $playerTokens);
         $nextIndex = $turnOrder ? ($currentIndex + 1) % count($turnOrder) : 0;
 
         return $this->updateGameState($lobbyId, $game['board_state'], $racks, $bag, $nextIndex, null, $userId, 'exchange');
@@ -514,7 +529,7 @@ class AppRepository
                 }
                 $rack[] = $tile;
             }
-            $racks[$entry['user_id']] = $rack;
+            $racks[$entry['user_id']] = $this->wrapRack($rack, 1);
         }
 
         $statement = $this->pdo->prepare(
@@ -654,6 +669,64 @@ class AppRepository
         ]);
     }
 
+    private function normalizeRackEntry(array $entry): array
+    {
+        if (array_key_exists('tiles', $entry)) {
+            $tiles = is_array($entry['tiles']) ? array_values($entry['tiles']) : [];
+            $tokens = isset($entry['tokens']) ? (int) $entry['tokens'] : 0;
+
+            return [
+                'tiles' => $tiles,
+                'tokens' => $tokens,
+            ];
+        }
+
+        return [
+            'tiles' => array_values($entry),
+            'tokens' => 0,
+        ];
+    }
+
+    private function normalizeRackCollection(array $racks): array
+    {
+        $normalized = [];
+        foreach ($racks as $userId => $entry) {
+            $normalized[(int) $userId] = $this->normalizeRackEntry(is_array($entry) ? $entry : []);
+        }
+
+        return $normalized;
+    }
+
+    private function rackTiles(array $rackEntry): array
+    {
+        return array_values($rackEntry['tiles'] ?? []);
+    }
+
+    private function rackTokens(array $rackEntry): int
+    {
+        return isset($rackEntry['tokens']) ? (int) $rackEntry['tokens'] : 0;
+    }
+
+    private function wrapRack(array $tiles, int $tokens = 0): array
+    {
+        return [
+            'tiles' => array_values($tiles),
+            'tokens' => $tokens,
+        ];
+    }
+
+    private function determineHighestScorer(array $scores): ?int
+    {
+        if (empty($scores)) {
+            return null;
+        }
+
+        arsort($scores);
+        $leaderId = array_key_first($scores);
+
+        return $leaderId !== null ? (int) $leaderId : null;
+    }
+
     private function finalizeGameStart(int $gameId, array $order, array $remainingPool, int $lobbyId): void
     {
         $bag = $remainingPool;
@@ -670,7 +743,7 @@ class AppRepository
                 }
                 $rack[] = $tile;
             }
-            $racks[$entry['user_id']] = $rack;
+            $racks[$entry['user_id']] = $this->wrapRack($rack, 1);
         }
 
         $statement = $this->pdo->prepare(
