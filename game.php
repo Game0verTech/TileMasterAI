@@ -3247,6 +3247,7 @@ $aiSetupNotes = [
       };
 
       const isMyTurn = () => {
+        if (!state.turnOrder.length) return true; // allow solo/local play when no turn order is set yet
         const current = state.turnOrder[state.turnIndex];
         return current && state.user && Number(current.user_id) === Number(state.user.id);
       };
@@ -3516,11 +3517,11 @@ $aiSetupNotes = [
         if (!state.turnOrder.length) {
           if (hasMessage) {
             messageEl.textContent = 'Draw a tile to see who goes first.';
-            messageEl.classList.add('waiting');
+            messageEl.classList.remove('waiting');
           }
-          if (boardChromeEl) boardChromeEl.classList.add('locked');
-          if (rackEl) rackEl.classList.add('locked');
-          toggleBtn?.setAttribute('disabled', 'true');
+          if (boardChromeEl) boardChromeEl.classList.remove('locked');
+          if (rackEl) rackEl.classList.remove('locked');
+          toggleBtn?.removeAttribute('disabled');
           updateActionButtons();
           return;
         }
