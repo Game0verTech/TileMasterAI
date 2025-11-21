@@ -246,6 +246,8 @@ class AppRepository
         $drawPool = isset($game['draw_pool']) ? json_decode((string) $game['draw_pool'], true, 512, JSON_THROW_ON_ERROR) : [];
         $draws = isset($game['draws']) ? json_decode((string) $game['draws'], true, 512, JSON_THROW_ON_ERROR) : [];
         $bag = isset($game['bag']) ? json_decode((string) $game['bag'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $scores = isset($game['scores']) ? json_decode((string) $game['scores'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $winnerUserId = $game['winner_user_id'] ?? null;
         $boardState = isset($game['board_state']) ? json_decode((string) $game['board_state'], true, 512, JSON_THROW_ON_ERROR) : [];
         $racks = isset($game['racks']) ? json_decode((string) $game['racks'], true, 512, JSON_THROW_ON_ERROR) : [];
         $turnOrder = json_decode((string) $game['turn_order'], true, 512, JSON_THROW_ON_ERROR);
@@ -268,6 +270,9 @@ class AppRepository
             'bag' => is_array($bag) ? $bag : [],
             'current_turn_index' => $currentTurnIndex,
             'current_turn_user_id' => $currentTurn,
+            'scores' => is_array($scores) ? $scores : [],
+            'winner_user_id' => $winnerUserId ? (int) $winnerUserId : null,
+            'status' => $game['status'] ?? 'active',
         ];
     }
 
@@ -302,14 +307,11 @@ class AppRepository
             'username' => $user['username'] ?? 'Player',
             'tile' => $tile,
             'value' => Scoring::tileValue($tile),
+            'revealed' => false,
+            'revealed_at' => null,
         ];
 
         $this->persistGameDrawState($game['id'], $drawPool, $draws);
-
-        if (count($draws) === count($players)) {
-            $order = $this->determineTurnOrderFromDraws($draws);
-            $this->finalizeGameStart($game['id'], $order, $drawPool, $lobbyId);
-        }
 
         $updated = $this->getGameByLobby($lobbyId);
 
@@ -321,7 +323,54 @@ class AppRepository
         ];
     }
 
-    public function updateGameState(int $lobbyId, array $boardState, array $racks, array $bag, int $turnIndex): array
+    public function revealDraw(int $lobbyId, int $userId): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found for lobby.');
+        }
+
+        $players = $this->listPlayers($lobbyId);
+        $draws = $game['draws'];
+        $updatedDraws = [];
+        $changed = false;
+
+        foreach ($draws as $entry) {
+            if ((int) $entry['user_id'] === $userId) {
+                $entry['revealed'] = true;
+                $entry['revealed_at'] = date('c');
+                $changed = true;
+            }
+            $updatedDraws[] = $entry;
+        }
+
+        if (!$changed) {
+            throw new \RuntimeException('Draw not found to reveal.');
+        }
+
+        $this->persistGameDrawState($game['id'], $game['draw_pool'], $updatedDraws);
+
+        $allRevealed = count($updatedDraws) === count($players)
+            && array_reduce($updatedDraws, static fn ($carry, $entry) => $carry && ($entry['revealed'] ?? false), true);
+
+        if ($allRevealed) {
+            $order = $this->determineTurnOrderFromDraws($updatedDraws);
+            $this->finalizeGameStart($game['id'], $order, $game['draw_pool'], $lobbyId);
+        }
+
+        return $this->getGameByLobby($lobbyId) ?? [];
+    }
+
+    public function updateGameState(
+        int $lobbyId,
+        array $boardState,
+        array $racks,
+        array $bag,
+        int $turnIndex,
+        ?int $scoreDelta = null,
+        ?int $actingUserId = null,
+        string $action = 'sync'
+    ): array
     {
         $game = $this->getGameByLobby($lobbyId);
         if (!$game) {
@@ -336,9 +385,31 @@ class AppRepository
             }
         }
 
+        $scores = is_array($game['scores'] ?? null)
+            ? $game['scores']
+            : (json_decode((string) ($game['scores'] ?? '{}'), true) ?: []);
+
+        if ($scoreDelta !== null && $actingUserId !== null) {
+            $scores[$actingUserId] = ($scores[$actingUserId] ?? 0) + $scoreDelta;
+        }
+
+        $winnerUserId = $game['winner_user_id'] ?? null;
+        $status = $game['status'] ?? 'active';
+        $completedAt = $game['completed_at'] ?? null;
+
+        if ($actingUserId !== null) {
+            $rackLetters = $racks[$actingUserId] ?? [];
+            $bagEmpty = count($bag) === 0;
+            if (is_array($rackLetters) && count($rackLetters) === 0 && $bagEmpty) {
+                $winnerUserId = $actingUserId;
+                $status = 'complete';
+                $completedAt = date('c');
+            }
+        }
+
         $statement = $this->pdo->prepare(
-            'UPDATE games SET board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = :turn_index '
-            . 'WHERE id = :id'
+            'UPDATE games SET board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = :turn_index, '
+            . 'scores = :scores, winner_user_id = :winner_user_id, completed_at = :completed_at, status = :status WHERE id = :id'
         );
         $statement->execute([
             ':id' => $game['id'],
@@ -346,9 +417,73 @@ class AppRepository
             ':racks' => json_encode($racks, JSON_THROW_ON_ERROR),
             ':bag' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
             ':turn_index' => $turnIndex,
+            ':scores' => json_encode($scores, JSON_THROW_ON_ERROR),
+            ':winner_user_id' => $winnerUserId,
+            ':completed_at' => $completedAt,
+            ':status' => $status,
         ]);
 
         return $this->getGameByLobby($lobbyId) ?? [];
+    }
+
+    public function passTurn(int $lobbyId, int $userId): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found');
+        }
+
+        $turnOrder = $game['turn_order'] ?? [];
+        $currentIndex = (int) ($game['current_turn_index'] ?? 0);
+        $current = $turnOrder[$currentIndex]['user_id'] ?? null;
+        if ($current !== $userId) {
+            throw new \RuntimeException('Only the active player can pass.');
+        }
+
+        $nextIndex = $turnOrder ? ($currentIndex + 1) % count($turnOrder) : 0;
+
+        return $this->updateGameState($lobbyId, $game['board_state'], $game['racks'], $game['bag'], $nextIndex, null, $userId, 'pass');
+    }
+
+    public function exchangeRack(int $lobbyId, int $userId): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found');
+        }
+
+        $turnOrder = $game['turn_order'] ?? [];
+        $currentIndex = (int) ($game['current_turn_index'] ?? 0);
+        $current = $turnOrder[$currentIndex]['user_id'] ?? null;
+        if ($current !== $userId) {
+            throw new \RuntimeException('Only the active player can exchange.');
+        }
+
+        $racks = $game['racks'];
+        $bag = $game['bag'];
+        $playerRack = $racks[$userId] ?? [];
+        if (count($bag) < count($playerRack)) {
+            throw new \RuntimeException('Not enough tiles in the bag to exchange.');
+        }
+
+        foreach ($playerRack as $letter) {
+            $bag[] = $letter;
+        }
+        shuffle($bag);
+
+        $newRack = [];
+        for ($i = 0; $i < 7; $i++) {
+            $tile = array_shift($bag);
+            if ($tile === null) {
+                break;
+            }
+            $newRack[] = $tile;
+        }
+
+        $racks[$userId] = $newRack;
+        $nextIndex = $turnOrder ? ($currentIndex + 1) % count($turnOrder) : 0;
+
+        return $this->updateGameState($lobbyId, $game['board_state'], $racks, $bag, $nextIndex, null, $userId, 'exchange');
     }
 
     public function listSessions(): array
@@ -469,9 +604,11 @@ class AppRepository
     {
         $bag = $remainingPool;
         $racks = [];
+        $scores = [];
 
         foreach ($order as $entry) {
             $rack = [];
+            $scores[$entry['user_id']] = 0;
             for ($i = 0; $i < 7; $i++) {
                 $tile = array_shift($bag);
                 if ($tile === null) {
@@ -483,7 +620,7 @@ class AppRepository
         }
 
         $statement = $this->pdo->prepare(
-            'UPDATE games SET turn_order = :turn_order, board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = 0 WHERE id = :id'
+            'UPDATE games SET turn_order = :turn_order, board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = 0, scores = :scores, status = :status WHERE id = :id'
         );
         $statement->execute([
             ':id' => $gameId,
@@ -491,6 +628,8 @@ class AppRepository
             ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
             ':racks' => json_encode($racks, JSON_THROW_ON_ERROR),
             ':bag' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
+            ':scores' => json_encode($scores, JSON_THROW_ON_ERROR),
+            ':status' => 'active',
         ]);
 
         $this->updateLobbyStatus($lobbyId, 'in_game');

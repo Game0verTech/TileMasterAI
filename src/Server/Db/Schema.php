@@ -28,6 +28,7 @@ final class Schema
         self::applyAuthLobbyMigrations($pdo, $driver);
         self::ensureGameDrawColumns($pdo, $driver);
         self::ensureLiveGameColumns($pdo, $driver);
+        self::ensureGameOutcomeColumns($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -259,6 +260,42 @@ final class Schema
 
         if (!in_array('current_turn_index', $columnNames, true)) {
             $pdo->exec("ALTER TABLE games ADD COLUMN current_turn_index {$intColumn} NOT NULL DEFAULT 0");
+        }
+    }
+
+    private static function ensureGameOutcomeColumns(PDO $pdo, string $driver): void
+    {
+        $stringColumn = $driver === 'mysql' ? 'TEXT' : 'TEXT';
+        $intColumn = $driver === 'mysql' ? 'INT' : 'INTEGER';
+
+        $columns = [];
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(games)");
+            $columns = $statement ? $statement->fetchAll() : [];
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'games'"
+            );
+            $statement->execute();
+            $columns = array_map(static fn ($row) => ['name' => $row['COLUMN_NAME'] ?? ''], $statement->fetchAll());
+        }
+
+        $columnNames = array_map(static fn ($column) => $column['name'] ?? '', $columns);
+
+        if (!in_array('scores', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN scores {$stringColumn} NOT NULL DEFAULT '{}' ");
+        }
+
+        if (!in_array('winner_user_id', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN winner_user_id {$intColumn} NULL");
+        }
+
+        if (!in_array('completed_at', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN completed_at DATETIME NULL");
+        }
+
+        if (!in_array('status', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
         }
     }
 

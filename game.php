@@ -1818,6 +1818,20 @@ $aiSetupNotes = [
     </div>
   </div>
 
+  <div class="draw-modal hidden" id="turnModal" aria-live="assertive">
+    <div class="modal-card">
+      <h3 style="margin:0;">It's your turn!</h3>
+      <p style="color:#cbd5e1; margin:8px 0 0;">Place a word or choose an action below.</p>
+    </div>
+  </div>
+
+  <div class="draw-modal hidden" id="winnerModal" aria-live="polite">
+    <div class="modal-card">
+      <h3 id="winnerTitle" style="margin:0;">Game over</h3>
+      <p id="winnerMessage" style="color:#cbd5e1; margin:8px 0 4px;"></p>
+    </div>
+  </div>
+
   <header class="hud-dock" aria-label="Game status dock">
     <div class="hud-inner">
       <div class="hud-menu" id="hudMenu">
@@ -1931,6 +1945,8 @@ $aiSetupNotes = [
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
           <div class="rack-actions">
             <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
+            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Pass turn">⏭️ Pass</button>
+            <button class="btn rack-shuffle" type="button" id="exchangeBtn" aria-label="Exchange all tiles">🔄 Exchange all</button>
           </div>
           <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
             <strong>Rack tips</strong>
@@ -1963,6 +1979,8 @@ $aiSetupNotes = [
       const cells = Array.from(document.querySelectorAll('.board-grid .cell'));
       const aiBtn = document.getElementById('aiMovesBtn');
       const shuffleBtn = document.getElementById('shuffleRackBtn');
+      const passBtn = document.getElementById('passBtn');
+      const exchangeBtn = document.getElementById('exchangeBtn');
       const aiModal = document.getElementById('aiModal');
       const aiCloseBtn = document.getElementById('closeAi');
       const aiListEl = document.getElementById('aiList');
@@ -1992,8 +2010,12 @@ $aiSetupNotes = [
       const startModalTitle = document.getElementById('startModalTitle');
       const startModalMessage = document.getElementById('startModalMessage');
       const startCountdown = document.getElementById('startCountdown');
+      const turnModal = document.getElementById('turnModal');
+      const winnerModal = document.getElementById('winnerModal');
+      const winnerTitle = document.getElementById('winnerTitle');
+      const winnerMessage = document.getElementById('winnerMessage');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0 };
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -2017,6 +2039,8 @@ $aiSetupNotes = [
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
+      let winnerShown = false;
+      let lastTurnUserId = null;
       let startTimer = null;
       let startDelayTimer = null;
 
@@ -2109,6 +2133,21 @@ $aiSetupNotes = [
             { frequency: 820, start: 0.24, duration: 0.12, type: 'square', gainValue: 0.04 },
           ],
           jitter: 0.05,
+        }),
+        turnBell: createSynthFx({
+          steps: [
+            { frequency: 660, duration: 0.22, type: 'triangle', gainValue: 0.08 },
+            { frequency: 880, start: 0.05, duration: 0.2, type: 'sine', gainValue: 0.08 },
+          ],
+          jitter: 0.02,
+        }),
+        victory: createSynthFx({
+          steps: [
+            { frequency: 523, duration: 0.16, type: 'triangle', gainValue: 0.08 },
+            { frequency: 659, start: 0.08, duration: 0.16, type: 'triangle', gainValue: 0.08 },
+            { frequency: 784, start: 0.16, duration: 0.16, type: 'sine', gainValue: 0.07 },
+          ],
+          jitter: 0.04,
         }),
       };
 
@@ -2425,7 +2464,7 @@ $aiSetupNotes = [
 
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
-          const status = entry ? 'Drawn' : 'Waiting';
+          const status = entry ? (entry.revealed ? 'Revealed' : 'Drawing…') : 'Waiting';
           const tile = entry ? entry.tile : '—';
           return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
         }).join('');
@@ -2445,7 +2484,15 @@ $aiSetupNotes = [
         startModalShown = true;
         let counter = 3;
         startModalTitle.textContent = 'Game starting';
-        startModalMessage.textContent = `${firstName} will go first.`;
+        const draws = state.game?.draws || [];
+        const sorted = [...draws].sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || String(b.tile).localeCompare(String(a.tile)));
+        const winnerDraw = draws.find((entry) => Number(entry.user_id) === Number(first?.user_id));
+        const runnerUp = sorted[1];
+        const reason = winnerDraw
+          ? `${firstName} drew ${winnerDraw.tile} (${winnerDraw.value} pts)`
+          : `${firstName} has the highest draw`;
+        const versus = runnerUp ? `, edging out ${runnerUp.username}'s ${runnerUp.tile}.` : '.';
+        startModalMessage.textContent = `${reason}${versus}`;
         startCountdown.textContent = String(counter);
         startModal.classList.remove('hidden');
         startModal.setAttribute('aria-hidden', 'false');
@@ -2474,12 +2521,38 @@ $aiSetupNotes = [
         startTimer = setTimeout(tick, 1000);
       };
 
+      const showTurnModal = () => {
+        if (!turnModal) return;
+        turnModal.classList.remove('hidden');
+        turnModal.setAttribute('aria-hidden', 'false');
+        playFx('turnBell', { rate: 1 });
+        setTimeout(() => {
+          turnModal.classList.add('hidden');
+          turnModal.setAttribute('aria-hidden', 'true');
+        }, 1500);
+      };
+
+      const showWinnerModal = () => {
+        if (!winnerModal || !state.winnerUserId || winnerShown) return;
+        const winnerEntry = state.players.find((p) => Number(p.user_id ?? p.id) === Number(state.winnerUserId));
+        const winnerName = winnerEntry?.username || 'Winner';
+        const myScore = state.scores?.[state.user?.id] ?? 0;
+        const topScore = state.scores?.[state.winnerUserId] ?? 0;
+        winnerTitle.textContent = `${winnerName} wins!`;
+        winnerMessage.textContent = `${winnerName} finished their tiles and scored ${topScore} points. You finished with ${myScore} points.`;
+        winnerModal.classList.remove('hidden');
+        winnerModal.setAttribute('aria-hidden', 'false');
+        playFx('victory', { rate: 1 });
+        winnerShown = true;
+      };
+
       const updateDrawUi = () => {
         if (!drawOverlay || !state.user) return;
         const draws = state.game?.draws || [];
         const players = state.players || [];
         const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
+        const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
         renderDrawTables();
 
         if (drawStatusEl) {
@@ -2492,7 +2565,7 @@ $aiSetupNotes = [
           drawTileBtn.disabled = alreadyDrew || everyoneDrew;
         }
 
-        const readyToStart = everyoneDrew && state.turnOrder.length > 0;
+        const readyToStart = everyoneRevealed && state.turnOrder.length > 0;
         drawOverlay.classList.toggle('hidden', readyToStart);
 
         if (!readyToStart && startDelayTimer) {
@@ -2579,9 +2652,13 @@ $aiSetupNotes = [
         state.racks = game.racks || {};
         state.draws = game.draws || [];
         state.draw_pool = game.draw_pool || [];
+        state.scores = game.scores || {};
+        state.winnerUserId = game.winner_user_id || null;
         bag = Array.isArray(game.bag) ? [...game.bag] : [];
         applyBoardState(game.board_state || []);
         applyRackState();
+        totalScore = state.scores?.[state.user?.id] ?? 0;
+        scoreEl.textContent = totalScore;
         updateBagCount();
         updateTurnButton();
       };
@@ -2601,6 +2678,7 @@ $aiSetupNotes = [
         if (!lobbyId) return;
         if (turnActive && isMyTurn()) return;
         try {
+          const previousTurnUser = state.turnOrder[state.turnIndex]?.user_id;
           const res = await fetch(`/api/game.php?lobbyId=${encodeURIComponent(lobbyId)}`);
           const data = await res.json();
           if (!data.success) {
@@ -2611,12 +2689,16 @@ $aiSetupNotes = [
           hydrateFromGame(data.game);
           updateDrawUi();
           setTurnMessaging();
+          const newCurrent = state.turnOrder[state.turnIndex]?.user_id;
+          if (newCurrent && Number(newCurrent) === Number(state.user?.id) && newCurrent !== previousTurnUser) {
+            showTurnModal();
+          }
         } catch (error) {
           if (!options.silent) setMessage('Unable to reach the game server right now.', 'error');
         }
       };
 
-      const syncGameState = async ({ advanceTurn = false, actingIndex = null } = {}) => {
+      const syncGameState = async ({ advanceTurn = false, actingIndex = null, scoreDelta = null } = {}) => {
         if (!lobbyId || !state.user) return;
         const activeIndex = actingIndex !== null ? actingIndex : state.turnIndex;
         state.racks[state.user.id] = rack.map((tile) => (tile.isBlank && tile.assignedLetter)
@@ -2637,6 +2719,7 @@ $aiSetupNotes = [
             bag,
             turnIndex: nextIndex,
             actingIndex: activeIndex,
+            scoreDelta,
           }),
         });
         if (!res.ok) return;
@@ -2665,6 +2748,11 @@ $aiSetupNotes = [
           }
           const tile = data.result?.tile || '?';
           await runTileAnimation(tile);
+          await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reveal', lobbyId }),
+          });
           await fetchGameState();
         } catch (error) {
           setMessage('Unable to reach the draw server right now.', 'error');
@@ -2673,14 +2761,77 @@ $aiSetupNotes = [
         }
       };
 
+      const handlePass = async () => {
+        if (!isMyTurn()) {
+          setMessage('Only the active player can pass.', 'error');
+          return;
+        }
+        try {
+          const res = await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'pass', lobbyId }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            setMessage(data.message || 'Unable to pass your turn.', 'error');
+            return;
+          }
+          hydrateFromGame(data.game);
+          setTurnMessaging();
+          setMessage('Turn passed. Waiting for your opponent...', 'success');
+        } catch (error) {
+          setMessage('Unable to pass right now.', 'error');
+        }
+      };
+
+      const handleExchange = async () => {
+        if (!isMyTurn()) {
+          setMessage('Only the active player can exchange tiles.', 'error');
+          return;
+        }
+        returnLooseTilesToRack();
+        try {
+          const res = await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'exchange', lobbyId }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            setMessage(data.message || 'Unable to exchange tiles.', 'error');
+            return;
+          }
+          hydrateFromGame(data.game);
+          setTurnMessaging();
+          renderRack();
+          setMessage('Tiles exchanged. Next player is up.', 'success');
+          playFx('shuffle', { rate: 0.9 });
+        } catch (error) {
+          setMessage('Unable to exchange right now.', 'error');
+        }
+      };
+
       const setTurnMessaging = () => {
         if (!messageEl) return;
+        if (state.winnerUserId) {
+          const winnerEntry = state.players.find((p) => Number(p.user_id ?? p.id) === Number(state.winnerUserId));
+          const winnerName = winnerEntry?.username || 'Winner';
+          messageEl.textContent = `${winnerName} has won the game.`;
+          messageEl.classList.add('waiting');
+          toggleBtn?.setAttribute('disabled', 'true');
+          if (boardChromeEl) boardChromeEl.classList.add('locked');
+          if (rackEl) rackEl.classList.add('locked');
+          showWinnerModal();
+          return;
+        }
         if (!state.turnOrder.length) {
           messageEl.textContent = 'Draw a tile to see who goes first.';
           messageEl.classList.add('waiting');
           if (boardChromeEl) boardChromeEl.classList.add('locked');
           if (rackEl) rackEl.classList.add('locked');
           toggleBtn?.setAttribute('disabled', 'true');
+          updateActionButtons();
           return;
         }
         const waiting = !isMyTurn();
@@ -2696,6 +2847,7 @@ $aiSetupNotes = [
             ? 'Place tiles and submit your move.'
             : 'Start your turn to draw tiles from the shared bag.';
         }
+        updateActionButtons();
       };
 
       const closeHudMenu = () => {
@@ -2748,6 +2900,7 @@ $aiSetupNotes = [
             : (turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word');
         }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
+        updateActionButtons();
       };
 
       const updateAiButton = () => {
@@ -2756,6 +2909,16 @@ $aiSetupNotes = [
         aiBtn.disabled = disabled;
         aiBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         aiBtn.classList.toggle('disabled', disabled);
+      };
+
+      const updateActionButtons = () => {
+        const waiting = !isMyTurn() || !!state.winnerUserId;
+        [passBtn, exchangeBtn].forEach((btn) => {
+          if (!btn) return;
+          const disabled = waiting || turnActive;
+          btn.disabled = disabled;
+          btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        });
       };
 
       const updateBagCount = () => {
@@ -3640,7 +3803,7 @@ $aiSetupNotes = [
         if (state.turnOrder.length) {
           state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
         }
-        syncGameState({ advanceTurn: true, actingIndex });
+        syncGameState({ advanceTurn: true, actingIndex, scoreDelta: turnScore });
         setTurnMessaging();
       };
 
@@ -3771,6 +3934,8 @@ $aiSetupNotes = [
       if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
+      if (passBtn) passBtn.addEventListener('click', handlePass);
+      if (exchangeBtn) exchangeBtn.addEventListener('click', handleExchange);
       if (aiCloseBtn) aiCloseBtn.addEventListener('click', handleAiClose);
       if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleRack);
       if (aiModal) {

@@ -55,6 +55,25 @@ if ($method === 'POST') {
         exit;
     }
 
+    if ($action === 'reveal') {
+        if ($lobby['status'] !== 'drawing') {
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'Lobby not accepting reveals.']);
+            exit;
+        }
+
+        try {
+            $game = $repository->revealDraw($lobbyId, $user['id']);
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'game' => $game]);
+        exit;
+    }
+
     if ($action === 'sync') {
         $game = $repository->getGameByLobby($lobbyId);
         if (!$game) {
@@ -76,10 +95,35 @@ if ($method === 'POST') {
         $boardState = $payload['board'] ?? [];
         $racks = $payload['racks'] ?? [];
         $bag = $payload['bag'] ?? [];
+        $scoreDelta = isset($payload['scoreDelta']) ? (int) $payload['scoreDelta'] : null;
 
-        $updated = $repository->updateGameState($lobbyId, $boardState, $racks, $bag, $turnIndex);
+        $updated = $repository->updateGameState($lobbyId, $boardState, $racks, $bag, $turnIndex, $scoreDelta, $user['id']);
         echo json_encode(['success' => true, 'game' => $updated]);
         exit;
+    }
+
+    if ($action === 'pass') {
+        try {
+            $game = $repository->passTurn($lobbyId, $user['id']);
+            echo json_encode(['success' => true, 'game' => $game]);
+            exit;
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+    if ($action === 'exchange') {
+        try {
+            $game = $repository->exchangeRack($lobbyId, $user['id']);
+            echo json_encode(['success' => true, 'game' => $game]);
+            exit;
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
     }
 
     http_response_code(400);
