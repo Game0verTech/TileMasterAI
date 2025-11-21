@@ -536,7 +536,6 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      max-width: min(100%, 960px);
       margin: 0 auto;
     }
 
