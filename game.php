@@ -774,24 +774,6 @@ $aiSetupNotes = [
       line-height: 1;
     }
 
-    .message {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    .message.waiting {
-      border-color: #bfdbfe;
-      background: #eff6ff;
-      color: #1d4ed8;
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-
-    .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
-    .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-
     .cell.invalid {
       outline: 2px solid #ef4444;
       outline-offset: -2px;
@@ -1925,28 +1907,6 @@ $aiSetupNotes = [
       color: var(--ink);
     }
 
-    .message {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--muted);
-      font-weight: 600;
-      width: 100%;
-    }
-
-    .message.waiting {
-      background: #eef2ff;
-      border-color: #c7d2fe;
-      color: #4338ca;
-      animation: pulseNotice 1.6s ease-in-out infinite;
-    }
-
-    @keyframes pulseNotice {
-      0%, 100% { opacity: 0.82; }
-      50% { opacity: 1; }
-    }
-
     @media (max-width: 1100px) {
       .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; }
       .dock-cta { justify-content: stretch; }
@@ -2144,12 +2104,11 @@ $aiSetupNotes = [
           <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
           <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
           <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
-          <button class="toolbar-btn" type="button" id="resetViewBtn" aria-label="Reset pan and zoom">Reset</button>
         </div>
       </div>
       <div class="board-scale" id="boardScale">
         <div class="board-frame" id="boardFrame">
-          <div class="board-chrome" id="boardChrome">
+            <div class="board-chrome" id="boardChrome">
             <div class="board-preview" aria-label="Game board">
               <div class="board-grid" role="presentation">
               <?php foreach ($premiumBoard as $rowIndex => $row): ?>
@@ -2203,8 +2162,6 @@ $aiSetupNotes = [
               <?php endforeach; ?>
               </div>
             </div>
-
-            <div class="message" id="turnMessage">Start a turn to draw up to seven tiles from the bag.</div>
           </div>
         </div>
       </div>
@@ -2290,7 +2247,6 @@ $aiSetupNotes = [
       const zoomOutBtn = document.getElementById('zoomOutBtn');
       const fitBoardBtn = document.getElementById('fitBoardBtn');
       const centerBoardBtn = document.getElementById('centerBoardBtn');
-      const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
       const drawOverlay = document.getElementById('drawOverlay');
@@ -2673,31 +2629,32 @@ $aiSetupNotes = [
       };
 
       const measureBoardCenter = () => {
-        if (!boardScaleEl || !boardChromeEl) return { x: 0, y: 0, width: 0, height: 0 };
+        if (!boardScaleEl || !boardChromeEl || !boardViewport) {
+          return { x: 0, y: 0, width: 0, height: 0 };
+        }
+
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
+        const scaleRect = boardScaleEl.getBoundingClientRect();
+        const centerCell = boardChromeEl.querySelector('[data-center="true"]');
+
+        const offsetX = boardRect.left - scaleRect.left;
+        const offsetY = boardRect.top - scaleRect.top;
+
+        let x = offsetX + boardRect.width / 2;
+        let y = offsetY + boardRect.height / 2;
+
+        if (centerCell instanceof HTMLElement) {
+          const cellRect = centerCell.getBoundingClientRect();
+          x = offsetX + cellRect.left - boardRect.left + cellRect.width / 2;
+          y = offsetY + cellRect.top - boardRect.top + cellRect.height / 2;
+        }
 
         boardScaleEl.style.transform = previousTransform;
 
-        return {
-          x: boardRect.width / 2,
-          y: boardRect.height / 2,
-          width: boardRect.width,
-          height: boardRect.height,
-        };
-      };
-
-      const centerBoard = () => {
-        if (!boardViewport || !boardScaleEl) return;
-        const finalScale = getFinalScale();
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const { x, y } = measureBoardCenter();
-
-        panX = viewportRect.width / 2 - x * finalScale;
-        panY = viewportRect.height / 2 - y * finalScale;
-        applyBoardTransform();
+        return { x, y, width: boardRect.width, height: boardRect.height };
       };
 
       const getZoomBounds = () => {
@@ -2800,10 +2757,30 @@ $aiSetupNotes = [
         });
       };
 
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
+        const finalScale = getFinalScale();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const { x, y } = measureBoardCenter();
+        panX = viewportRect.width / 2 - x * finalScale;
+        panY = viewportRect.height / 2 - y * finalScale;
+        applyBoardTransform();
+      };
+
+      const syncDockHeights = () => {
+        const topDock = document.querySelector('.hud-dock');
+        const bottomDock = document.querySelector('.turn-dock');
+        const topHeight = topDock?.getBoundingClientRect().height || 0;
+        const bottomHeight = bottomDock?.getBoundingClientRect().height || 0;
+        const rootStyle = document.documentElement.style;
+        rootStyle.setProperty('--top-dock-height', `${topHeight}px`);
+        rootStyle.setProperty('--bottom-dock-height', `${bottomHeight}px`);
+        return { topHeight, bottomHeight };
+      };
+
       const resizeBoardToViewport = ({ resetView = false } = {}) => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
-        const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
-        const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
+        const { topHeight, bottomHeight } = syncDockHeights();
         const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
         boardViewport.style.height = `${availableHeight}px`;
@@ -2844,11 +2821,14 @@ $aiSetupNotes = [
         applyBoardTransform();
       };
 
-      const resetBoardView = () => {
-        panX = 0;
-        panY = 0;
-        userZoom = 1;
-        centerBoard();
+      let pendingResizeReset = false;
+      const scheduleResizeAndCenter = () => {
+        if (pendingResizeReset) return;
+        pendingResizeReset = true;
+        requestAnimationFrame(() => {
+          pendingResizeReset = false;
+          resizeBoardToViewport({ resetView: true });
+        });
       };
 
       const fitBoard = () => {
@@ -3004,10 +2984,13 @@ $aiSetupNotes = [
       };
 
       const setMessage = (text, tone = '') => {
-        messageEl.textContent = text;
-        messageEl.classList.remove('error', 'success');
+        const hasMessage = Boolean(messageEl);
+        if (hasMessage) {
+          messageEl.textContent = text;
+          messageEl.classList.remove('error', 'success');
+        }
         if (tone) {
-          messageEl.classList.add(tone);
+          if (hasMessage) messageEl.classList.add(tone);
           if (tone === 'error') {
             playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
           }
@@ -3264,6 +3247,7 @@ $aiSetupNotes = [
       };
 
       const isMyTurn = () => {
+        if (!state.turnOrder.length) return true; // allow solo/local play when no turn order is set yet
         const current = state.turnOrder[state.turnIndex];
         return current && state.user && Number(current.user_id) === Number(state.user.id);
       };
@@ -3516,12 +3500,14 @@ $aiSetupNotes = [
       };
 
       const setTurnMessaging = () => {
-        if (!messageEl) return;
+        const hasMessage = Boolean(messageEl);
         if (state.winnerUserId) {
           const winnerEntry = state.players.find((p) => Number(p.user_id ?? p.id) === Number(state.winnerUserId));
           const winnerName = winnerEntry?.username || 'Winner';
-          messageEl.textContent = `${winnerName} has won the game.`;
-          messageEl.classList.add('waiting');
+          if (hasMessage) {
+            messageEl.textContent = `${winnerName} has won the game.`;
+            messageEl.classList.add('waiting');
+          }
           toggleBtn?.setAttribute('disabled', 'true');
           if (boardChromeEl) boardChromeEl.classList.add('locked');
           if (rackEl) rackEl.classList.add('locked');
@@ -3529,26 +3515,34 @@ $aiSetupNotes = [
           return;
         }
         if (!state.turnOrder.length) {
-          messageEl.textContent = 'Draw a tile to see who goes first.';
-          messageEl.classList.add('waiting');
-          if (boardChromeEl) boardChromeEl.classList.add('locked');
-          if (rackEl) rackEl.classList.add('locked');
-          toggleBtn?.setAttribute('disabled', 'true');
+          if (hasMessage) {
+            messageEl.textContent = 'Draw a tile to see who goes first.';
+            messageEl.classList.remove('waiting');
+          }
+          if (boardChromeEl) boardChromeEl.classList.remove('locked');
+          if (rackEl) rackEl.classList.remove('locked');
+          toggleBtn?.removeAttribute('disabled');
           updateActionButtons();
           return;
         }
         const waiting = !isMyTurn();
-        messageEl.classList.toggle('waiting', waiting);
+        if (hasMessage) {
+          messageEl.classList.toggle('waiting', waiting);
+        }
         if (boardChromeEl) boardChromeEl.classList.toggle('locked', waiting);
         if (rackEl) rackEl.classList.toggle('locked', waiting);
         if (waiting) {
-          messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          if (hasMessage) {
+            messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          }
           toggleBtn?.setAttribute('disabled', 'true');
         } else {
           toggleBtn?.removeAttribute('disabled');
-          messageEl.textContent = turnActive
-            ? 'Place tiles and submit your move.'
-            : 'Start your turn to draw tiles from the shared bag.';
+          if (hasMessage) {
+            messageEl.textContent = turnActive
+              ? 'Place tiles and submit your move.'
+              : 'Start your turn to draw tiles from the shared bag.';
+          }
         }
         updateActionButtons();
       };
@@ -4793,15 +4787,33 @@ $aiSetupNotes = [
       if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(0.9, viewportCenter()));
       if (centerBoardBtn) centerBoardBtn.addEventListener('click', () => centerBoard());
       if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
-      if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
 
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: false }));
+      const topDock = document.querySelector('.hud-dock');
+      const bottomDock = document.querySelector('.turn-dock');
+      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter()) : null;
 
-      renderBoard();
+      if (layoutObserver) {
+        if (boardViewport) layoutObserver.observe(boardViewport);
+        if (topDock) layoutObserver.observe(topDock);
+        if (bottomDock) layoutObserver.observe(bottomDock);
+      }
+
+      window.addEventListener('resize', () => scheduleResizeAndCenter());
+
+      const bootstrapBoard = () => {
+        renderBoard();
+        applyBoardTransform();
+        fitBoard();
+      };
+
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => requestAnimationFrame(bootstrapBoard));
+      } else {
+        setTimeout(() => requestAnimationFrame(bootstrapBoard), 120);
+      }
+
       updateTurnButton();
       updateAiButton();
-      requestAnimationFrame(() => resizeBoardToViewport({ resetView: true }));
-      setTimeout(() => resizeBoardToViewport({ resetView: false }), 160);
       setupDragAndDrop();
       loadDictionary();
       fetchUser().then(() => fetchGameState()).then(() => {
