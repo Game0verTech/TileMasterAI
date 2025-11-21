@@ -27,6 +27,7 @@ final class Schema
         self::ensureLobbyEnhancements($pdo, $driver);
         self::applyAuthLobbyMigrations($pdo, $driver);
         self::ensureGameDrawColumns($pdo, $driver);
+        self::ensureLiveGameColumns($pdo, $driver);
     }
 
     public static function applyMigrations(PDO $pdo, ?string $driver = null): void
@@ -221,6 +222,43 @@ final class Schema
 
         if (!in_array('draws', $columnNames, true)) {
             $pdo->exec("ALTER TABLE games ADD COLUMN draws {$stringColumn} NOT NULL DEFAULT '[]'");
+        }
+    }
+
+    private static function ensureLiveGameColumns(PDO $pdo, string $driver): void
+    {
+        $stringColumn = $driver === 'mysql' ? 'TEXT' : 'TEXT';
+        $intColumn = $driver === 'mysql' ? 'INT' : 'INTEGER';
+
+        $columns = [];
+        if ($driver === 'sqlite') {
+            $statement = $pdo->query("PRAGMA table_info(games)");
+            $columns = $statement ? $statement->fetchAll() : [];
+        } else {
+            $statement = $pdo->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'games'"
+            );
+            $statement->execute();
+            $columns = array_map(static fn ($row) => ['name' => $row['COLUMN_NAME'] ?? ''], $statement->fetchAll());
+        }
+
+        $columnNames = array_map(static fn ($column) => $column['name'] ?? '', $columns);
+
+        if (!in_array('board_state', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN board_state {$stringColumn} NOT NULL DEFAULT '[]'");
+        }
+
+        if (!in_array('racks', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN racks {$stringColumn} NOT NULL DEFAULT '{}'"
+            );
+        }
+
+        if (!in_array('bag', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN bag {$stringColumn} NOT NULL DEFAULT '[]'");
+        }
+
+        if (!in_array('current_turn_index', $columnNames, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN current_turn_index {$intColumn} NOT NULL DEFAULT 0");
         }
     }
 

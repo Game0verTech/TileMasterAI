@@ -216,12 +216,19 @@ class AppRepository
         $bag = $this->buildTileBag();
         shuffle($bag);
 
-        $statement = $this->pdo->prepare('INSERT INTO games (lobby_id, turn_order, draw_pool, draws) VALUES (:lobby_id, :turn_order, :draw_pool, :draws)');
+        $statement = $this->pdo->prepare(
+            'INSERT INTO games (lobby_id, turn_order, draw_pool, draws, board_state, racks, bag, current_turn_index) '
+            . 'VALUES (:lobby_id, :turn_order, :draw_pool, :draws, :board_state, :racks, :bag, :turn_index)'
+        );
         $statement->execute([
             ':lobby_id' => $lobbyId,
             ':turn_order' => json_encode([], JSON_THROW_ON_ERROR),
             ':draw_pool' => json_encode($bag, JSON_THROW_ON_ERROR),
             ':draws' => json_encode([], JSON_THROW_ON_ERROR),
+            ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
+            ':racks' => json_encode((object) [], JSON_THROW_ON_ERROR),
+            ':bag' => json_encode($bag, JSON_THROW_ON_ERROR),
+            ':turn_index' => 0,
         ]);
 
         return (int) $this->pdo->lastInsertId();
@@ -238,15 +245,29 @@ class AppRepository
 
         $drawPool = isset($game['draw_pool']) ? json_decode((string) $game['draw_pool'], true, 512, JSON_THROW_ON_ERROR) : [];
         $draws = isset($game['draws']) ? json_decode((string) $game['draws'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $bag = isset($game['bag']) ? json_decode((string) $game['bag'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $boardState = isset($game['board_state']) ? json_decode((string) $game['board_state'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $racks = isset($game['racks']) ? json_decode((string) $game['racks'], true, 512, JSON_THROW_ON_ERROR) : [];
+        $turnOrder = json_decode((string) $game['turn_order'], true, 512, JSON_THROW_ON_ERROR);
+        $currentTurnIndex = (int) ($game['current_turn_index'] ?? 0);
+
+        $currentTurn = is_array($turnOrder) && isset($turnOrder[$currentTurnIndex])
+            ? (int) ($turnOrder[$currentTurnIndex]['user_id'] ?? 0)
+            : null;
 
         return [
             'id' => (int) $game['id'],
             'lobby_id' => (int) $game['lobby_id'],
-            'turn_order' => json_decode((string) $game['turn_order'], true, 512, JSON_THROW_ON_ERROR),
+            'turn_order' => is_array($turnOrder) ? $turnOrder : [],
             'started_at' => $game['started_at'] ?? null,
             'draw_pool' => is_array($drawPool) ? $drawPool : [],
             'draw_pool_remaining' => is_array($drawPool) ? count($drawPool) : 0,
             'draws' => is_array($draws) ? $draws : [],
+            'board_state' => is_array($boardState) ? $boardState : [],
+            'racks' => is_array($racks) ? $racks : [],
+            'bag' => is_array($bag) ? $bag : [],
+            'current_turn_index' => $currentTurnIndex,
+            'current_turn_user_id' => $currentTurn,
         ];
     }
 
@@ -287,8 +308,7 @@ class AppRepository
 
         if (count($draws) === count($players)) {
             $order = $this->determineTurnOrderFromDraws($draws);
-            $this->finalizeTurnOrder($game['id'], $order);
-            $this->updateLobbyStatus($lobbyId, 'in_game');
+            $this->finalizeGameStart($game['id'], $order, $drawPool, $lobbyId);
         }
 
         $updated = $this->getGameByLobby($lobbyId);
@@ -299,6 +319,36 @@ class AppRepository
             'turn_order' => $updated['turn_order'],
             'complete' => count($updated['draws']) === count($players),
         ];
+    }
+
+    public function updateGameState(int $lobbyId, array $boardState, array $racks, array $bag, int $turnIndex): array
+    {
+        $game = $this->getGameByLobby($lobbyId);
+        if (!$game) {
+            throw new \RuntimeException('Game not found');
+        }
+
+        $orderCount = count($game['turn_order'] ?? []);
+        if ($orderCount > 0) {
+            $turnIndex = $turnIndex % $orderCount;
+            if ($turnIndex < 0) {
+                $turnIndex = 0;
+            }
+        }
+
+        $statement = $this->pdo->prepare(
+            'UPDATE games SET board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = :turn_index '
+            . 'WHERE id = :id'
+        );
+        $statement->execute([
+            ':id' => $game['id'],
+            ':board_state' => json_encode(array_values($boardState), JSON_THROW_ON_ERROR),
+            ':racks' => json_encode($racks, JSON_THROW_ON_ERROR),
+            ':bag' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
+            ':turn_index' => $turnIndex,
+        ]);
+
+        return $this->getGameByLobby($lobbyId) ?? [];
     }
 
     public function listSessions(): array
@@ -415,12 +465,34 @@ class AppRepository
         ]);
     }
 
-    private function finalizeTurnOrder(int $gameId, array $order): void
+    private function finalizeGameStart(int $gameId, array $order, array $remainingPool, int $lobbyId): void
     {
-        $statement = $this->pdo->prepare('UPDATE games SET turn_order = :turn_order WHERE id = :id');
+        $bag = $remainingPool;
+        $racks = [];
+
+        foreach ($order as $entry) {
+            $rack = [];
+            for ($i = 0; $i < 7; $i++) {
+                $tile = array_shift($bag);
+                if ($tile === null) {
+                    break;
+                }
+                $rack[] = $tile;
+            }
+            $racks[$entry['user_id']] = $rack;
+        }
+
+        $statement = $this->pdo->prepare(
+            'UPDATE games SET turn_order = :turn_order, board_state = :board_state, racks = :racks, bag = :bag, current_turn_index = 0 WHERE id = :id'
+        );
         $statement->execute([
             ':id' => $gameId,
             ':turn_order' => json_encode($order, JSON_THROW_ON_ERROR),
+            ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
+            ':racks' => json_encode($racks, JSON_THROW_ON_ERROR),
+            ':bag' => json_encode(array_values($bag), JSON_THROW_ON_ERROR),
         ]);
+
+        $this->updateLobbyStatus($lobbyId, 'in_game');
     }
 }

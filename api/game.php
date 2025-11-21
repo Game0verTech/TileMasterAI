@@ -55,6 +55,33 @@ if ($method === 'POST') {
         exit;
     }
 
+    if ($action === 'sync') {
+        $game = $repository->getGameByLobby($lobbyId);
+        if (!$game) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Game not started yet.']);
+            exit;
+        }
+
+        $turnOrder = $game['turn_order'] ?? [];
+        $actingIndex = (int) ($payload['actingIndex'] ?? ($game['current_turn_index'] ?? 0));
+        $turnIndex = (int) ($payload['turnIndex'] ?? $actingIndex);
+        $current = $turnOrder[$actingIndex]['user_id'] ?? null;
+        if ($current !== $user['id']) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Only the active player can sync moves.']);
+            exit;
+        }
+
+        $boardState = $payload['board'] ?? [];
+        $racks = $payload['racks'] ?? [];
+        $bag = $payload['bag'] ?? [];
+
+        $updated = $repository->updateGameState($lobbyId, $boardState, $racks, $bag, $turnIndex);
+        echo json_encode(['success' => true, 'game' => $updated]);
+        exit;
+    }
+
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Unsupported game action.']);
     exit;

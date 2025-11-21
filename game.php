@@ -657,6 +657,12 @@ $aiSetupNotes = [
       color: var(--muted);
       font-weight: 600;
     }
+    .message.waiting {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
 
     .message.error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
     .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
@@ -1343,6 +1349,12 @@ $aiSetupNotes = [
       max-height: 100%;
     }
 
+    .board-chrome.locked {
+      pointer-events: none;
+      opacity: 0.85;
+      filter: saturate(0.7);
+    }
+
     .hud-dock {
       position: fixed;
       top: 0;
@@ -1821,29 +1833,6 @@ $aiSetupNotes = [
     </div>
   </header>
 
-  <section class="card sessions-card" aria-labelledby="sessionsTitle">
-    <div class="session-header">
-      <div>
-        <p class="eyebrow">Lobby status</p>
-        <h2 class="subhead" id="sessionsTitle">Waiting for the game to begin</h2>
-        <p class="lede small">Tile draws happen here before the classic board unlocks.</p>
-      </div>
-    </div>
-    <div class="lobby-card" id="lobbyCard">
-      <div class="lobby-header">
-        <div>
-          <p class="eyebrow">Active lobby</p>
-          <h3 class="subhead" id="lobbyTitle">Loading lobby…</h3>
-        </div>
-        <div class="lobby-meta">
-          <span class="hud-pill" id="lobbyStatus">Waiting</span>
-          <span class="hud-pill" id="lobbyCapacity"></span>
-        </div>
-      </div>
-      <div class="lobby-roster" id="lobbyRoster"></div>
-    </div>
-  </section>
-
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
       <div class="board-scale" id="boardScale">
@@ -1978,6 +1967,8 @@ $aiSetupNotes = [
       const boardChromeEl = document.getElementById('boardChrome');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
+      const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [] };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -2325,8 +2316,7 @@ $aiSetupNotes = [
 
       const pickTileFromBag = () => {
         if (!bag.length) return null;
-        const index = Math.floor(Math.random() * bag.length);
-        const [letter] = bag.splice(index, 1);
+        const [letter] = bag.splice(0, 1);
         return letter;
       };
 
@@ -2354,6 +2344,148 @@ $aiSetupNotes = [
           if (tone === 'error') {
             playFx('invalid', { rate: 0.92 + Math.random() * 0.12 });
           }
+        }
+      };
+
+      const isMyTurn = () => {
+        const current = state.turnOrder[state.turnIndex];
+        return current && state.user && Number(current.user_id) === Number(state.user.id);
+      };
+
+      const currentTurnName = () => state.turnOrder[state.turnIndex]?.username || 'Opponent';
+
+      const serializeBoard = () => {
+        const placements = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile) {
+              placements.push({
+                row: r,
+                col: c,
+                letter: tile.letter,
+                assignedLetter: tile.assignedLetter || '',
+                isBlank: tile.isBlank,
+              });
+            }
+          }
+        }
+        return placements;
+      };
+
+      const applyBoardState = (placements = []) => {
+        board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+        placements.forEach((placement) => {
+          const row = Number(placement.row ?? -1);
+          const col = Number(placement.col ?? -1);
+          if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) return;
+          const tile = createTile((placement.letter || '?').toUpperCase());
+          tile.assignedLetter = placement.assignedLetter || '';
+          tile.isBlank = !!placement.isBlank;
+          tile.locked = true;
+          tile.justPlaced = false;
+          board[row][col] = tile;
+        });
+        firstTurn = placements.length === 0;
+        renderBoard();
+      };
+
+      const applyRackState = () => {
+        if (!state.user) return;
+        const letters = state.racks[state.user.id] || [];
+        rack = letters.map((letter) => {
+          const tile = createTile(String(letter).toUpperCase());
+          tile.position = { type: 'rack' };
+          return tile;
+        });
+        renderRack();
+      };
+
+      const hydrateFromGame = (game) => {
+        state.game = game;
+        state.turnOrder = game.turn_order || [];
+        state.turnIndex = game.current_turn_index || 0;
+        state.racks = game.racks || {};
+        bag = Array.isArray(game.bag) ? [...game.bag] : [];
+        applyBoardState(game.board_state || []);
+        applyRackState();
+        updateBagCount();
+        updateTurnButton();
+      };
+
+      const fetchUser = async () => {
+        try {
+          const res = await fetch('/api/auth.php');
+          if (!res.ok) return;
+          const data = await res.json();
+          state.user = data.user;
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const fetchGameState = async (options = { silent: false }) => {
+        if (!lobbyId) return;
+        if (turnActive && isMyTurn()) return;
+        try {
+          const res = await fetch(`/api/game.php?lobbyId=${encodeURIComponent(lobbyId)}`);
+          const data = await res.json();
+          if (!data.success) {
+            if (!options.silent) setMessage(data.message || 'Unable to load game', 'error');
+            return;
+          }
+          hydrateFromGame(data.game);
+          setTurnMessaging();
+        } catch (error) {
+          if (!options.silent) setMessage('Unable to reach the game server right now.', 'error');
+        }
+      };
+
+      const syncGameState = async ({ advanceTurn = false, actingIndex = null } = {}) => {
+        if (!lobbyId || !state.user) return;
+        const activeIndex = actingIndex !== null ? actingIndex : state.turnIndex;
+        state.racks[state.user.id] = rack.map((tile) => (tile.isBlank && tile.assignedLetter)
+          ? tile.assignedLetter.toUpperCase()
+          : tile.letter.toUpperCase());
+        const nextIndex = advanceTurn && state.turnOrder.length
+          ? (activeIndex + 1) % state.turnOrder.length
+          : activeIndex;
+
+        const res = await fetch('/api/game.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'sync',
+            lobbyId,
+            board: serializeBoard(),
+            racks: state.racks,
+            bag,
+            turnIndex: nextIndex,
+            actingIndex: activeIndex,
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && data.game) {
+          hydrateFromGame(data.game);
+          setTurnMessaging();
+        }
+      };
+
+      const setTurnMessaging = () => {
+        if (!messageEl) return;
+        const waiting = !isMyTurn();
+        messageEl.classList.toggle('waiting', waiting);
+        if (boardChromeEl) boardChromeEl.classList.toggle('locked', waiting);
+        if (rackEl) rackEl.classList.toggle('locked', waiting);
+        if (waiting) {
+          messageEl.textContent = `${currentTurnName()} is playing. Please wait for your turn.`;
+          toggleBtn?.setAttribute('disabled', 'true');
+        } else {
+          toggleBtn?.removeAttribute('disabled');
+          messageEl.textContent = turnActive
+            ? 'Place tiles and submit your move.'
+            : 'Start your turn to draw tiles from the shared bag.';
         }
       };
 
@@ -2396,11 +2528,15 @@ $aiSetupNotes = [
         if (!toggleBtn) return;
         toggleBtn.classList.toggle('start', !turnActive);
         toggleBtn.classList.toggle('stop', turnActive);
+        const waiting = !isMyTurn();
+        toggleBtn.disabled = waiting;
         if (turnTitleEl) {
-          turnTitleEl.textContent = turnActive ? 'Submit move' : 'Start turn';
+          turnTitleEl.textContent = waiting ? `${currentTurnName()} is up` : (turnActive ? 'Submit move' : 'Start turn');
         }
         if (turnSubtitleEl) {
-          turnSubtitleEl.textContent = turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word';
+          turnSubtitleEl.textContent = waiting
+            ? 'Please wait for your turn'
+            : (turnActive ? 'Lock tiles & score it' : 'Draw tiles and place your word');
         }
         toggleBtn.setAttribute('aria-pressed', turnActive ? 'true' : 'false');
       };
@@ -3059,6 +3195,10 @@ $aiSetupNotes = [
       };
 
       const startTurn = () => {
+        if (!isMyTurn()) {
+          setMessage(`${currentTurnName()} is still playing. Please wait your turn.`, 'error');
+          return false;
+        }
         let drewTiles = false;
 
         while (rack.length < RACK_SIZE) {
@@ -3081,6 +3221,9 @@ $aiSetupNotes = [
         } else {
           setMessage('Bag is empty—continue with the tiles you have.', 'success');
         }
+
+        syncGameState();
+        setTurnMessaging();
 
         return true;
       };
@@ -3284,6 +3427,12 @@ $aiSetupNotes = [
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
         setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
         playFx('accept', { rate: 1.02 });
+        const actingIndex = state.turnIndex;
+        if (state.turnOrder.length) {
+          state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
+        }
+        syncGameState({ advanceTurn: true, actingIndex });
+        setTurnMessaging();
       };
 
       const resetBoard = () => {
@@ -3293,12 +3442,14 @@ $aiSetupNotes = [
         totalScore = 0;
         firstTurn = true;
         turnActive = false;
-        buildBag();
-        updateBagCount();
-        renderRack();
-        renderBoard();
+        if (state.game) {
+          bag = Array.isArray(state.game.bag) ? [...state.game.bag] : [];
+          applyBoardState(state.game.board_state || []);
+          applyRackState();
+          updateBagCount();
+        }
         scoreEl.textContent = '0';
-        setMessage('Board reset. Start a turn to draw tiles.', 'success');
+        setMessage('Board reset to the last synced state.', 'success');
         updateTurnButton();
         updateAiButton();
         playFx('reset', { rate: 0.96 });
@@ -3474,9 +3625,6 @@ $aiSetupNotes = [
 
       window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
 
-      buildBag();
-      updateBagCount();
-      renderRack();
       renderBoard();
       updateTurnButton();
       updateAiButton();
@@ -3484,171 +3632,14 @@ $aiSetupNotes = [
       setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
       setupDragAndDrop();
       loadDictionary();
-      fetchSessions();
-    });
-  </script>
-
-  <script>
-    (() => {
-      const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      if (!lobbyId) return;
-
-      const state = { user: null, lobby: null, game: null, players: [], announced: false, dismissed: false };
-      const overlay = document.getElementById('drawOverlay');
-      const drawTable = document.getElementById('drawTable');
-      const orderTable = document.getElementById('orderTable');
-      const drawStatus = document.getElementById('drawStatus');
-      const drawHint = document.getElementById('drawHint');
-      const drawButton = document.getElementById('drawTileBtn');
-      const tileModal = document.getElementById('tileModal');
-      const drawTicker = document.getElementById('drawTicker');
-      const drawResultText = document.getElementById('drawResultText');
-      const startModal = document.getElementById('startModal');
-      const startCountdown = document.getElementById('startCountdown');
-      const startModalTitle = document.getElementById('startModalTitle');
-      const startModalMessage = document.getElementById('startModalMessage');
-      const lobbyStatus = document.getElementById('lobbyStatus');
-      const lobbyCapacity = document.getElementById('lobbyCapacity');
-
-      const show = (el) => el?.classList.remove('hidden');
-      const hide = (el) => el?.classList.add('hidden');
-
-      const renderDraws = () => {
-        drawTable.innerHTML = '';
-        orderTable.innerHTML = '';
-        const draws = state.game?.draws || [];
-
-        state.players.forEach((player) => {
-          const drawn = draws.find((d) => Number(d.user_id) === Number(player.user_id));
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${player.username}${Number(player.user_id) === Number(state.lobby?.owner_user_id) ? ' (owner)' : ''}</td>`
-            + `<td>${player.is_ready ? '<span class="pill">Ready</span>' : 'Not ready'}</td>`
-            + `<td>${drawn ? `<span class="pill"><strong>${drawn.tile}</strong></span>` : 'Pending'}</td>`;
-          drawTable.appendChild(tr);
-        });
-
-        (state.game?.turn_order || []).forEach((entry, idx) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${idx + 1}</td><td>${entry.username}</td><td><span class="pill"><strong>${entry.tile}</strong></span></td>`;
-          orderTable.appendChild(tr);
-        });
-
-        const myDraw = draws.find((d) => Number(d.user_id) === Number(state.user?.id));
-        drawButton.disabled = !!myDraw || state.lobby?.status !== 'drawing';
-        drawStatus.textContent = state.lobby?.status === 'drawing'
-          ? `${draws.length}/${state.players.length} players have drawn`
-          : 'Waiting for lobby to enter drawing phase';
-        drawHint.textContent = draws.length === state.players.length && draws.length > 0
-          ? 'Everyone has drawn. Finalizing order and starting the game...'
-          : 'All players must draw to continue.';
-      };
-
-      const startDrawAnimation = (finalTile) => {
-        show(tileModal);
-        drawResultText.textContent = 'Shuffling tiles...';
-        let delay = 40;
-        let spins = 18;
-
-        const spin = () => {
-          drawTicker.textContent = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-          if (spins <= 0) {
-            drawTicker.textContent = finalTile;
-            drawResultText.textContent = `You drew ${finalTile}`;
-            setTimeout(() => hide(tileModal), 2600);
-            return;
-          }
-          spins -= 1;
-          delay = Math.min(delay + 30, 240);
-          setTimeout(spin, delay);
-        };
-
-        spin();
-      };
-
-      const handleStartCountdown = () => {
-        if (state.announced || state.lobby?.status !== 'in_game' || !state.game?.turn_order?.length) return;
-        state.announced = true;
-        const first = state.game.turn_order[0]?.username || 'A player';
-        startModalTitle.textContent = `${first} goes first`;
-        startModalMessage.textContent = 'Launching the Scrabble board...';
-        let count = 3;
-        startCountdown.textContent = count;
-        show(startModal);
-        const timer = setInterval(() => {
-          count -= 1;
-          startCountdown.textContent = count;
-          if (count <= 0) {
-            clearInterval(timer);
-            hide(startModal);
-            state.dismissed = true;
-            hide(overlay);
-          }
-        }, 1000);
-      };
-
-      const loadGame = async () => {
-        const res = await fetch(`/api/game.php?lobbyId=${encodeURIComponent(lobbyId)}`);
-        const data = await res.json();
-        if (!data.success) {
-          drawStatus.textContent = data.message || 'Unable to load lobby';
-          return;
-        }
-
-        state.lobby = data.lobby;
-        state.game = data.game;
-        state.players = data.players || [];
-        if (lobbyStatus) {
-          lobbyStatus.textContent = `Lobby ${data.lobby.code} • ${data.lobby.status}`;
-        }
-        if (lobbyCapacity) {
-          lobbyCapacity.textContent = `${state.players.length} players`;
-        }
-
-        renderDraws();
-
-        if (state.lobby.status === 'drawing' || (state.game.turn_order || []).length === 0) {
-          show(overlay);
-        } else if (state.lobby.status === 'in_game') {
-          if (!state.dismissed) {
-            show(overlay);
-          }
-          handleStartCountdown();
-        }
-      };
-
-      const fetchUser = async () => {
-        const res = await fetch('/api/auth.php');
-        if (!res.ok) return;
-        const data = await res.json();
-        state.user = data.user;
-      };
-
-      drawButton?.addEventListener('click', async () => {
-        show(tileModal);
-        drawResultText.textContent = 'Drawing...';
-        const res = await fetch('/api/game.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'draw', lobbyId }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          const tile = data.result.tile;
-          startDrawAnimation(tile);
-          await loadGame();
-        } else {
-          hide(tileModal);
-          alert(data.message || 'Unable to draw tile');
+      fetchUser().then(() => fetchGameState()).then(() => {
+        setTurnMessaging();
+        if (isMyTurn() && rack.length === 0) {
+          startTurn();
         }
       });
-
-      fetchUser();
-      loadGame();
-      setInterval(() => {
-        loadGame();
-        handleStartCountdown();
-      }, 2500);
-    })();
+      setInterval(() => fetchGameState({ silent: true }), 2500);
+    });
   </script>
 
   <div class="modal-backdrop" id="aiModal" aria-hidden="true">
