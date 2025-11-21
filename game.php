@@ -214,8 +214,8 @@ $aiSetupNotes = [
       --cell-size: clamp(40px, 4vw + 10px, 56px);
       --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 88px;
-      --bottom-dock-height: 116px;
+      --top-dock-height: 76px;
+      --bottom-dock-height: 132px;
       --board-toolbar: rgba(15, 23, 42, 0.86);
     }
 
@@ -558,6 +558,7 @@ $aiSetupNotes = [
 
     .rack-wrap {
       display: grid;
+      grid-template-areas: 'help rack actions';
       grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 10px;
@@ -565,6 +566,8 @@ $aiSetupNotes = [
       width: 100%;
       min-width: 0;
     }
+
+    .rack-wrap > .dock-help { grid-area: help; }
 
     .dock-help {
       width: 34px;
@@ -626,25 +629,30 @@ $aiSetupNotes = [
       gap: 6px;
       align-items: center;
       flex-wrap: nowrap;
-      padding: 5px 8px;
+      padding: 8px 10px;
       background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
         linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
       border: 1px solid rgba(148, 163, 184, 0.5);
       border-radius: 12px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
-      min-height: 60px;
+      min-height: 72px;
       overflow-x: auto;
       scrollbar-width: thin;
+      grid-area: rack;
     }
 
     .rack-actions {
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      gap: 10px;
-      margin-top: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 0;
+      grid-area: actions;
     }
+
+    .rack-actions .btn { flex: 1 1 120px; min-width: 0; }
 
     .rack-shuffle {
       display: inline-flex;
@@ -1417,26 +1425,26 @@ $aiSetupNotes = [
     .hud-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 10px 16px 10px;
-      display: flex;
-      align-items: stretch;
+      padding: 8px 14px 8px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
       gap: 10px;
-      flex-wrap: wrap;
     }
 
     .hud-right {
-      display: grid;
+      display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 10px;
-      margin-left: auto;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      min-width: min(520px, 100%);
+      min-width: 0;
+      flex-wrap: nowrap;
     }
 
-    .hud-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
-    .hud-menu { flex-shrink: 0; order: 3; }
+    .hud-meta { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .hud-menu { flex-shrink: 0; }
     .brand { order: 1; }
-    .hud-right { order: 2; }
+    .hud-right { order: 3; }
 
     .brand {
       display: flex;
@@ -1445,18 +1453,20 @@ $aiSetupNotes = [
     }
 
     .score-strip {
-      display: grid;
+      display: inline-flex;
       gap: 8px;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       padding: 6px 10px;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 14px;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      overflow-x: auto;
+      scrollbar-width: thin;
+      max-width: min(640px, 100%);
     }
 
     .score-chip {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 8px 10px;
@@ -1465,6 +1475,7 @@ $aiSetupNotes = [
       color: #e2e8f0;
       border: 1px solid rgba(255, 255, 255, 0.08);
       min-width: 0;
+      flex: 0 0 auto;
     }
 
     .score-chip.leader { border-color: #22c55e; box-shadow: 0 6px 14px rgba(34, 197, 94, 0.3); }
@@ -1605,7 +1616,7 @@ $aiSetupNotes = [
       border: 1px solid rgba(148, 163, 184, 0.35);
       color: #e2e8f0;
       border-radius: 12px;
-      padding: 7px 11px;
+      padding: 7px 10px;
       display: inline-flex;
       gap: 7px;
       align-items: center;
@@ -1639,23 +1650,32 @@ $aiSetupNotes = [
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 8px 12px 10px;
+      padding: 10px 12px 12px;
       display: grid;
-      gap: 8px;
+      gap: 10px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: auto auto 1fr;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'cta rack ai';
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .dock-cta {
       display: flex;
       justify-content: center;
       align-items: center;
-      min-width: 200px;
+      min-width: 180px;
+      grid-area: cta;
+    }
+
+    .dock-ai {
+      grid-area: ai;
+      display: flex;
+      justify-content: flex-end;
+      min-width: 0;
     }
 
     .ai-cta {
@@ -1798,6 +1818,16 @@ $aiSetupNotes = [
       50% { opacity: 1; }
     }
 
+    @media (max-width: 1100px) {
+      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; }
+      .dock-cta { justify-content: stretch; }
+      .dock-cta .turn-toggle { width: 100%; }
+      .dock-ai { justify-content: stretch; }
+      .dock-ai .ai-cta { width: 100%; justify-content: center; }
+      .rack-wrap { grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; gap: 8px; }
+      .rack-actions { justify-content: flex-start; }
+    }
+
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1825,11 +1855,12 @@ $aiSetupNotes = [
       .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
 
       .dock-inner { padding: 8px 10px 9px; gap: 10px; }
-      .dock-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-      .dock-cta { min-width: 0; grid-column: 1 / -1; }
+      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; align-items: stretch; }
+      .dock-cta { min-width: 0; grid-column: auto; }
       .turn-toggle { width: 100%; min-width: 0; }
+      .dock-ai { width: 100%; }
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
-      .rack-wrap { grid-column: 1 / -1; }
+      .rack-wrap { grid-column: auto; grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; }
 
       .tile .letter,
       .rack-tile .letter { font-size: 18px; }
@@ -1941,7 +1972,6 @@ $aiSetupNotes = [
         <div class="score-strip" id="playerScores" aria-live="polite"></div>
         <div class="hud-meta">
           <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
         </div>
       </div>
     </div>
@@ -2024,10 +2054,12 @@ $aiSetupNotes = [
             </span>
           </button>
         </div>
-        <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
-          <span class="ai-icon" aria-hidden="true">🤖</span>
-          <span class="ai-text">AI suggested moves</span>
-        </button>
+        <div class="dock-ai">
+          <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
+            <span class="ai-icon" aria-hidden="true">🤖</span>
+            <span class="ai-text">AI suggested moves</span>
+          </button>
+        </div>
         <div class="rack-wrap">
           <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
@@ -2358,9 +2390,14 @@ $aiSetupNotes = [
         applyBoardTransform();
       };
 
+      const getZoomBounds = () => {
+        const MIN_ZOOM = Math.max(0.45, (baseScale || 1) * 0.6);
+        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2.4);
+        return { MIN_ZOOM, MAX_ZOOM };
+      };
+
       const getFinalScale = () => {
-        const MIN_ZOOM = Math.max(0.6, (baseScale || 1) * 0.7);
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2.2);
+        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
       };
 
@@ -2374,13 +2411,27 @@ $aiSetupNotes = [
         const viewportRect = boardViewport.getBoundingClientRect();
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
-        const slack = Math.max(16, Math.min(viewportRect.width, viewportRect.height) * 0.04);
+        const slack = Math.max(24, Math.min(viewportRect.width, viewportRect.height) * 0.06);
 
-        const minPanX = Math.min(slack, viewportRect.width - scaledWidth - slack);
-        const minPanY = Math.min(slack, viewportRect.height - scaledHeight - slack);
+        const extraX = viewportRect.width - scaledWidth;
+        const extraY = viewportRect.height - scaledHeight;
 
-        panX = clamp(panX, minPanX, slack);
-        panY = clamp(panY, minPanY, slack);
+        const minPanX = scaledWidth > viewportRect.width
+          ? viewportRect.width - scaledWidth - slack
+          : (extraX / 2) - slack;
+        const maxPanX = scaledWidth > viewportRect.width
+          ? slack
+          : (extraX / 2) + slack;
+
+        const minPanY = scaledHeight > viewportRect.height
+          ? viewportRect.height - scaledHeight - slack
+          : (extraY / 2) - slack;
+        const maxPanY = scaledHeight > viewportRect.height
+          ? slack
+          : (extraY / 2) + slack;
+
+        panX = clamp(panX, minPanX, maxPanX);
+        panY = clamp(panY, minPanY, maxPanY);
       };
 
       const applyBoardTransform = () => {
@@ -2394,7 +2445,7 @@ $aiSetupNotes = [
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 18);
 
         boardViewport.style.height = `${availableHeight}px`;
 
@@ -2419,8 +2470,7 @@ $aiSetupNotes = [
       };
 
       const adjustZoom = (factor) => {
-        const MIN_ZOOM = Math.max(0.6, (baseScale || 1) * 0.7);
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2.2);
+        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
@@ -2854,7 +2904,7 @@ $aiSetupNotes = [
         applyBoardState(game.board_state || []);
         applyRackState();
         totalScore = state.scores?.[state.user?.id] ?? 0;
-        scoreEl.textContent = totalScore;
+        if (scoreEl) { scoreEl.textContent = totalScore; }
         updateBagCount();
         updateTurnButton();
         renderPlayerScores();
@@ -4057,7 +4107,7 @@ $aiSetupNotes = [
           tile.justPlaced = false;
         });
         totalScore += turnScore;
-        scoreEl.textContent = totalScore;
+        if (scoreEl) { scoreEl.textContent = totalScore; }
         firstTurn = false;
         turnActive = false;
         updateTurnButton();
@@ -4087,7 +4137,7 @@ $aiSetupNotes = [
           applyRackState();
           updateBagCount();
         }
-        scoreEl.textContent = '0';
+        if (scoreEl) { scoreEl.textContent = '0'; }
         setMessage('Board reset to the last synced state.', 'success');
         updateTurnButton();
         updateAiButton();
