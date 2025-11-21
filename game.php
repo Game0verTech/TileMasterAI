@@ -2792,7 +2792,12 @@ $aiSetupNotes = [
         return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
       };
 
-      const computeCanvasPadding = (viewportRect, scaledWidth, scaledHeight, { topInset = 0, bottomInset = 0 } = {}) => {
+      const computeCanvasPadding = (
+        viewportRect,
+        scaledWidth,
+        scaledHeight,
+        { topInset = 0, bottomInset = 0, scale = getFinalScale() } = {},
+      ) => {
         const basePadding = getBasePadding();
         if (!viewportRect?.width || !viewportRect?.height) {
           return {
@@ -2802,8 +2807,20 @@ $aiSetupNotes = [
           };
         }
 
-        const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2);
-        const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2);
+        const overflowX = Math.max(0, scaledWidth - viewportRect.width);
+        const overflowY = Math.max(0, scaledHeight - viewportRect.height);
+        const zoomFactor = Math.max(1, scale / (baseScale || 1));
+        const panAllowance = Math.max(0, zoomFactor - 1);
+
+        const extraPanX = panAllowance > 0
+          ? Math.max(basePadding * 0.75, overflowX * 0.12, (viewportRect.width || 0) * 0.08 * panAllowance)
+          : 0;
+        const extraPanY = panAllowance > 0
+          ? Math.max(basePadding * 0.6, overflowY * 0.12, (viewportRect.height || 0) * 0.08 * panAllowance)
+          : 0;
+
+        const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2) + extraPanX;
+        const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2) + extraPanY;
         const topPad = padY + Math.max(0, topInset * 0.5);
         const bottomPad = padY + Math.max(0, bottomInset * 0.35);
         return {
@@ -2860,7 +2877,7 @@ $aiSetupNotes = [
         const scaledWidth = Math.max(0, boardRect.width * scale);
         const scaledHeight = Math.max(0, boardRect.height * scale);
 
-        canvasPadding = computeCanvasPadding(targetViewport, scaledWidth, scaledHeight);
+        canvasPadding = computeCanvasPadding(targetViewport, scaledWidth, scaledHeight, { scale });
         boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
 
         boardFrameEl.style.width = `${scaledWidth}px`;
@@ -2954,7 +2971,11 @@ $aiSetupNotes = [
         let scaledWidth = Math.max(0, boardRect.width * safeDraftScale);
         let scaledHeight = Math.max(0, boardRect.height * safeDraftScale);
 
-        canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight, { topInset: topHeight, bottomInset: bottomHeight });
+        canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight, {
+          topInset: topHeight,
+          bottomInset: bottomHeight,
+          scale: safeDraftScale,
+        });
         boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
 
         const prevScale = lastScale || getFinalScale();
