@@ -1428,9 +1428,9 @@ $aiSetupNotes = [
       position: relative;
       width: 100%;
       margin: 0;
-      overflow: hidden;
-      touch-action: none;
-      cursor: grab;
+      overflow: auto;
+      touch-action: pan-x pan-y;
+      cursor: default;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
@@ -1439,22 +1439,25 @@ $aiSetupNotes = [
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
+      opacity: 0;
+      transition: opacity 200ms ease;
     }
 
-    .board-viewport.dragging { cursor: grabbing; }
+    .board-viewport.ready { opacity: 1; }
 
     .board-scale {
-      position: absolute;
+      position: relative;
       inset: 0;
-      transform-origin: center;
+      transform-origin: top left;
       will-change: transform;
-      display: block;
+      display: inline-block;
+      padding: 120px;
+      min-width: 100%;
+      min-height: 100%;
     }
 
     .board-frame {
-      position: absolute;
-      top: 0;
-      left: 0;
+      position: relative;
       display: grid;
       place-items: center;
       width: max-content;
@@ -2340,16 +2343,8 @@ $aiSetupNotes = [
       let aiAudioInterval;
       let audioCtx;
       let baseScale = 1;
-      let userZoom = 1;
+      let userScale = 1;
       let pinchDistance = null;
-      let panX = 0;
-      let panY = 0;
-      let isPanning = false;
-      let panOrigin = { x: 0, y: 0 };
-      let panRenderQueued = false;
-      let panMomentumFrame = null;
-      let panVelocity = { x: 0, y: 0 };
-      let lastPanSample = null;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
@@ -2681,7 +2676,7 @@ $aiSetupNotes = [
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
-        const viewportRect = boardViewport.getBoundingClientRect();
+        const containerRect = boardChromeEl.getBoundingClientRect();
         const centerCell = boardChromeEl.querySelector('[data-center="true"]');
 
         let x = boardRect.width / 2;
@@ -2689,8 +2684,8 @@ $aiSetupNotes = [
 
         if (centerCell instanceof HTMLElement) {
           const cellRect = centerCell.getBoundingClientRect();
-          x = cellRect.left - viewportRect.left + cellRect.width / 2;
-          y = cellRect.top - viewportRect.top + cellRect.height / 2;
+          x = cellRect.left - containerRect.left + cellRect.width / 2;
+          y = cellRect.top - containerRect.top + cellRect.height / 2;
         }
 
         boardScaleEl.style.transform = previousTransform;
@@ -2698,109 +2693,32 @@ $aiSetupNotes = [
         return { x, y, width: boardRect.width, height: boardRect.height };
       };
 
-      const centerBoard = () => {
-        if (!boardViewport || !boardScaleEl) return;
-        const finalScale = getFinalScale();
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const { x, y } = measureBoardCenter();
-
-        panX = viewportRect.width / 2 - x * finalScale;
-        panY = viewportRect.height / 2 - y * finalScale;
-        applyBoardTransform();
-      };
-
       const getZoomBounds = () => {
-        const MIN_ZOOM = Math.max(0.2, (baseScale || 1) * 0.35);
+        const MIN_ZOOM = Math.max(0.35, (baseScale || 1) * 0.5);
         const MAX_ZOOM = Math.max(2.5, (baseScale || 1) * 3);
         return { MIN_ZOOM, MAX_ZOOM };
       };
 
       const getFinalScale = () => {
         const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
-        return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
+        return clamp(baseScale * userScale, MIN_ZOOM, MAX_ZOOM);
       };
 
-      const clampPanToViewport = (finalScale) => {
-        if (!boardViewport || !boardChromeEl || !boardScaleEl) return;
-        const boardRect = measureBoardRect();
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const padding = getViewportPadding();
-        const reach = Math.max(padding * 1.25, 18);
-
-        const scaledWidth = boardRect.width * finalScale;
-        const scaledHeight = boardRect.height * finalScale;
-
-        const extraX = viewportRect.width - scaledWidth;
-        const extraY = viewportRect.height - scaledHeight;
-
-        // When the board is smaller than the viewport, allow it to glide from
-        // edge-to-edge (with a small buffer). When larger, keep enough travel to
-        // reach both edges instead of collapsing the range to the center.
-        const minPanX = extraX >= 0 ? -reach : extraX - reach;
-        const maxPanX = extraX >= 0 ? extraX + reach : reach;
-        const minPanY = extraY >= 0 ? -reach : extraY - reach;
-        const maxPanY = extraY >= 0 ? extraY + reach : reach;
-
-        panX = clamp(panX, minPanX, maxPanX);
-        panY = clamp(panY, minPanY, maxPanY);
-      };
-
-      const stopPanMomentum = () => {
-        if (panMomentumFrame) {
-          cancelAnimationFrame(panMomentumFrame);
-          panMomentumFrame = null;
-        }
-      };
-
-      const applyBoardTransform = () => {
+      const applyBoardScale = () => {
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
-        clampPanToViewport(finalScale);
-        boardScaleEl.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${finalScale})`;
+        boardScaleEl.style.setProperty('--board-scale', finalScale);
+        boardScaleEl.style.transform = `scale(${finalScale})`;
       };
 
-      const samplePanVelocity = (x, y) => {
-        const now = performance.now();
-        if (lastPanSample) {
-          const deltaTime = Math.max(1, now - lastPanSample.time);
-          panVelocity = {
-            x: (x - lastPanSample.x) / deltaTime,
-            y: (y - lastPanSample.y) / deltaTime,
-          };
-        }
-        lastPanSample = { x, y, time: now };
-      };
-
-      const startPanMomentum = () => {
-        stopPanMomentum();
-        const decay = 0.92;
-        const minVelocity = 0.01;
-
-        const step = () => {
-          panVelocity.x *= decay;
-          panVelocity.y *= decay;
-
-          if (Math.abs(panVelocity.x) < minVelocity && Math.abs(panVelocity.y) < minVelocity) {
-            panMomentumFrame = null;
-            return;
-          }
-
-          panX += panVelocity.x * 16;
-          panY += panVelocity.y * 16;
-          applyBoardTransform();
-          panMomentumFrame = requestAnimationFrame(step);
-        };
-
-        panMomentumFrame = requestAnimationFrame(step);
-      };
-
-      const requestBoardRender = () => {
-        if (panRenderQueued) return;
-        panRenderQueued = true;
-        requestAnimationFrame(() => {
-          panRenderQueued = false;
-          applyBoardTransform();
-        });
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
+        const finalScale = getFinalScale();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const { x, y } = measureBoardCenter();
+        const targetLeft = Math.max(0, x * finalScale - viewportRect.width / 2);
+        const targetTop = Math.max(0, y * finalScale - viewportRect.height / 2);
+        boardViewport.scrollTo({ left: targetLeft, top: targetTop });
       };
 
       const syncDockHeights = () => {
@@ -2830,11 +2748,11 @@ $aiSetupNotes = [
         baseScale = Math.min(heightScale, widthScale);
         if (!Number.isFinite(baseScale) || baseScale <= 0) { baseScale = 1; }
 
+        applyBoardScale();
+
         if (resetView) {
-          userZoom = 1;
+          userScale = 1;
           centerBoard();
-        } else {
-          applyBoardTransform();
         }
       };
 
@@ -2842,25 +2760,28 @@ $aiSetupNotes = [
         const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
-        const nextZoom = clamp(userZoom * factor, minFactor, maxFactor);
-        const appliedFactor = nextZoom / userZoom;
+        const nextScale = clamp(userScale * factor, minFactor, maxFactor);
+        const currentScale = getFinalScale();
+        userScale = nextScale;
+        const updatedScale = getFinalScale();
 
         if (pivot && boardViewport) {
           const viewportRect = boardViewport.getBoundingClientRect();
-          const originX = pivot.x - viewportRect.left;
-          const originY = pivot.y - viewportRect.top;
-          panX = originX - (originX - panX) * appliedFactor;
-          panY = originY - (originY - panY) * appliedFactor;
+          const relativeX = pivot.x - viewportRect.left;
+          const relativeY = pivot.y - viewportRect.top;
+          const contentX = (boardViewport.scrollLeft + relativeX) / currentScale;
+          const contentY = (boardViewport.scrollTop + relativeY) / currentScale;
+          const nextLeft = contentX * updatedScale - relativeX;
+          const nextTop = contentY * updatedScale - relativeY;
+          boardViewport.scrollTo({ left: nextLeft, top: nextTop });
         }
 
-        userZoom = nextZoom;
-        applyBoardTransform();
+        applyBoardScale();
       };
 
       const resetBoardView = () => {
-        panX = 0;
-        panY = 0;
-        userZoom = 1;
+        userScale = 1;
+        applyBoardScale();
         centerBoard();
       };
 
@@ -2898,7 +2819,6 @@ $aiSetupNotes = [
         const delta = -event.deltaY;
         const intensity = event.deltaMode === 1 ? 0.04 : 0.0014;
         const factor = Math.exp(delta * intensity);
-        stopPanMomentum();
         adjustZoom(factor, { x: event.clientX, y: event.clientY });
       };
 
@@ -2913,22 +2833,9 @@ $aiSetupNotes = [
       const handleTouchStart = (event) => {
         if (!boardViewport) return;
         if (event.touches.length === 2) {
-          isPanning = false;
-          boardViewport.classList.remove('dragging');
           pinchDistance = touchDistance(event.touches);
-          stopPanMomentum();
-          return;
+          event.preventDefault();
         }
-
-        const [touch] = event.touches;
-        const target = event.target;
-        if (!touch || (target.closest('.tile') || target.closest('.rack-tile'))) return;
-
-        isPanning = true;
-        panOrigin = { x: touch.clientX - panX, y: touch.clientY - panY };
-        lastPanSample = null;
-        stopPanMomentum();
-        boardViewport.classList.add('dragging');
       };
 
       const handleTouchMove = (event) => {
@@ -2948,51 +2855,11 @@ $aiSetupNotes = [
           return;
         }
 
-        if (!isPanning || !event.touches.length) return;
-        const [touch] = event.touches;
-        if (!touch) return;
-        event.preventDefault();
-        panX = touch.clientX - panOrigin.x;
-        panY = touch.clientY - panOrigin.y;
-        samplePanVelocity(touch.clientX, touch.clientY);
-        requestBoardRender();
+        if (!event.touches.length) return;
       };
 
       const handleTouchEnd = () => {
-        if (pinchDistance !== null) {
-          pinchDistance = null;
-        }
-
-        if (isPanning) {
-          endBoardPan();
-        }
-      };
-
-      const startBoardPan = (event) => {
-        if (!boardViewport || event.button !== 0) return;
-        const target = event.target;
-        if (target.closest('.tile') || target.closest('.rack-tile')) return;
-        event.preventDefault();
-        isPanning = true;
-        panOrigin = { x: event.clientX - panX, y: event.clientY - panY };
-        lastPanSample = null;
-        stopPanMomentum();
-        boardViewport.classList.add('dragging');
-      };
-
-      const continueBoardPan = (event) => {
-        if (!isPanning) return;
-        panX = event.clientX - panOrigin.x;
-        panY = event.clientY - panOrigin.y;
-        samplePanVelocity(event.clientX, event.clientY);
-        requestBoardRender();
-      };
-
-      const endBoardPan = () => {
-        if (!isPanning) return;
-        isPanning = false;
-        boardViewport.classList.remove('dragging');
-        startPanMomentum();
+        pinchDistance = null;
       };
 
       const buildBag = () => {
@@ -4791,10 +4658,6 @@ $aiSetupNotes = [
 
       if (boardViewport) {
         boardViewport.addEventListener('wheel', handleWheelZoom, { passive: false });
-        boardViewport.addEventListener('mousedown', startBoardPan);
-        boardViewport.addEventListener('mouseleave', endBoardPan);
-        window.addEventListener('mousemove', continueBoardPan);
-        window.addEventListener('mouseup', endBoardPan);
         boardViewport.addEventListener('touchstart', handleTouchStart, { passive: false });
         boardViewport.addEventListener('touchmove', handleTouchMove, { passive: false });
         boardViewport.addEventListener('touchend', handleTouchEnd);
@@ -4830,11 +4693,22 @@ $aiSetupNotes = [
 
       window.addEventListener('resize', () => scheduleResizeAndCenter());
 
-      renderBoard();
+      const bootstrapBoard = () => {
+        renderBoard();
+        applyBoardScale();
+        resizeBoardToViewport({ resetView: true });
+        centerBoard();
+        if (boardViewport) boardViewport.classList.add('ready');
+      };
+
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => requestAnimationFrame(bootstrapBoard));
+      } else {
+        setTimeout(() => requestAnimationFrame(bootstrapBoard), 120);
+      }
+
       updateTurnButton();
       updateAiButton();
-      requestAnimationFrame(() => resizeBoardToViewport({ resetView: true }));
-      setTimeout(() => resizeBoardToViewport({ resetView: false }), 160);
       setupDragAndDrop();
       loadDictionary();
       fetchUser().then(() => fetchGameState()).then(() => {
