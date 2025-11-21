@@ -286,15 +286,13 @@ class AppRepository
         }
 
         $players = $this->listPlayers($lobbyId);
-        $already = array_filter($game['draws'], static fn ($draw) => (int) $draw['user_id'] === $userId);
-        if ($already) {
-            $entry = current($already);
-            return [
-                'spill' => $entry['options'] ?? [],
-                'tile' => $entry['tile'] ?? null,
-                'draws' => $game['draws'],
-                'turn_order' => $game['turn_order'],
-            ];
+
+        $existingIndex = null;
+        foreach ($game['draws'] as $idx => $draw) {
+            if ((int) $draw['user_id'] === $userId) {
+                $existingIndex = $idx;
+                break;
+            }
         }
 
         $drawPool = $game['draw_pool'];
@@ -316,17 +314,40 @@ class AppRepository
             $options[] = $drawPool[$index];
         }
 
-        $user = $this->getUserById($userId);
         $draws = $game['draws'];
-        $draws[] = [
-            'user_id' => $userId,
-            'username' => $user['username'] ?? 'Player',
-            'tile' => null,
-            'options' => $options,
-            'value' => null,
-            'revealed' => false,
-            'revealed_at' => null,
-        ];
+        if ($existingIndex !== null) {
+            $entry = $draws[$existingIndex];
+            if (!($entry['redraw_required'] ?? false)) {
+                return [
+                    'spill' => $entry['options'] ?? [],
+                    'tile' => $entry['tile'] ?? null,
+                    'draws' => $game['draws'],
+                    'turn_order' => $game['turn_order'],
+                ];
+            }
+
+            $entry['tile'] = null;
+            $entry['options'] = $options;
+            $entry['value'] = null;
+            $entry['distance'] = null;
+            $entry['revealed'] = false;
+            $entry['revealed_at'] = null;
+            $entry['redraw_required'] = false;
+            $draws[$existingIndex] = $entry;
+        } else {
+            $user = $this->getUserById($userId);
+            $draws[] = [
+                'user_id' => $userId,
+                'username' => $user['username'] ?? 'Player',
+                'tile' => null,
+                'options' => $options,
+                'value' => null,
+                'distance' => null,
+                'revealed' => false,
+                'revealed_at' => null,
+                'redraw_required' => false,
+            ];
+        }
 
         $this->persistGameDrawState($game['id'], $drawPool, $draws);
 
@@ -379,6 +400,7 @@ class AppRepository
 
                 $entry['tile'] = $chosen;
                 $entry['value'] = Scoring::tileValue($chosen);
+                $entry['distance'] = max(0, ord(strtoupper($chosen)) - ord('A'));
                 $entry['revealed'] = true;
                 $entry['revealed_at'] = date('c');
                 $entry['options'] = $candidates;
@@ -399,8 +421,10 @@ class AppRepository
             && array_reduce($updatedDraws, static fn ($carry, $entry) => $carry && ($entry['revealed'] ?? false), true);
 
         if ($allRevealed) {
-            $order = $this->determineTurnOrderFromDraws($updatedDraws);
-            $this->finalizeGameStart($game['id'], $order, $game['bag'], $lobbyId);
+            $resolution = $this->resolveDrawResolution($updatedDraws, $game, $players, $lobbyId);
+            if ($resolution['resolved']) {
+                $this->finalizeGameStart($game['id'], $resolution['order'], $game['bag'], $lobbyId);
+            }
         }
 
         return $this->getGameByLobby($lobbyId) ?? [];
@@ -692,14 +716,75 @@ class AppRepository
 
     private function determineTurnOrderFromDraws(array $draws): array
     {
-        usort($draws, static function ($a, $b) {
-            if (($a['value'] ?? 0) === ($b['value'] ?? 0)) {
-                return strcmp((string) $a['tile'], (string) $b['tile']);
+        $distance = static fn (string $letter) => max(0, ord(strtoupper($letter)) - ord('A'));
+
+        usort($draws, static function ($a, $b) use ($distance) {
+            $aDistance = $a['distance'] ?? $distance((string) ($a['tile'] ?? 'Z'));
+            $bDistance = $b['distance'] ?? $distance((string) ($b['tile'] ?? 'Z'));
+            if ($aDistance === $bDistance) {
+                return strtotime((string) ($a['revealed_at'] ?? 'now')) <=> strtotime((string) ($b['revealed_at'] ?? 'now'));
             }
-            return ($b['value'] ?? 0) <=> ($a['value'] ?? 0);
+            return $aDistance <=> $bDistance;
         });
 
-        return array_map(static fn ($draw) => ['user_id' => $draw['user_id'], 'username' => $draw['username'], 'tile' => $draw['tile']], $draws);
+        return array_map(static fn ($draw) => [
+            'user_id' => $draw['user_id'],
+            'username' => $draw['username'],
+            'tile' => $draw['tile'],
+            'distance' => $draw['distance'] ?? $distance((string) ($draw['tile'] ?? 'Z')),
+        ], $draws);
+    }
+
+    private function resolveDrawResolution(array $draws, array $game, array $players, int $lobbyId): array
+    {
+        $distance = static fn (string $letter) => max(0, ord(strtoupper($letter)) - ord('A'));
+
+        $revealedDraws = array_filter($draws, static fn ($entry) => $entry['revealed'] ?? false);
+        if (count($revealedDraws) < count($players)) {
+            return ['resolved' => false, 'order' => []];
+        }
+
+        $bestDistance = min(array_map(static fn ($entry) => $distance((string) ($entry['tile'] ?? 'Z')), $revealedDraws));
+        $leaders = array_filter(
+            $revealedDraws,
+            static fn ($entry) => $distance((string) ($entry['tile'] ?? 'Z')) === $bestDistance
+        );
+
+        if (count($leaders) > 1) {
+            $pool = $game['draw_pool'];
+            if (!is_array($pool) || empty($pool)) {
+                $pool = $this->buildDrawPool();
+                shuffle($pool);
+            }
+
+            $leaderIds = array_map(static fn ($entry) => (int) $entry['user_id'], $leaders);
+
+            foreach ($draws as &$entry) {
+                if (in_array((int) $entry['user_id'], $leaderIds, true)) {
+                    if (!empty($entry['tile'])) {
+                        $pool[] = $entry['tile'];
+                    }
+                    $entry['tile'] = null;
+                    $entry['value'] = null;
+                    $entry['distance'] = null;
+                    $entry['revealed'] = false;
+                    $entry['revealed_at'] = null;
+                    $entry['options'] = [];
+                    $entry['redraw_required'] = true;
+                }
+            }
+            unset($entry);
+
+            shuffle($pool);
+            $this->persistGameDrawState($game['id'], $pool, $draws);
+
+            return ['resolved' => false, 'order' => []];
+        }
+
+        return [
+            'resolved' => true,
+            'order' => $this->determineTurnOrderFromDraws($draws),
+        ];
     }
 
     private function persistGameDrawState(int $gameId, array $pool, array $draws): void
