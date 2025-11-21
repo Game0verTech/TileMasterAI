@@ -83,8 +83,10 @@ if ($method === 'POST') {
             exit;
         }
 
+        $selectedTile = isset($payload['tile']) ? (string) $payload['tile'] : '';
+
         try {
-            $game = $repository->revealDraw($lobbyId, $user['id']);
+            $game = $repository->revealDraw($lobbyId, $user['id'], $selectedTile);
         } catch (\Throwable $e) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);

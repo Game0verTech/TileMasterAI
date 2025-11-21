@@ -230,7 +230,7 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: var(--top-dock-height) 18px var(--bottom-dock-height);
+      padding: var(--top-dock-height) 0 var(--bottom-dock-height);
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -242,30 +242,71 @@ $aiSetupNotes = [
     .draw-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.78);
+      background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.25), transparent 45%),
+                  radial-gradient(circle at 80% 15%, rgba(14, 165, 233, 0.22), transparent 40%),
+                  rgba(15, 23, 42, 0.86);
       display: grid;
       place-items: center;
       padding: 24px;
       z-index: 2000;
+      backdrop-filter: blur(6px);
     }
 
     .draw-panel {
-      background: #0b1224;
+      background: linear-gradient(180deg, rgba(10, 14, 27, 0.9), rgba(9, 12, 22, 0.98));
       border: 1px solid #1e293b;
       border-radius: 18px;
       padding: 18px;
-      width: min(100%, 820px);
+      width: min(100%, 940px);
       color: #e2e8f0;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.06);
+      display: grid;
+      gap: 14px;
+      margin: 0 auto;
+      text-align: center;
     }
+
+    .draw-hero { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; }
+    .draw-stage { display: flex; align-items: stretch; justify-content: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); flex-wrap: wrap; width: min(940px, 100%); margin: 0 auto; }
+    .draw-bag { width: 200px; min-height: 200px; position: relative; display: grid; place-items: center; cursor: pointer; }
+    .draw-bag.disabled { pointer-events: none; opacity: 0.65; }
+    .bag-img { width: 100%; max-width: 200px; filter: drop-shadow(0 16px 28px rgba(0,0,0,0.32)); transition: transform 280ms ease, filter 280ms ease; }
+    .bag-img:hover { transform: translateY(-4px); filter: drop-shadow(0 18px 32px rgba(99,102,241,0.25)); }
+    .bag-open .bag-img { transform: rotate(-6deg) translateY(2px); }
+    .bag-pop .bag-img { animation: bag-pop 480ms ease; }
+    .bag-burst { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.22)); opacity:0; }
+    .bag-burst::before, .bag-burst::after { content: ""; position: absolute; width: 32px; height: 32px; background: radial-gradient(circle, rgba(255,255,255,0.8), transparent 60%); border-radius: 50%; opacity: 0.8; }
+    .bag-burst::before { top: 20%; left: 8%; }
+    .bag-burst::after { top: 12%; right: 6%; }
+    .bag-pop .bag-burst { animation: burst 520ms ease; }
+    .draw-spill { flex: 1; min-width: 280px; display: grid; gap: 10px; align-content: start; }
+    .spill-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; position: relative; min-height: 120px; }
+    .spill-tile { position: relative; width: 100%; aspect-ratio: 1; border: none; border-radius: 12px; background: var(--tile-wood); box-shadow: 0 16px 32px rgba(0,0,0,0.32), 0 0 0 1px rgba(148, 163, 184, 0.24); cursor: pointer; transform: translate3d(0, 10px, 0) rotate(calc(var(--angle, 0deg))); transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms ease, opacity 260ms ease; overflow: hidden; }
+    .spill-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -6px 18px rgba(0,0,0,0.15); pointer-events: none; }
+    .spill-tile .tile-back { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(140deg, rgba(255,255,255,0.25), rgba(0,0,0,0.05)), var(--tile-wood); color: #0f172a; font-size: 20px; font-weight: 800; letter-spacing: 0.6px; }
+    .spill-tile .tile-front { position: absolute; inset: 0; display: grid; place-items: center; background: var(--tile-wood); color: #0f172a; font-size: 34px; font-weight: 900; transform: rotateY(90deg); backface-visibility: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4); }
+    .spill-tile.landed { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) rotate(calc(var(--angle, 0deg))); box-shadow: 0 18px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(148, 163, 184, 0.22); }
+    .spill-tile:hover { box-shadow: 0 16px 32px rgba(79, 70, 229, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.4); transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(1.03) rotate(calc(var(--angle, 0deg))); }
+    .spill-tile.revealed { animation: tile-pop 360ms ease; }
+    .spill-tile.revealed .tile-front { animation: tile-flip 400ms ease forwards; }
+    .spill-tile.revealed .tile-back { opacity: 0; }
+    .spill-hint { margin: 0; color: #cbd5e1; }
+    .draw-reveal { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(148, 163, 184, 0.12); }
+    .draw-chip { width: 64px; height: 64px; border-radius: 14px; background: var(--tile-wood); border: 1px solid #b9874c; display: grid; place-items: center; font-size: 30px; font-weight: 900; color: #0f172a; box-shadow: 0 12px 22px rgba(0,0,0,0.28); }
+    .draw-chip.revealed { animation: card-pop 420ms ease; }
+    .draw-reveal-copy { display: grid; gap: 4px; }
+    .draw-bubble { flex: 1; display: grid; gap: 6px; }
+    .draw-meter { display: grid; gap: 6px; }
+    .meter-track { width: 100%; height: 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.2); overflow: hidden; }
+    .meter-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: inherit; transition: width 240ms ease; }
 
     .draw-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
     .draw-grid table { width: 100%; border-collapse: collapse; }
     .draw-grid th, .draw-grid td { padding: 8px; text-align: left; border-bottom: 1px solid #1e293b; }
     .draw-grid th { color: #cbd5e1; }
 
-    .draw-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; }
+    .draw-actions { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; text-align: center; }
+    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; box-shadow: 0 10px 20px rgba(99,102,241,0.25); }
     .draw-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .draw-modal {
@@ -336,6 +377,36 @@ $aiSetupNotes = [
 
     .draw-ticker { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 8px 0; }
     .countdown { font-size: 36px; font-weight: 800; margin-top: 10px; }
+
+    @keyframes card-pop {
+      0% { transform: translateY(18px) scale(0.96) rotate(-8deg); opacity: 0; }
+      60% { transform: translateY(-6px) scale(1.05) rotate(-2deg); opacity: 1; }
+      100% { transform: translateY(0) scale(1) rotate(-6deg); opacity: 1; }
+    }
+
+    @keyframes bag-pop {
+      0% { transform: translateY(10px) scale(0.96); }
+      40% { transform: translateY(-12px) scale(1.04); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    @keyframes burst {
+      0% { transform: scale(0.6); opacity: 0; }
+      40% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    @keyframes tile-pop {
+      0% { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(0.95); }
+      70% { transform: translate3d(calc(var(--tx, 0px) * 0.9), calc(var(--ty, 0px) * 0.9), 0) scale(1.06); }
+      100% { transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(1); }
+    }
+
+    @keyframes tile-flip {
+      0% { transform: rotateY(90deg); }
+      60% { transform: rotateY(-10deg) scale(1.04); }
+      100% { transform: rotateY(0deg) scale(1); }
+    }
 
     header {
       display: flex;
@@ -1339,8 +1410,10 @@ $aiSetupNotes = [
     body.modal-open { overflow: hidden; }
 
     .app-shell {
-      width: min(1200px, 100%);
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
       display: grid;
       gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
@@ -1353,7 +1426,7 @@ $aiSetupNotes = [
     .board-viewport {
       position: relative;
       width: 100%;
-      margin: 0 auto;
+      margin: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1363,7 +1436,7 @@ $aiSetupNotes = [
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 12px;
+      padding: 8px;
       overscroll-behavior: contain;
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
@@ -1409,6 +1482,62 @@ $aiSetupNotes = [
       opacity: 0.85;
       filter: saturate(0.7);
     }
+
+    .board-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.5);
+      color: #e2e8f0;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .board-toolbar.collapsed {
+      gap: 0;
+      padding: 6px 8px;
+      transform: translateY(-2px);
+    }
+
+    .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
+    .board-toolbar.collapsed .toolbar-buttons { display: none; }
+
+    .toolbar-btn {
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      min-width: 36px;
+      line-height: 1;
+    }
+
+    .toolbar-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.18); }
+    .toolbar-btn:active { transform: translateY(0); background: rgba(255, 255, 255, 0.24); }
+
+    .toolbar-toggle {
+      border: 1px solid rgba(226, 232, 240, 0.65);
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .toolbar-toggle:hover { background: rgba(15, 23, 42, 0.72); }
 
     .hud-dock {
       position: fixed;
@@ -1830,7 +1959,7 @@ $aiSetupNotes = [
 
 
     @media (min-width: 900px) {
-      body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
+      body { padding: var(--top-dock-height) 0 var(--bottom-dock-height); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -1843,7 +1972,7 @@ $aiSetupNotes = [
         --cell-gap: 3px;
       }
 
-      body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
+      body { padding: calc(var(--top-dock-height) + 10px) 0 calc(var(--bottom-dock-height) + 10px); }
       .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
       .hud-menu { order: 1; }
       .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
@@ -1889,7 +2018,36 @@ $aiSetupNotes = [
           <h2 style="margin:4px 0 0;">Reveal your starting tile</h2>
           <p class="hud-text" id="drawStatus" style="margin:6px 0 0; color:#cbd5e1;">Waiting for lobby...</p>
         </div>
-        <button type="button" id="drawTileBtn">Draw tile</button>
+        <button type="button" id="drawTileBtn">Spill tiles</button>
+      </div>
+      <div class="draw-hero">
+        <div class="draw-stage">
+          <div class="draw-bag" id="drawBag" aria-label="Tile bag" role="button" tabindex="0">
+            <img
+              src="assets/Tile_Bag_01.png"
+              alt="Tile bag"
+              class="bag-img"
+              id="drawBagImg"
+              data-placeholder="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='240' viewBox='0 0 220 240'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23e2e8f0'/%3E%3Cstop offset='100%25' stop-color='%23f8fafc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='220' height='240' rx='28' fill='url(%23g)' stroke='%23cbd5e1' stroke-width='3' stroke-dasharray='8 10'/%3E%3Ctext x='110' y='115' text-anchor='middle' fill='%2394a3b8' font-family='Inter,sans-serif' font-size='16'%3EBag art%3C/text%3E%3Ctext x='110' y='140' text-anchor='middle' fill='%23748396' font-family='Inter,sans-serif' font-size='13'%3E(assets/Tile_Bag_01.png)%3C/text%3E%3C/svg%3E"
+            />
+            <div class="bag-burst" id="bagBurst"></div>
+          </div>
+          <div class="draw-spill" id="drawSpill">
+            <div class="spill-tiles" id="spillTiles" role="list"></div>
+            <p class="hud-text spill-hint" id="spillHint">Click the bag to spill some tiles.</p>
+            <div class="draw-meter">
+              <div class="meter-track" aria-hidden="true"><span class="meter-fill" id="drawMeterFill"></span></div>
+              <p class="hud-text" id="drawMeterText" style="margin:0; color:#94a3b8;">0 of 0 players revealed.</p>
+            </div>
+            <div class="draw-reveal" aria-live="polite">
+              <div class="draw-chip" id="drawCardTop">?</div>
+              <div class="draw-reveal-copy">
+                <p class="hud-eyebrow" style="margin:0;">Your pick</p>
+                <p class="hud-text" id="drawResultCopy" style="margin:4px 0 0; color:#cbd5e1;">Click the bag to spill some tiles.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="draw-grid" style="margin-top:10px;">
         <div>
@@ -1979,6 +2137,16 @@ $aiSetupNotes = [
 
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
+      <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
+        <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
+        <div class="toolbar-buttons" id="boardToolbarButtons">
+          <button class="toolbar-btn" type="button" id="zoomOutBtn" aria-label="Zoom out">−</button>
+          <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
+          <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
+          <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
+          <button class="toolbar-btn" type="button" id="resetViewBtn" aria-label="Reset pan and zoom">Reset</button>
+        </div>
+      </div>
       <div class="board-scale" id="boardScale">
         <div class="board-frame" id="boardFrame">
           <div class="board-chrome" id="boardChrome">
@@ -2116,6 +2284,13 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardScaleEl = document.getElementById('boardScale');
       const boardChromeEl = document.getElementById('boardChrome');
+      const boardToolbar = document.getElementById('boardToolbar');
+      const boardControlsToggle = document.getElementById('boardControlsToggle');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const fitBoardBtn = document.getElementById('fitBoardBtn');
+      const centerBoardBtn = document.getElementById('centerBoardBtn');
+      const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
       const drawOverlay = document.getElementById('drawOverlay');
@@ -2127,6 +2302,15 @@ $aiSetupNotes = [
       const tileModal = document.getElementById('tileModal');
       const drawTicker = document.getElementById('drawTicker');
       const drawResultText = document.getElementById('drawResultText');
+      const drawCardTop = document.getElementById('drawCardTop');
+      const drawResultCopy = document.getElementById('drawResultCopy');
+      const drawBag = document.getElementById('drawBag');
+      const drawBagImg = document.getElementById('drawBagImg');
+      const bagBurst = document.getElementById('bagBurst');
+      const spillTiles = document.getElementById('spillTiles');
+      const spillHint = document.getElementById('spillHint');
+      const drawMeterFill = document.getElementById('drawMeterFill');
+      const drawMeterText = document.getElementById('drawMeterText');
       const startModal = document.getElementById('startModal');
       const startModalTitle = document.getElementById('startModalTitle');
       const startModalMessage = document.getElementById('startModalMessage');
@@ -2141,7 +2325,7 @@ $aiSetupNotes = [
       const rematchBtn = document.getElementById('rematchBtn');
       const closeWinnerBtn = document.getElementById('closeWinnerBtn');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
-      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null };
+      const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null, bagSpilled: false };
       let tileId = 0;
       let bag = [];
       let rack = [];
@@ -2162,6 +2346,7 @@ $aiSetupNotes = [
       let panY = 0;
       let isPanning = false;
       let panOrigin = { x: 0, y: 0 };
+      let panRenderQueued = false;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
@@ -2261,6 +2446,15 @@ $aiSetupNotes = [
           ],
           jitter: 0.05,
         }),
+        spill: createSynthFx({
+          steps: [
+            { frequency: 240, duration: 0.1, type: 'triangle', gainValue: 0.09 },
+            { frequency: 180, start: 0.04, duration: 0.16, type: 'sawtooth', gainValue: 0.07 },
+            { frequency: 520, start: 0.12, duration: 0.12, type: 'sine', gainValue: 0.05 },
+            { frequency: 320, start: 0.2, duration: 0.16, type: 'triangle', gainValue: 0.05 },
+          ],
+          jitter: 0.08,
+        }),
         turnBell: createSynthFx({
           steps: [
             { frequency: 660, duration: 0.22, type: 'triangle', gainValue: 0.08 },
@@ -2296,47 +2490,139 @@ $aiSetupNotes = [
         }),
       };
 
-      const randomLetterFromPool = (pool = []) => {
-        if (!pool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
-        return pool[Math.floor(Math.random() * pool.length)];
+      const BAG_IMAGES = { closed: 'assets/Tile_Bag_01.png', open: 'assets/Tile_Bag_02.png' };
+
+      const ensureBagImageReady = () => {
+        if (!drawBagImg) return;
+        const placeholder = drawBagImg.dataset.placeholder || '';
+
+        drawBagImg.addEventListener('error', () => {
+          if (!placeholder || drawBagImg.src === placeholder) return;
+          drawBagImg.dataset.fallbackUsed = 'true';
+          drawBagImg.src = placeholder;
+        });
+
+        if (drawBagImg.complete && drawBagImg.naturalWidth === 0 && placeholder) {
+          drawBagImg.dataset.fallbackUsed = 'true';
+          drawBagImg.src = placeholder;
+        }
       };
 
-      const runTileAnimation = (finalTile) => new Promise((resolve) => {
-        if (!tileModal || !drawTicker || !drawResultText) {
-          resolve();
-          return;
+      const setBagFrame = (open = false) => {
+        if (!drawBagImg) return;
+
+        if (drawBagImg.dataset.fallbackUsed === 'true') {
+          const placeholder = drawBagImg.dataset.placeholder || '';
+          if (placeholder) {
+            drawBagImg.src = placeholder;
+          }
+        } else {
+          drawBagImg.src = open ? BAG_IMAGES.open : BAG_IMAGES.closed;
         }
 
-        state.drawAnimationActive = true;
-        tileModal.classList.remove('hidden');
-        drawResultText.textContent = 'Shuffling tiles...';
+        drawBag?.classList.toggle('bag-open', open);
+      };
+
+      ensureBagImageReady();
+
+      const randomLetterFromPool = (pool = []) => {
+        const cleanPool = pool.filter((letter) => letter !== '?');
+        if (!cleanPool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        return cleanPool[Math.floor(Math.random() * cleanPool.length)];
+      };
+
+      const runTileAnimation = (spillLetters = []) => new Promise((resolve) => {
+        if (!spillTiles) {
+          resolve(null);
+          return;
+        }
 
         const sourcePool = Array.isArray(state.game?.draw_pool)
           ? state.game.draw_pool
           : Object.keys(tileDistribution);
-        const sequence = Array.from({ length: 24 }, () => randomLetterFromPool(sourcePool));
-        let delay = 70;
-        let index = 0;
+        const spillCount = Math.min(8, Math.max(5, (state.players?.length || 4) + 2));
+        const letters = spillLetters.length
+          ? spillLetters.slice(0, spillCount)
+          : Array.from({ length: spillCount }, () => randomLetterFromPool(sourcePool));
 
-        const tick = () => {
-          if (index >= sequence.length) {
-            drawTicker.textContent = finalTile;
-            drawResultText.textContent = `You drew ${finalTile}.`;
-            state.lastDrawRevealAt = Date.now();
-            setTimeout(() => {
-              tileModal.classList.add('hidden');
-              state.drawAnimationActive = false;
-              resolve();
-            }, 2000);
-            return;
+        state.drawAnimationActive = true;
+        state.bagSpilled = true;
+        if (tileModal) tileModal.classList.add('hidden');
+        setBagFrame(true);
+        spillTiles.innerHTML = '';
+        if (spillHint) spillHint.textContent = 'Select a tile!';
+        if (drawResultCopy) drawResultCopy.textContent = 'Select a tile!';
+        if (drawResultText) drawResultText.textContent = 'Tiles spilled—pick one.';
+        if (drawTicker) drawTicker.textContent = '…';
+        drawOverlay?.classList.remove('hidden');
+
+        if (drawBag) {
+          drawBag.classList.remove('bag-pop');
+          void drawBag.offsetWidth;
+          drawBag.classList.add('bag-pop');
+        }
+        if (bagBurst) {
+          bagBurst.style.animation = 'none';
+          void bagBurst.offsetWidth;
+          bagBurst.style.animation = 'burst 520ms ease';
+        }
+
+        const chips = [];
+        letters.forEach((letter) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'spill-tile';
+          chip.dataset.letter = letter;
+          const angle = (Math.random() * 24) - 12;
+          const tx = (Math.random() * 90) - 45;
+          const ty = 16 + Math.random() * 48;
+          chip.style.setProperty('--angle', `${angle}deg`);
+          chip.style.setProperty('--tx', `${tx}px`);
+          chip.style.setProperty('--ty', `${ty}px`);
+          chip.setAttribute('aria-label', 'Facedown tile');
+          chip.innerHTML = '<span class="tile-back"></span><span class="tile-front">?</span>';
+          chip.addEventListener('click', () => revealTile(chip));
+          spillTiles.appendChild(chip);
+          requestAnimationFrame(() => chip.classList.add('landed'));
+          chips.push(chip);
+        });
+
+        let resolved = false;
+
+        function revealTile(chip) {
+          if (resolved) return;
+          resolved = true;
+          const letter = chip.dataset.letter || randomLetterFromPool(sourcePool);
+          chips.forEach((item) => {
+            item.disabled = true;
+            const isMatch = item === chip;
+            item.classList.toggle('revealed', isMatch);
+            if (isMatch) {
+              const front = item.querySelector('.tile-front');
+              if (front) front.textContent = letter;
+              item.setAttribute('aria-label', `Tile ${letter}`);
+            } else {
+              item.style.opacity = 0.4;
+            }
+          });
+
+          if (drawCardTop) {
+            drawCardTop.textContent = letter;
+            drawCardTop.classList.add('revealed');
+            setTimeout(() => drawCardTop.classList.remove('revealed'), 520);
           }
-          drawTicker.textContent = sequence[index];
-          index += 1;
-          delay = Math.min(260, delay + 14);
-          setTimeout(tick, delay);
-        };
+          if (drawResultCopy) drawResultCopy.textContent = `You drew ${letter}.`;
+          if (drawResultText) drawResultText.textContent = `You drew ${letter}.`;
+          if (drawTicker) drawTicker.textContent = letter;
+          if (spillHint) spillHint.textContent = 'Great pick! Waiting for the table to finish drawing.';
+          state.lastDrawRevealAt = Date.now();
+          playFx('place', { rate: 0.94 });
 
-        tick();
+          setTimeout(() => {
+            state.drawAnimationActive = false;
+            resolve(letter);
+          }, 720);
+        }
       });
 
       const playFx = (name, { rate = 1 } = {}) => {
@@ -2368,31 +2654,54 @@ $aiSetupNotes = [
         }, 620);
       };
 
-      const centerBoard = () => {
-        if (!boardViewport || !boardScaleEl) return;
-        const centerCell = document.querySelector('.cell[data-center="true"]');
-        if (!centerCell) return;
-
+      const measureBoardRect = () => {
+        if (!boardChromeEl || !boardScaleEl) return { width: 0, height: 0 };
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const cellRect = centerCell.getBoundingClientRect();
+        const rect = boardChromeEl.getBoundingClientRect();
+        boardScaleEl.style.transform = previousTransform;
+        return rect;
+      };
+
+      const getViewportPadding = () => {
+        if (!boardViewport) return 0;
+        const rect = boardViewport.getBoundingClientRect();
+        return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
+      };
+
+      const measureBoardCenter = () => {
+        if (!boardScaleEl || !boardChromeEl) return { x: 0, y: 0, width: 0, height: 0 };
+        const previousTransform = boardScaleEl.style.transform;
+        boardScaleEl.style.transform = 'none';
+
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        const centerCell = document.querySelector('.board-grid .cell[data-center="true"]');
+        const centerRect = centerCell ? centerCell.getBoundingClientRect() : boardRect;
+
         boardScaleEl.style.transform = previousTransform;
 
-        const viewportCenterX = viewportRect.width / 2;
-        const viewportCenterY = viewportRect.height / 2;
-        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
-        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
-        const finalScale = getFinalScale();
+        return {
+          x: centerRect.left - boardRect.left + centerRect.width / 2,
+          y: centerRect.top - boardRect.top + centerRect.height / 2,
+          width: boardRect.width,
+          height: boardRect.height,
+        };
+      };
 
-        panX = (viewportCenterX - cellCenterX) / finalScale;
-        panY = (viewportCenterY - cellCenterY) / finalScale;
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
+        const finalScale = getFinalScale();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const { x, y } = measureBoardCenter();
+
+        panX = viewportRect.width / 2 - x * finalScale;
+        panY = viewportRect.height / 2 - y * finalScale;
         applyBoardTransform();
       };
 
       const getZoomBounds = () => {
-        const MIN_ZOOM = Math.max(0.45, (baseScale || 1) * 0.6);
-        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2.4);
+        const MIN_ZOOM = Math.max(0.2, (baseScale || 1) * 0.35);
+        const MAX_ZOOM = Math.max(2.5, (baseScale || 1) * 3);
         return { MIN_ZOOM, MAX_ZOOM };
       };
 
@@ -2403,32 +2712,29 @@ $aiSetupNotes = [
 
       const clampPanToViewport = (finalScale) => {
         if (!boardViewport || !boardChromeEl || !boardScaleEl) return;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-
+        const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
+        const padding = getViewportPadding();
+
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
-        const slack = Math.max(24, Math.min(viewportRect.width, viewportRect.height) * 0.06);
 
-        const extraX = viewportRect.width - scaledWidth;
-        const extraY = viewportRect.height - scaledHeight;
+        let minPanX = viewportRect.width - scaledWidth - padding;
+        let maxPanX = padding;
+        let minPanY = viewportRect.height - scaledHeight - padding;
+        let maxPanY = padding;
 
-        const minPanX = scaledWidth > viewportRect.width
-          ? viewportRect.width - scaledWidth - slack
-          : (extraX / 2) - slack;
-        const maxPanX = scaledWidth > viewportRect.width
-          ? slack
-          : (extraX / 2) + slack;
+        if (scaledWidth <= viewportRect.width) {
+          const centeredX = (viewportRect.width - scaledWidth) / 2;
+          minPanX = centeredX - padding;
+          maxPanX = centeredX + padding;
+        }
 
-        const minPanY = scaledHeight > viewportRect.height
-          ? viewportRect.height - scaledHeight - slack
-          : (extraY / 2) - slack;
-        const maxPanY = scaledHeight > viewportRect.height
-          ? slack
-          : (extraY / 2) + slack;
+        if (scaledHeight <= viewportRect.height) {
+          const centeredY = (viewportRect.height - scaledHeight) / 2;
+          minPanY = centeredY - padding;
+          maxPanY = centeredY + padding;
+        }
 
         panX = clamp(panX, minPanX, maxPanX);
         panY = clamp(panY, minPanY, maxPanY);
@@ -2438,30 +2744,36 @@ $aiSetupNotes = [
         if (!boardScaleEl) return;
         const finalScale = getFinalScale();
         clampPanToViewport(finalScale);
-        boardScaleEl.style.transform = `translate(${panX}px, ${panY}px) scale(${finalScale})`;
+        boardScaleEl.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${finalScale})`;
+      };
+
+      const requestBoardRender = () => {
+        if (panRenderQueued) return;
+        panRenderQueued = true;
+        requestAnimationFrame(() => {
+          panRenderQueued = false;
+          applyBoardTransform();
+        });
       };
 
       const resizeBoardToViewport = ({ resetView = false } = {}) => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 18);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
         boardViewport.style.height = `${availableHeight}px`;
 
         const viewportRect = boardViewport.getBoundingClientRect();
-        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
+        const boardRect = measureBoardRect();
+        const padding = getViewportPadding();
+        const heightScale = boardRect.height ? (viewportRect.height - padding * 2) / boardRect.height : 1;
+        const widthScale = boardRect.width ? (viewportRect.width - padding * 2) / boardRect.width : 1;
 
-        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
-        const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
-        baseScale = Math.min(heightScale, widthScale, 1);
+        baseScale = Math.min(heightScale, widthScale);
+        if (!Number.isFinite(baseScale) || baseScale <= 0) { baseScale = 1; }
+
         if (resetView) {
-          panX = 0;
-          panY = 0;
           userZoom = 1;
           centerBoard();
         } else {
@@ -2469,11 +2781,22 @@ $aiSetupNotes = [
         }
       };
 
-      const adjustZoom = (factor) => {
+      const adjustZoom = (factor, pivot = null) => {
         const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
-        userZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        const nextZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        const appliedFactor = nextZoom / userZoom;
+
+        if (pivot && boardViewport) {
+          const viewportRect = boardViewport.getBoundingClientRect();
+          const originX = pivot.x - viewportRect.left;
+          const originY = pivot.y - viewportRect.top;
+          panX = originX - (originX - panX) * appliedFactor;
+          panY = originY - (originY - panY) * appliedFactor;
+        }
+
+        userZoom = nextZoom;
         applyBoardTransform();
       };
 
@@ -2488,12 +2811,25 @@ $aiSetupNotes = [
         resizeBoardToViewport({ resetView: true });
       };
 
+      const toggleBoardControls = () => {
+        if (!boardToolbar || !boardControlsToggle) return;
+        const collapsed = boardToolbar.classList.toggle('collapsed');
+        boardControlsToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        boardControlsToggle.textContent = collapsed ? 'Show view tools' : 'Hide view tools';
+      };
+
+      const viewportCenter = () => {
+        if (!boardViewport) return null;
+        const rect = boardViewport.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      };
+
       const handleWheelZoom = (event) => {
         if (!boardScaleEl || !boardViewport) return;
         if (event.ctrlKey || event.metaKey) return;
         event.preventDefault();
         const direction = Math.sign(event.deltaY);
-        adjustZoom(direction > 0 ? 0.92 : 1.08);
+        adjustZoom(direction > 0 ? 0.92 : 1.08, { x: event.clientX, y: event.clientY });
       };
 
       const touchDistance = (touches) => {
@@ -2531,7 +2867,9 @@ $aiSetupNotes = [
           const newDistance = touchDistance(event.touches);
           if (newDistance > 0) {
             const factor = newDistance / (pinchDistance || newDistance);
-            adjustZoom(factor);
+            const [t1, t2] = event.touches;
+            const pivot = t1 && t2 ? { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 } : null;
+            adjustZoom(factor, pivot);
             pinchDistance = newDistance;
           }
           return;
@@ -2543,7 +2881,7 @@ $aiSetupNotes = [
         event.preventDefault();
         panX = touch.clientX - panOrigin.x;
         panY = touch.clientY - panOrigin.y;
-        applyBoardTransform();
+        requestBoardRender();
       };
 
       const handleTouchEnd = () => {
@@ -2570,7 +2908,7 @@ $aiSetupNotes = [
         if (!isPanning) return;
         panX = event.clientX - panOrigin.x;
         panY = event.clientY - panOrigin.y;
-        applyBoardTransform();
+        requestBoardRender();
       };
 
       const endBoardPan = () => {
@@ -2623,19 +2961,28 @@ $aiSetupNotes = [
 
       const renderDrawTables = () => {
         if (!drawTable || !orderTable) return;
-        const draws = state.game?.draws || [];
+        const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
+        const myDraw = draws.find((d) => Number(d.user_id) === Number(state.user?.id));
 
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
-          const status = entry ? (entry.revealed ? 'Revealed' : 'Drawing…') : 'Waiting';
-          const tile = entry ? entry.tile : '—';
-          return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
+          const isSelf = Number(player.user_id ?? player.id) === Number(state.user?.id);
+          const status = entry
+            ? (entry.revealed ? `Revealed · ${entry.value} pts` : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal'))
+            : 'Waiting to draw';
+          const tile = entry && entry.revealed ? entry.tile : '—';
+          return `<tr><td>${player.username}${isSelf ? ' (you)' : ''}</td><td>${status}</td><td>${tile}</td></tr>`;
         }).join('');
 
         orderTable.innerHTML = (state.turnOrder || []).map((entry, idx) => {
-          return `<tr><td>${idx + 1}</td><td>${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
+          const crown = idx === 0 ? '👑 ' : '';
+          return `<tr><td>${idx + 1}</td><td>${crown}${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
         }).join('');
+
+        if (drawCardTop) {
+          drawCardTop.textContent = myDraw && myDraw.revealed ? myDraw.tile : '？';
+        }
       };
 
       const triggerStartCountdown = () => {
@@ -2786,21 +3133,53 @@ $aiSetupNotes = [
 
       const updateDrawUi = () => {
         if (!drawOverlay || !state.user) return;
-        const draws = state.game?.draws || [];
+        const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
-        const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
+        const myEntry = draws.find((entry) => Number(entry.user_id) === Number(state.user.id));
+        const alreadyDrew = Boolean(myEntry);
+        const hasRevealed = Boolean(myEntry?.revealed);
+        const hasPending = alreadyDrew && !hasRevealed;
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
         const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
+        const readyToDraw = !hasRevealed && (!everyoneDrew || hasPending);
         renderDrawTables();
 
         if (drawStatusEl) {
-          drawStatusEl.textContent = 'Draw a tile to see who plays first!';
+          const leader = state.turnOrder?.[0];
+          drawStatusEl.textContent = leader && everyoneRevealed
+            ? `${leader.username} starts the game`
+            : 'Spill the bag, pick a tile, and reveal to lock turn order.';
         }
         if (drawHintEl) {
-          drawHintEl.textContent = alreadyDrew ? 'Waiting for the rest of the table to draw...' : 'Tap draw to reveal your tile.';
+          drawHintEl.textContent = hasPending
+            ? 'Tap any face-down tile to claim it.'
+            : alreadyDrew
+              ? 'You revealed—waiting for the table to finish.'
+              : 'Click the bag to spill some tiles, then pick one.';
         }
         if (drawTileBtn) {
-          drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+          drawTileBtn.disabled = hasRevealed || (everyoneDrew && !hasPending);
+        }
+        if (drawBag) {
+          drawBag.classList.toggle('disabled', !readyToDraw);
+        }
+        if (!state.bagSpilled && readyToDraw) {
+          setBagFrame(false);
+          if (spillTiles) spillTiles.innerHTML = '';
+          if (spillHint) spillHint.textContent = 'Click the bag to spill some tiles.';
+          if (drawResultCopy) drawResultCopy.textContent = 'Click the bag to spill some tiles.';
+        }
+
+        const revealedCount = draws.filter((entry) => entry.revealed).length;
+        const totalPlayers = players.length || 0;
+        if (drawMeterFill) {
+          const fill = totalPlayers ? Math.min(100, Math.round((revealedCount / totalPlayers) * 100)) : 0;
+          drawMeterFill.style.width = `${fill}%`;
+        }
+        if (drawMeterText) {
+          drawMeterText.textContent = totalPlayers
+            ? `${revealedCount} of ${totalPlayers} revealed`
+            : 'Waiting for players...';
         }
 
         const readyToStart = everyoneRevealed && state.turnOrder.length > 0;
@@ -2892,6 +3271,11 @@ $aiSetupNotes = [
         state.draw_pool = game.draw_pool || [];
         state.scores = game.scores || {};
         state.winnerUserId = game.winner_user_id || null;
+        if (!state.drawAnimationActive && state.draws.length === 0) {
+          state.bagSpilled = false;
+          setBagFrame(false);
+          if (spillTiles) spillTiles.innerHTML = '';
+        }
         bag = Array.isArray(game.bag) ? [...game.bag] : [];
         if (!state.winnerUserId) {
           winnerShown = false;
@@ -2979,32 +3363,49 @@ $aiSetupNotes = [
       };
 
       const handleDrawTile = async () => {
-        if (!lobbyId || !drawTileBtn) return;
-        drawTileBtn.disabled = true;
+        if (!lobbyId) return;
+        if (state.drawAnimationActive) return;
+        if (drawTileBtn) drawTileBtn.disabled = true;
+        if (drawBag) {
+          drawBag.classList.add('disabled');
+          drawBag.classList.remove('bag-pop');
+          void drawBag.offsetWidth;
+          drawBag.classList.add('bag-pop');
+        }
+        playFx('spill', { rate: 0.96 });
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'draw', lobbyId }),
           });
-          const data = await res.json();
-          if (!data.success) {
-            setMessage(data.message || 'Unable to draw a tile.', 'error');
-            drawTileBtn.disabled = false;
-            return;
+            const data = await res.json();
+            if (!data.success) {
+              setMessage(data.message || 'Unable to draw a tile.', 'error');
+              if (drawTileBtn) drawTileBtn.disabled = false;
+              if (drawBag) drawBag.classList.remove('disabled');
+            state.bagSpilled = false;
+            setBagFrame(false);
+              return;
+            }
+          const spill = Array.isArray(data.result?.spill) ? data.result.spill : [];
+          const picked = await runTileAnimation(spill);
+          if (!picked) {
+            throw new Error('No tile selected.');
           }
-          const tile = data.result?.tile || '?';
-          await runTileAnimation(tile);
           await fetch('/api/game.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'reveal', lobbyId }),
+            body: JSON.stringify({ action: 'reveal', lobbyId, tile: picked }),
           });
           await fetchGameState();
         } catch (error) {
           setMessage('Unable to reach the draw server right now.', 'error');
+          state.bagSpilled = false;
+          setBagFrame(false);
         } finally {
-          drawTileBtn.disabled = false;
+          if (drawTileBtn) drawTileBtn.disabled = false;
+          if (drawBag) drawBag.classList.remove('disabled');
         }
       };
 
@@ -4249,6 +4650,15 @@ $aiSetupNotes = [
 
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
       if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
+      if (drawBag) {
+        drawBag.addEventListener('click', handleDrawTile);
+        drawBag.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleDrawTile();
+          }
+        });
+      }
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
       if (rematchBtn) rematchBtn.addEventListener('click', requestRematch);
       if (closeWinnerBtn) closeWinnerBtn.addEventListener('click', closeWinnerModal);
@@ -4317,13 +4727,26 @@ $aiSetupNotes = [
         });
       }
 
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
+      if (boardControlsToggle) {
+        boardControlsToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleBoardControls();
+        });
+      }
+
+      if (zoomInBtn) zoomInBtn.addEventListener('click', () => adjustZoom(1.12, viewportCenter()));
+      if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(0.9, viewportCenter()));
+      if (centerBoardBtn) centerBoardBtn.addEventListener('click', () => centerBoard());
+      if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
+      if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
+
+      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: false }));
 
       renderBoard();
       updateTurnButton();
       updateAiButton();
-      resizeBoardToViewport({ resetView: true });
-      setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
+      requestAnimationFrame(() => resizeBoardToViewport({ resetView: true }));
+      setTimeout(() => resizeBoardToViewport({ resetView: false }), 160);
       setupDragAndDrop();
       loadDictionary();
       fetchUser().then(() => fetchGameState()).then(() => {

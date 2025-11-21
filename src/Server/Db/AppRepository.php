@@ -214,7 +214,9 @@ class AppRepository
     public function createGame(int $lobbyId, array $players): int
     {
         $bag = $this->buildTileBag();
+        $drawPool = $this->buildDrawPool();
         shuffle($bag);
+        shuffle($drawPool);
 
         $statement = $this->pdo->prepare(
             'INSERT INTO games (lobby_id, turn_order, draw_pool, draws, board_state, racks, bag, current_turn_index) '
@@ -223,7 +225,7 @@ class AppRepository
         $statement->execute([
             ':lobby_id' => $lobbyId,
             ':turn_order' => json_encode([], JSON_THROW_ON_ERROR),
-            ':draw_pool' => json_encode($bag, JSON_THROW_ON_ERROR),
+            ':draw_pool' => json_encode($drawPool, JSON_THROW_ON_ERROR),
             ':draws' => json_encode([], JSON_THROW_ON_ERROR),
             ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
             ':racks' => json_encode((object) [], JSON_THROW_ON_ERROR),
@@ -286,18 +288,32 @@ class AppRepository
         $players = $this->listPlayers($lobbyId);
         $already = array_filter($game['draws'], static fn ($draw) => (int) $draw['user_id'] === $userId);
         if ($already) {
-            return ['tile' => current($already)['tile'], 'draws' => $game['draws'], 'turn_order' => $game['turn_order']];
+            $entry = current($already);
+            return [
+                'spill' => $entry['options'] ?? [],
+                'tile' => $entry['tile'] ?? null,
+                'draws' => $game['draws'],
+                'turn_order' => $game['turn_order'],
+            ];
         }
 
         $drawPool = $game['draw_pool'];
         if (!is_array($drawPool) || empty($drawPool)) {
-            $drawPool = $this->buildTileBag();
+            $drawPool = $this->buildDrawPool();
             shuffle($drawPool);
         }
 
-        $tile = array_shift($drawPool);
-        if ($tile === null) {
-            throw new \RuntimeException('No tiles remaining to draw.');
+        $spillCount = min(8, max(5, count($players) + 2));
+        $options = [];
+        $poolSize = count($drawPool);
+
+        for ($i = 0; $i < $spillCount; $i++) {
+            if ($poolSize === 0) {
+                $options[] = chr(65 + random_int(0, 25));
+                continue;
+            }
+            $index = random_int(0, $poolSize - 1);
+            $options[] = $drawPool[$index];
         }
 
         $user = $this->getUserById($userId);
@@ -305,8 +321,9 @@ class AppRepository
         $draws[] = [
             'user_id' => $userId,
             'username' => $user['username'] ?? 'Player',
-            'tile' => $tile,
-            'value' => Scoring::tileValue($tile),
+            'tile' => null,
+            'options' => $options,
+            'value' => null,
             'revealed' => false,
             'revealed_at' => null,
         ];
@@ -316,14 +333,15 @@ class AppRepository
         $updated = $this->getGameByLobby($lobbyId);
 
         return [
-            'tile' => $tile,
+            'spill' => $options,
+            'tile' => null,
             'draws' => $updated['draws'],
             'turn_order' => $updated['turn_order'],
             'complete' => count($updated['draws']) === count($players),
         ];
     }
 
-    public function revealDraw(int $lobbyId, int $userId): array
+    public function revealDraw(int $lobbyId, int $userId, string $selectedTile = ''): array
     {
         $game = $this->getGameByLobby($lobbyId);
         if (!$game) {
@@ -337,9 +355,36 @@ class AppRepository
 
         foreach ($draws as $entry) {
             if ((int) $entry['user_id'] === $userId) {
+                $candidates = $entry['options'] ?? [];
+                $chosen = in_array($selectedTile, $candidates, true)
+                    ? $selectedTile
+                    : ($candidates[0] ?? null);
+
+                $pool = $game['draw_pool'];
+                if (!is_array($pool) || empty($pool)) {
+                    $pool = $this->buildDrawPool();
+                    shuffle($pool);
+                }
+
+                if ($chosen === null) {
+                    $chosen = $pool[0] ?? chr(65 + random_int(0, 25));
+                }
+
+                $poolIndex = array_search($chosen, $pool, true);
+                if ($poolIndex !== false) {
+                    array_splice($pool, (int) $poolIndex, 1);
+                } else {
+                    array_shift($pool);
+                }
+
+                $entry['tile'] = $chosen;
+                $entry['value'] = Scoring::tileValue($chosen);
                 $entry['revealed'] = true;
                 $entry['revealed_at'] = date('c');
+                $entry['options'] = $candidates;
                 $changed = true;
+
+                $game['draw_pool'] = $pool;
             }
             $updatedDraws[] = $entry;
         }
@@ -355,7 +400,7 @@ class AppRepository
 
         if ($allRevealed) {
             $order = $this->determineTurnOrderFromDraws($updatedDraws);
-            $this->finalizeGameStart($game['id'], $order, $game['draw_pool'], $lobbyId);
+            $this->finalizeGameStart($game['id'], $order, $game['bag'], $lobbyId);
         }
 
         return $this->getGameByLobby($lobbyId) ?? [];
@@ -632,6 +677,19 @@ class AppRepository
         return $bag;
     }
 
+    private function buildDrawPool(): array
+    {
+        $bag = [];
+        foreach (Scoring::tileDistribution() as $letter => $info) {
+            if ($letter === '?') {
+                continue; // blanks stay out of turn-order draws
+            }
+            $bag = array_merge($bag, array_fill(0, (int) $info['count'], $letter));
+        }
+
+        return $bag;
+    }
+
     private function determineTurnOrderFromDraws(array $draws): array
     {
         usort($draws, static function ($a, $b) {
@@ -654,9 +712,10 @@ class AppRepository
         ]);
     }
 
-    private function finalizeGameStart(int $gameId, array $order, array $remainingPool, int $lobbyId): void
+    private function finalizeGameStart(int $gameId, array $order, array $baseBag, int $lobbyId): void
     {
-        $bag = $remainingPool;
+        $bag = $baseBag ?: $this->buildTileBag();
+        shuffle($bag);
         $racks = [];
         $scores = [];
 
