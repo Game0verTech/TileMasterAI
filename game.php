@@ -408,6 +408,12 @@ $aiSetupNotes = [
       100% { transform: rotateY(0deg) scale(1); }
     }
 
+    @keyframes rack-pop {
+      0% { transform: scale(0.85); opacity: 0; }
+      60% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     header {
       display: flex;
       flex-direction: column;
@@ -601,12 +607,13 @@ $aiSetupNotes = [
 
     .tile .value {
       position: absolute;
-      right: 6px;
-      bottom: 6px;
+      right: 4px;
+      bottom: 4px;
       margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      color: #4b5563;
     }
 
     .letter.blank-empty { color: transparent; }
@@ -623,6 +630,9 @@ $aiSetupNotes = [
       box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
     }
 
+    .tile.new,
+    .rack-tile.new { animation: rack-pop 360ms ease forwards; }
+
     .rack-wrap {
       display: grid;
       grid-template-areas: 'help rack actions';
@@ -632,6 +642,7 @@ $aiSetupNotes = [
       position: relative;
       width: 100%;
       min-width: 0;
+      justify-items: center;
     }
 
     .rack-wrap > .dock-help { grid-area: help; }
@@ -707,6 +718,7 @@ $aiSetupNotes = [
       overflow-x: auto;
       scrollbar-width: thin;
       grid-area: rack;
+      margin: 0 auto;
     }
 
     .rack-actions {
@@ -758,12 +770,13 @@ $aiSetupNotes = [
 
     .rack-tile .value {
       position: absolute;
-      right: 6px;
-      bottom: 6px;
+      right: 4px;
+      bottom: 4px;
       margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      color: #4b5563;
     }
 
     .cell.invalid {
@@ -1542,13 +1555,13 @@ $aiSetupNotes = [
     }
 
     .hud-inner {
-      width: min(1200px, 100%);
+      width: 100%;
       margin: 0 auto;
-      padding: 8px 14px 8px;
+      padding: 10px 18px 10px;
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .hud-right {
@@ -1767,19 +1780,19 @@ $aiSetupNotes = [
     }
 
     .dock-inner {
-      width: min(1200px, 100%);
+      width: 100%;
       margin: 0 auto;
-      padding: 10px 12px 12px;
+      padding: 10px 18px 12px;
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: minmax(210px, 1fr) minmax(420px, 1.5fr) minmax(210px, 1fr);
       grid-template-areas: 'cta rack ai';
       align-items: center;
-      gap: 10px;
+      gap: 14px;
     }
 
     .dock-cta {
@@ -1963,7 +1976,7 @@ $aiSetupNotes = [
       .rack-tile .letter { font-size: 18px; }
 
       .tile .value,
-      .rack-tile .value { font-size: 10px; right: 5px; bottom: 5px; }
+      .rack-tile .value { font-size: 10px; right: 3px; bottom: 3px; }
 
       .board-chrome { padding: 10px 10px 8px; }
       .board-preview { padding: 6px; }
@@ -2199,7 +2212,7 @@ $aiSetupNotes = [
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
           <div class="rack-actions">
             <button class="btn rack-shuffle" type="button" id="shuffleRackBtn" aria-label="Shuffle rack tiles">🔀 <span class="sr-only">Shuffle rack tiles</span><span aria-hidden="true">Shuffle</span></button>
-            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Pass turn">⏭️ Pass</button>
+            <button class="btn rack-shuffle" type="button" id="passBtn" aria-label="Skip turn">⏭️ Skip</button>
             <button class="btn rack-shuffle" type="button" id="exchangeBtn" aria-label="Exchange all tiles">🔄 Exchange all</button>
           </div>
           <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
@@ -2298,6 +2311,7 @@ $aiSetupNotes = [
       let board = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
       let totalScore = 0;
       let firstTurn = true;
+      let refillingRack = false;
       let turnActive = false;
       let dictionaryReady = false;
       let dictionary = new Set();
@@ -2932,6 +2946,8 @@ $aiSetupNotes = [
         return tile;
       };
 
+      const delay = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+
       const setMessage = (text, tone = '') => {
         const hasMessage = Boolean(messageEl);
         if (hasMessage) {
@@ -3425,6 +3441,10 @@ $aiSetupNotes = [
           setMessage('Only the active player can pass.', 'error');
           return;
         }
+        returnLooseTilesToRack(false);
+        turnActive = false;
+        updateTurnButton();
+        updateAiButton();
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
@@ -3449,7 +3469,14 @@ $aiSetupNotes = [
           setMessage('Only the active player can exchange tiles.', 'error');
           return;
         }
-        returnLooseTilesToRack();
+        returnLooseTilesToRack(false);
+        const hadTiles = rack.length;
+        await animateRackToBag();
+        rack = [];
+        renderRack();
+        turnActive = false;
+        updateTurnButton();
+        updateAiButton();
         try {
           const res = await fetch('/api/game.php', {
             method: 'POST',
@@ -3464,8 +3491,11 @@ $aiSetupNotes = [
           hydrateFromGame(data.game);
           setTurnMessaging();
           renderRack();
+          animateRackArrival();
           setMessage('Tiles exchanged. Next player is up.', 'success');
-          playFx('shuffle', { rate: 0.9 });
+          if (hadTiles) {
+            playFx('shuffle', { rate: 0.9 });
+          }
         } catch (error) {
           setMessage('Unable to exchange right now.', 'error');
         }
@@ -3581,10 +3611,10 @@ $aiSetupNotes = [
       };
 
       const updateActionButtons = () => {
-        const waiting = !isMyTurn() || !!state.winnerUserId;
+        const waiting = !isMyTurn() || !!state.winnerUserId || refillingRack;
         [passBtn, exchangeBtn].forEach((btn) => {
           if (!btn) return;
-          const disabled = waiting || turnActive;
+          const disabled = waiting;
           btn.disabled = disabled;
           btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         });
@@ -3847,6 +3877,69 @@ $aiSetupNotes = [
         if (movable.length && announce) {
           setMessage('Tiles returned to your rack for the new AI run.', 'success');
         }
+      };
+
+      const animateRackToBag = () => new Promise((resolve) => {
+        if (!rackEl || !bagCountEl) {
+          resolve();
+          return;
+        }
+        const target = bagCountEl.closest('.hud-pill') || bagCountEl;
+        const targetRect = target?.getBoundingClientRect();
+        const tiles = Array.from(rackEl.querySelectorAll('.rack-tile'));
+        if (!tiles.length || !targetRect) {
+          resolve();
+          return;
+        }
+
+        let finished = 0;
+        tiles.forEach((tileEl, index) => {
+          const rect = tileEl.getBoundingClientRect();
+          const ghost = tileEl.cloneNode(true);
+          ghost.classList.add('tile-ghost');
+          ghost.style.position = 'fixed';
+          ghost.style.top = `${rect.top}px`;
+          ghost.style.left = `${rect.left}px`;
+          ghost.style.width = `${rect.width}px`;
+          ghost.style.height = `${rect.height}px`;
+          ghost.style.transform = 'translate(0, 0) scale(1)';
+          ghost.style.opacity = '1';
+          ghost.style.transition = 'transform 260ms ease, opacity 260ms ease';
+          ghost.style.zIndex = '2000';
+          ghost.style.pointerEvents = 'none';
+          document.body.appendChild(ghost);
+
+          requestAnimationFrame(() => {
+            const targetX = targetRect.left + (targetRect.width / 2);
+            const targetY = targetRect.top + (targetRect.height / 2);
+            const sourceX = rect.left + (rect.width / 2);
+            const sourceY = rect.top + (rect.height / 2);
+            ghost.style.transform = `translate(${targetX - sourceX}px, ${targetY - sourceY}px) scale(0.4)`;
+            ghost.style.opacity = '0';
+          });
+
+          setTimeout(() => {
+            ghost.remove();
+            finished += 1;
+            if (finished === tiles.length) {
+              resolve();
+            }
+          }, 300 + (index * 24));
+        });
+      });
+
+      const animateRackArrival = (tileIds = []) => {
+        const ids = tileIds.length ? tileIds : rack.map((tile) => tile.id);
+        ids.forEach((id, index) => {
+          const el = document.querySelector(`[data-tile-id="${id}"][data-location="rack"]`);
+          if (!el) return;
+          el.classList.add('new');
+          el.style.animationDelay = `${index * 60}ms`;
+          setTimeout(() => {
+            el.classList.remove('new');
+            el.style.animationDelay = '';
+          }, 720 + (index * 10));
+        });
       };
 
       let latestSuggestions = (serverSuggestions || []).length ? serverSuggestions : [];
@@ -4310,29 +4403,8 @@ $aiSetupNotes = [
           setMessage(`${currentTurnName()} is still playing. Please wait your turn.`, 'error');
           return false;
         }
-        let drewTiles = false;
-
-        while (rack.length < RACK_SIZE) {
-          const letter = pickTileFromBag();
-          if (!letter) break;
-          const tile = createTile(letter);
-          tile.position = { type: 'rack' };
-          rack.push(tile);
-          drewTiles = true;
-        }
-
-        updateBagCount();
-        renderRack();
-
-        if (rack.length === RACK_SIZE) {
-          setMessage(drewTiles ? 'Tiles drawn. Drag from rack to the board to form your word.' : 'Rack already has seven tiles.', 'success');
-          if (drewTiles) {
-            playFx('accept', { rate: 1.08 });
-          }
-        } else {
-          setMessage('Bag is empty—continue with the tiles you have.', 'success');
-        }
-
+        returnLooseTilesToRack(false);
+        setMessage('Your turn is live. Place tiles and submit your move.', 'success');
         syncGameState();
         setTurnMessaging();
 
@@ -4420,6 +4492,24 @@ $aiSetupNotes = [
         return total * wordMultiplier;
       };
 
+      const drawReplacementTiles = (slotsNeeded) => {
+        const drawnIds = [];
+        const slots = Math.max(0, slotsNeeded);
+        for (let i = 0; i < slots; i += 1) {
+          const letter = pickTileFromBag();
+          if (!letter) break;
+          const tile = createTile(letter);
+          tile.position = { type: 'rack' };
+          rack.push(tile);
+          drawnIds.push(tile.id);
+        }
+        if (drawnIds.length) {
+          renderRack();
+          updateBagCount();
+        }
+        return drawnIds;
+      };
+
       const hasAdjacentLocked = (coords) => coords.some(({ row, col }) => {
         const deltas = [[1, 0], [-1, 0], [0, 1], [0, -1]];
         return deltas.some(([dr, dc]) => {
@@ -4431,7 +4521,7 @@ $aiSetupNotes = [
         });
       });
 
-      const validateTurn = () => {
+      const validateTurn = async () => {
         resetInvalidMarkers();
         const placements = tilesPlacedThisTurn();
         if (placements.length === 0) {
@@ -4510,19 +4600,12 @@ $aiSetupNotes = [
         }
 
         const total = wordsToCheck.reduce((sum, coords) => sum + wordScore(coords), 0) + (placements.length === 7 ? 50 : 0);
-        finalizeTurn(total, placements.length === 7, placements);
+        await finalizeTurn(total, placements.length === 7, placements);
         return true;
       };
 
-      const finalizeTurn = (turnScore, bingo, placements = []) => {
+      const finalizeTurn = async (turnScore, bingo, placements = []) => {
         const committed = placements.length ? placements : tilesPlacedThisTurn();
-        const serializedPlacements = committed.map(({ row, col, tile }) => ({
-          row,
-          col,
-          letter: tile.letter,
-          assignedLetter: tile.assignedLetter || '',
-          isBlank: tile.isBlank,
-        }));
 
         committed.forEach(({ tile }) => {
           tile.locked = true;
@@ -4534,16 +4617,37 @@ $aiSetupNotes = [
         turnActive = false;
         updateTurnButton();
         updateAiButton();
+        refillingRack = true;
+        updateActionButtons();
+        if (passBtn) passBtn.disabled = true;
+        if (exchangeBtn) exchangeBtn.disabled = true;
         renderBoard();
         const scoreNote = bingo ? ' + 50-point bingo!' : '';
-        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Draw to refill for the next turn.`, 'success');
-        playFx('accept', { rate: 1.02 });
         const actingIndex = state.turnIndex;
-        if (state.turnOrder.length) {
-          state.turnIndex = (state.turnIndex + 1) % state.turnOrder.length;
+        setMessage(`Move accepted for ${turnScore} points${scoreNote}. Saving your board…`, 'success');
+        playFx('accept', { rate: 1.02 });
+
+        try {
+          await syncGameState({ advanceTurn: false, actingIndex, scoreDelta: turnScore });
+          setTurnMessaging();
+
+          const missing = Math.max(0, RACK_SIZE - rack.length);
+          if (missing > 0 && bag.length) {
+            setMessage(`Move accepted for ${turnScore} points${scoreNote}. Drawing replacements in 2 seconds…`, 'success');
+            await delay(2000);
+            const drawnIds = drawReplacementTiles(missing);
+            if (drawnIds.length) {
+              animateRackArrival(drawnIds);
+            }
+          }
+
+          await syncGameState({ advanceTurn: true, actingIndex, scoreDelta: null });
+          setTurnMessaging();
+          setMessage(`Move accepted for ${turnScore} points${scoreNote}. ${currentTurnName()} is up.`, 'success');
+        } finally {
+          refillingRack = false;
+          updateActionButtons();
         }
-        syncGameState({ advanceTurn: true, actingIndex, scoreDelta: turnScore });
-        setTurnMessaging();
       };
 
       const resetBoard = () => {
@@ -4615,7 +4719,7 @@ $aiSetupNotes = [
         }
       };
 
-        const handleToggleClick = () => {
+        const handleToggleClick = async () => {
           if (!turnActive) {
             const started = startTurn();
             if (started) {
@@ -4631,12 +4735,7 @@ $aiSetupNotes = [
             return;
           }
 
-          const valid = validateTurn();
-          if (valid) {
-            turnActive = false;
-            updateTurnButton();
-            updateAiButton();
-          }
+          await validateTurn();
         };
 
         const handleAiClick = async () => {
