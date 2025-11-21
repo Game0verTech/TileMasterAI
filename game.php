@@ -1532,9 +1532,12 @@ $aiSetupNotes = [
 
     .board-frame {
       position: relative;
-      display: inline-block;
+      display: grid;
+      place-items: center;
       width: max-content;
       height: max-content;
+      min-width: max-content;
+      min-height: max-content;
     }
 
     .board-chrome {
@@ -2389,6 +2392,7 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardCanvas = document.getElementById('boardCanvas');
       const boardScaleEl = document.getElementById('boardScale');
+      const boardFrameEl = document.getElementById('boardFrame');
       const boardChromeEl = document.getElementById('boardChrome');
       const boardToolbar = document.getElementById('boardToolbar');
       const boardControlsToggle = document.getElementById('boardControlsToggle');
@@ -2837,17 +2841,30 @@ $aiSetupNotes = [
         return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
       };
 
-      const applyBoardTransform = () => {
-        if (!boardScaleEl) return;
-        const finalScale = getFinalScale();
-        lastScale = finalScale;
-        boardScaleEl.style.transform = `scale(${finalScale})`;
+      const applyBoardTransform = (scale = getFinalScale(), viewportRect = null) => {
+        if (!boardScaleEl || !boardCanvas || !boardFrameEl) return null;
+        const boardRect = measureBoardRect();
+        const targetViewport = viewportRect || boardCanvas.getBoundingClientRect();
+        const scaledWidth = Math.max(0, boardRect.width * scale);
+        const scaledHeight = Math.max(0, boardRect.height * scale);
+
+        canvasPadding = computeCanvasPadding(targetViewport, scaledWidth, scaledHeight);
+        boardCanvas.style.padding = `${canvasPadding.y}px ${canvasPadding.x}px`;
+
+        boardFrameEl.style.width = `${scaledWidth}px`;
+        boardFrameEl.style.height = `${scaledHeight}px`;
+
+        lastScale = scale;
+        boardScaleEl.style.transform = `scale(${scale})`;
+
+        return { viewportRect: targetViewport, boardRect, scaledWidth, scaledHeight };
       };
 
       const centerBoard = () => {
         if (!boardCanvas || !boardScaleEl) return;
         const finalScale = getFinalScale();
-        const viewportRect = boardCanvas.getBoundingClientRect();
+        const layout = applyBoardTransform(finalScale);
+        const viewportRect = layout?.viewportRect || boardCanvas.getBoundingClientRect();
         const { x, y, width, height } = measureBoardCenter();
         const scaledRect = boardScaleEl.getBoundingClientRect();
         const scaledWidth = Math.max(0, width * finalScale || scaledRect.width);
@@ -2868,8 +2885,6 @@ $aiSetupNotes = [
 
         boardCanvas.scrollLeft = targetLeft;
         boardCanvas.scrollTop = targetTop;
-
-        applyBoardTransform();
       };
 
       const syncDockHeights = () => {
@@ -2884,7 +2899,7 @@ $aiSetupNotes = [
       };
 
       const resizeBoardToViewport = ({ resetView = false } = {}) => {
-        if (!boardViewport || !boardCanvas || !boardScaleEl || !boardChromeEl) return;
+        if (!boardViewport || !boardCanvas || !boardScaleEl || !boardChromeEl || !boardFrameEl) return;
         const { topHeight, bottomHeight } = syncDockHeights();
         const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
@@ -2905,7 +2920,7 @@ $aiSetupNotes = [
         canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight);
         boardCanvas.style.padding = `${canvasPadding.y}px ${canvasPadding.x}px`;
 
-        const prevScale = lastScale || 1;
+        const prevScale = lastScale || getFinalScale();
         const heightScale = boardRect.height ? (viewportRect.height - canvasPadding.y * 2) / boardRect.height : 1;
         const widthScale = boardRect.width ? (viewportRect.width - canvasPadding.x * 2) / boardRect.width : 1;
 
@@ -2917,13 +2932,14 @@ $aiSetupNotes = [
 
         if (resetView) {
           userZoom = 1;
-          applyBoardTransform();
+          const finalScale = getFinalScale();
+          applyBoardTransform(finalScale, viewportRect);
           centerBoard();
         } else {
           const nextScale = getFinalScale();
           const centerX = (boardCanvas.scrollLeft + viewportRect.width / 2 - (canvasPadding.x || 0)) / prevScale;
           const centerY = (boardCanvas.scrollTop + viewportRect.height / 2 - (canvasPadding.y || 0)) / prevScale;
-          applyBoardTransform();
+          applyBoardTransform(nextScale, viewportRect);
           boardCanvas.scrollLeft = Math.max(0, centerX * nextScale + (canvasPadding.x || 0) - viewportRect.width / 2);
           boardCanvas.scrollTop = Math.max(0, centerY * nextScale + (canvasPadding.y || 0) - viewportRect.height / 2);
         }
@@ -2935,19 +2951,24 @@ $aiSetupNotes = [
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         const nextZoom = clamp(userZoom * factor, minFactor, maxFactor);
         const prevScale = getFinalScale();
+        const currentPadding = { ...canvasPadding };
         userZoom = nextZoom;
-        applyBoardTransform();
-        const nextScale = getFinalScale();
-
         if (boardCanvas) {
           const viewportRect = boardCanvas.getBoundingClientRect();
           const pivotPoint = pivot || { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 };
           const pivotX = pivotPoint.x - viewportRect.left;
           const pivotY = pivotPoint.y - viewportRect.top;
-          const contentX = (boardCanvas.scrollLeft + pivotX - (canvasPadding.x || 0)) / prevScale;
-          const contentY = (boardCanvas.scrollTop + pivotY - (canvasPadding.y || 0)) / prevScale;
-          boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + (canvasPadding.x || 0) - pivotX);
-          boardCanvas.scrollTop = Math.max(0, contentY * nextScale + (canvasPadding.y || 0) - pivotY);
+          const contentX = (boardCanvas.scrollLeft + pivotX - (currentPadding.x || 0)) / prevScale;
+          const contentY = (boardCanvas.scrollTop + pivotY - (currentPadding.y || 0)) / prevScale;
+
+          const nextScale = getFinalScale();
+          applyBoardTransform(nextScale, viewportRect);
+          const padX = canvasPadding.x || 0;
+          const padY = canvasPadding.y || 0;
+          boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + padX - pivotX);
+          boardCanvas.scrollTop = Math.max(0, contentY * nextScale + padY - pivotY);
+        } else {
+          applyBoardTransform();
         }
       };
 
