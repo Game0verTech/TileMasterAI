@@ -214,7 +214,9 @@ class AppRepository
     public function createGame(int $lobbyId, array $players): int
     {
         $bag = $this->buildTileBag();
+        $drawPool = $this->buildDrawPool();
         shuffle($bag);
+        shuffle($drawPool);
 
         $statement = $this->pdo->prepare(
             'INSERT INTO games (lobby_id, turn_order, draw_pool, draws, board_state, racks, bag, current_turn_index) '
@@ -223,7 +225,7 @@ class AppRepository
         $statement->execute([
             ':lobby_id' => $lobbyId,
             ':turn_order' => json_encode([], JSON_THROW_ON_ERROR),
-            ':draw_pool' => json_encode($bag, JSON_THROW_ON_ERROR),
+            ':draw_pool' => json_encode($drawPool, JSON_THROW_ON_ERROR),
             ':draws' => json_encode([], JSON_THROW_ON_ERROR),
             ':board_state' => json_encode([], JSON_THROW_ON_ERROR),
             ':racks' => json_encode((object) [], JSON_THROW_ON_ERROR),
@@ -291,7 +293,7 @@ class AppRepository
 
         $drawPool = $game['draw_pool'];
         if (!is_array($drawPool) || empty($drawPool)) {
-            $drawPool = $this->buildTileBag();
+            $drawPool = $this->buildDrawPool();
             shuffle($drawPool);
         }
 
@@ -355,7 +357,7 @@ class AppRepository
 
         if ($allRevealed) {
             $order = $this->determineTurnOrderFromDraws($updatedDraws);
-            $this->finalizeGameStart($game['id'], $order, $game['draw_pool'], $lobbyId);
+            $this->finalizeGameStart($game['id'], $order, $game['bag'], $lobbyId);
         }
 
         return $this->getGameByLobby($lobbyId) ?? [];
@@ -632,6 +634,19 @@ class AppRepository
         return $bag;
     }
 
+    private function buildDrawPool(): array
+    {
+        $bag = [];
+        foreach (Scoring::tileDistribution() as $letter => $info) {
+            if ($letter === '?') {
+                continue; // blanks stay out of turn-order draws
+            }
+            $bag = array_merge($bag, array_fill(0, (int) $info['count'], $letter));
+        }
+
+        return $bag;
+    }
+
     private function determineTurnOrderFromDraws(array $draws): array
     {
         usort($draws, static function ($a, $b) {
@@ -654,9 +669,10 @@ class AppRepository
         ]);
     }
 
-    private function finalizeGameStart(int $gameId, array $order, array $remainingPool, int $lobbyId): void
+    private function finalizeGameStart(int $gameId, array $order, array $baseBag, int $lobbyId): void
     {
-        $bag = $remainingPool;
+        $bag = $baseBag ?: $this->buildTileBag();
+        shuffle($bag);
         $racks = [];
         $scores = [];
 
