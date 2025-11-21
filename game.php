@@ -579,10 +579,8 @@ $aiSetupNotes = [
       box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
       position: relative;
       display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
-      padding: 6px 8px;
+      place-items: center;
+      padding: 10px;
       color: #0f172a;
     }
 
@@ -592,22 +590,20 @@ $aiSetupNotes = [
       border-color: var(--tile-wood-border);
     }
 
-    .tile .letter,
-    .tile .value {
-      grid-area: stack;
-    }
-
     .tile .letter {
       font-size: 22px;
       font-weight: 800;
       letter-spacing: 0.3px;
       line-height: 1;
+      position: relative;
+      z-index: 1;
     }
 
     .tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
@@ -743,9 +739,7 @@ $aiSetupNotes = [
       height: var(--tile-size);
       position: relative;
       display: grid;
-      align-items: center;
-      justify-items: center;
-      grid-template-areas: "stack";
+      place-items: center;
       background: var(--tile-wood);
       border-radius: 5px;
       border: 1px solid var(--tile-wood-border);
@@ -754,21 +748,19 @@ $aiSetupNotes = [
       font-weight: 800;
     }
 
-    .rack-tile .letter,
-    .rack-tile .value {
-      grid-area: stack;
-    }
-
     .rack-tile .letter {
       font-size: 22px;
       letter-spacing: 0.3px;
       line-height: 1;
+      position: relative;
+      z-index: 1;
     }
 
     .rack-tile .value {
-      align-self: end;
-      justify-self: end;
-      margin: 0 4px 4px 0;
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      margin: 0;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
@@ -1411,6 +1403,8 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       margin: 0;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
@@ -1420,11 +1414,14 @@ $aiSetupNotes = [
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
       padding: 12px 12px 16px;
+      overflow: hidden;
     }
 
     .board-canvas {
       position: relative;
       flex: 1;
+      width: 100%;
+      height: 100%;
       overflow: auto;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.4);
@@ -1474,11 +1471,14 @@ $aiSetupNotes = [
     .board-toolbar {
       position: absolute;
       top: 12px;
+      left: 12px;
       right: 12px;
       display: inline-flex;
       gap: 8px;
       align-items: center;
       justify-self: end;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       background: rgba(15, 23, 42, 0.7);
       color: #e2e8f0;
       padding: 8px 10px;
@@ -1494,6 +1494,7 @@ $aiSetupNotes = [
       gap: 0;
       padding: 6px 8px;
       transform: translateY(-2px);
+      justify-content: flex-end;
     }
 
     .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
@@ -1962,7 +1963,7 @@ $aiSetupNotes = [
       .rack-tile .letter { font-size: 18px; }
 
       .tile .value,
-      .rack-tile .value { font-size: 10px; margin: 0 3px 3px 0; }
+      .rack-tile .value { font-size: 10px; right: 5px; bottom: 5px; }
 
       .board-chrome { padding: 10px 10px 8px; }
       .board-preview { padding: 6px; }
@@ -2329,6 +2330,11 @@ $aiSetupNotes = [
       };
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const letterDistance = (letter = '') => {
+        const code = String(letter).toUpperCase().charCodeAt(0);
+        return Number.isFinite(code) ? Math.max(0, code - 65) : 26;
+      };
 
       const scheduleTone = (ctx, {
         frequency,
@@ -2949,8 +2955,11 @@ $aiSetupNotes = [
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
           const isSelf = Number(player.user_id ?? player.id) === Number(state.user?.id);
+          const needsRedraw = entry?.redraw_required;
           const status = entry
-            ? (entry.revealed ? `Revealed · ${entry.value} pts` : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal'))
+            ? (needsRedraw
+              ? 'Tiebreaker: redraw needed'
+              : (entry.revealed ? 'Revealed' : (isSelf ? 'Spilled · pick one' : 'Waiting to reveal')))
             : 'Waiting to draw';
           const tile = entry && entry.revealed ? entry.tile : '—';
           return `<tr><td>${player.username}${isSelf ? ' (you)' : ''}</td><td>${status}</td><td>${tile}</td></tr>`;
@@ -2974,16 +2983,19 @@ $aiSetupNotes = [
           return;
         }
         startModalShown = true;
-        let counter = 3;
+        let counter = 5;
         startModalTitle.textContent = 'Game starting';
         const draws = state.game?.draws || [];
-        const sorted = [...draws].sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || String(b.tile).localeCompare(String(a.tile)));
+        const sorted = [...draws]
+          .filter((entry) => entry.revealed && entry.tile)
+          .sort((a, b) => (Number(a.distance ?? letterDistance(a.tile)) - Number(b.distance ?? letterDistance(b.tile)))
+            || String(a.tile).localeCompare(String(b.tile)));
         const winnerDraw = draws.find((entry) => Number(entry.user_id) === Number(first?.user_id));
         const runnerUp = sorted[1];
         const reason = winnerDraw
-          ? `${firstName} drew ${winnerDraw.tile} (${winnerDraw.value} pts)`
-          : `${firstName} has the highest draw`;
-        const versus = runnerUp ? `, edging out ${runnerUp.username}'s ${runnerUp.tile}.` : '.';
+          ? `${firstName} drew ${winnerDraw.tile}, the closest tile to A.`
+          : `${firstName} has the closest tile to A.`;
+        const versus = runnerUp ? ` ${runnerUp.username}'s ${runnerUp.tile} was next closest.` : '';
         startModalMessage.textContent = `${reason}${versus}`;
         startCountdown.textContent = String(counter);
         startModal.classList.remove('hidden');
@@ -3123,20 +3135,37 @@ $aiSetupNotes = [
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
         const everyoneRevealed = everyoneDrew && draws.every((entry) => entry.revealed);
         const readyToDraw = !hasRevealed && (!everyoneDrew || hasPending);
+        const revealedDraws = draws.filter((entry) => entry.revealed && entry.tile);
+        const closestDistance = revealedDraws.length
+          ? Math.min(...revealedDraws.map((entry) => Number(entry.distance ?? letterDistance(entry.tile))))
+          : null;
+        const leaders = closestDistance !== null
+          ? revealedDraws.filter((entry) => Number(entry.distance ?? letterDistance(entry.tile)) === closestDistance)
+          : [];
+        const redrawPending = draws.some((entry) => entry.redraw_required);
         renderDrawTables();
 
         if (drawStatusEl) {
           const leader = state.turnOrder?.[0];
-          drawStatusEl.textContent = leader && everyoneRevealed
-            ? `${leader.username} starts the game`
-            : 'Spill the bag, pick a tile, and reveal to lock turn order.';
+          if (redrawPending) {
+            drawStatusEl.textContent = 'Tiebreaker needed: tied players must draw again.';
+          } else if (leader && everyoneRevealed) {
+            drawStatusEl.textContent = `${leader.username} starts the game`;
+          } else {
+            drawStatusEl.textContent = 'Spill the bag, pick a tile, and reveal to lock turn order.';
+          }
         }
         if (drawHintEl) {
-          drawHintEl.textContent = hasPending
-            ? 'Tap any face-down tile to claim it.'
-            : alreadyDrew
-              ? 'You revealed—waiting for the table to finish.'
-              : 'Click the bag to spill some tiles, then pick one.';
+          const tiedLeader = leaders.find((entry) => Number(entry.user_id) === Number(state.user?.id));
+          drawHintEl.textContent = redrawPending
+            ? (myEntry?.redraw_required || (!myEntry?.revealed && tiedLeader)
+              ? 'You tied for first—draw again to break the tie.'
+              : 'Waiting for the tied players to redraw.')
+            : hasPending
+              ? 'Tap any face-down tile to claim it.'
+              : alreadyDrew
+                ? 'You revealed—waiting for the table to finish.'
+                : 'Click the bag to spill some tiles, then pick one.';
         }
         if (drawTileBtn) {
           drawTileBtn.disabled = hasRevealed || (everyoneDrew && !hasPending);
@@ -3177,7 +3206,7 @@ $aiSetupNotes = [
             return;
           }
           const elapsed = state.lastDrawRevealAt ? (Date.now() - state.lastDrawRevealAt) : 0;
-          const wait = elapsed >= 1000 ? 0 : 1000 - elapsed;
+          const wait = elapsed >= 2500 ? 0 : 2500 - elapsed;
           startDelayTimer = setTimeout(() => {
             startDelayTimer = null;
             triggerStartCountdown();
