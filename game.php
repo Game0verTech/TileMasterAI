@@ -1403,6 +1403,8 @@ $aiSetupNotes = [
       display: flex;
       flex-direction: column;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       margin: 0;
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
@@ -1412,11 +1414,14 @@ $aiSetupNotes = [
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
       max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
       padding: 12px 12px 16px;
+      overflow: hidden;
     }
 
     .board-canvas {
       position: relative;
       flex: 1;
+      width: 100%;
+      height: 100%;
       overflow: auto;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.4);
@@ -1466,11 +1471,14 @@ $aiSetupNotes = [
     .board-toolbar {
       position: absolute;
       top: 12px;
+      left: 12px;
       right: 12px;
       display: inline-flex;
       gap: 8px;
       align-items: center;
       justify-self: end;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       background: rgba(15, 23, 42, 0.7);
       color: #e2e8f0;
       padding: 8px 10px;
@@ -1486,6 +1494,7 @@ $aiSetupNotes = [
       gap: 0;
       padding: 6px 8px;
       transform: translateY(-2px);
+      justify-content: flex-end;
     }
 
     .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
