@@ -2459,6 +2459,7 @@ $aiSetupNotes = [
       let zoomPivot = null;
       let zoomAnimationFrame = null;
       let pinchDistance = null;
+      let dockInsets = { top: 0, bottom: 0 };
       let canvasPadding = { x: 24, top: 24, bottom: 24 };
       let isDraggingViewport = false;
       let isTileDragActive = false;
@@ -2797,7 +2798,7 @@ $aiSetupNotes = [
         viewportRect,
         boardWidth,
         boardHeight,
-        { topInset = 0, bottomInset = 0, scale = getFinalScale() } = {},
+        { topInset = dockInsets.top || 0, bottomInset = dockInsets.bottom || 0, scale = getFinalScale() } = {},
       ) => {
         const basePadding = getBasePadding();
         if (!viewportRect?.width || !viewportRect?.height) {
@@ -2879,7 +2880,11 @@ $aiSetupNotes = [
         const scaledWidth = Math.max(0, boardRect.width * scale);
         const scaledHeight = Math.max(0, boardRect.height * scale);
 
-        canvasPadding = computeCanvasPadding(targetViewport, boardRect.width, boardRect.height, { scale });
+        canvasPadding = computeCanvasPadding(targetViewport, boardRect.width, boardRect.height, {
+          topInset: dockInsets.top,
+          bottomInset: dockInsets.bottom,
+          scale,
+        });
         boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
 
         boardFrameEl.style.width = `${boardRect.width}px`;
@@ -2899,8 +2904,10 @@ $aiSetupNotes = [
         const padX = canvasPadding.x || 0;
         const padTop = canvasPadding.top || 0;
         const padBottom = canvasPadding.bottom || 0;
-        const width = Math.max(0, boardRect.width) + padX * 2;
-        const height = Math.max(0, boardRect.height) + padTop + padBottom;
+        const scaledWidth = Math.max(0, boardRect.width * scale);
+        const scaledHeight = Math.max(0, boardRect.height * scale);
+        const width = scaledWidth + padX * 2;
+        const height = scaledHeight + padTop + padBottom;
 
         return {
           maxLeft: Math.max(0, width - viewportWidth),
@@ -2952,6 +2959,7 @@ $aiSetupNotes = [
         const rootStyle = document.documentElement.style;
         rootStyle.setProperty('--top-dock-height', `${topHeight}px`);
         rootStyle.setProperty('--bottom-dock-height', `${bottomHeight}px`);
+        dockInsets = { top: topHeight, bottom: bottomHeight };
         return { topHeight, bottomHeight };
       };
 
