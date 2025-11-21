@@ -2834,13 +2834,23 @@ $aiSetupNotes = [
         if (!boardCanvas || !boardScaleEl) return;
         const finalScale = getFinalScale();
         const viewportRect = boardCanvas.getBoundingClientRect();
-        const { x, y } = measureBoardCenter();
-        const scaledX = x * finalScale;
-        const scaledY = y * finalScale;
-        const targetLeft = Math.max(0, canvasPadding + scaledX - viewportRect.width / 2);
-        const targetTop = Math.max(0, canvasPadding + scaledY - viewportRect.height / 2);
-        boardCanvas.scrollLeft = targetLeft;
-        boardCanvas.scrollTop = targetTop;
+        const { x, y, width, height } = measureBoardCenter();
+
+        if (width > 0 && height > 0) {
+          const scaledX = x * finalScale;
+          const scaledY = y * finalScale;
+          const targetLeft = Math.max(0, canvasPadding + scaledX - viewportRect.width / 2);
+          const targetTop = Math.max(0, canvasPadding + scaledY - viewportRect.height / 2);
+          boardCanvas.scrollLeft = targetLeft;
+          boardCanvas.scrollTop = targetTop;
+        } else {
+          const scaledRect = boardScaleEl.getBoundingClientRect();
+          const contentWidth = Math.max(boardCanvas.scrollWidth, scaledRect.width + canvasPadding * 2);
+          const contentHeight = Math.max(boardCanvas.scrollHeight, scaledRect.height + canvasPadding * 2);
+          boardCanvas.scrollLeft = Math.max(0, (contentWidth - viewportRect.width) / 2);
+          boardCanvas.scrollTop = Math.max(0, (contentHeight - viewportRect.height) / 2);
+        }
+
         applyBoardTransform();
       };
 
