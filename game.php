@@ -715,53 +715,34 @@ $aiSetupNotes = [
       pointer-events: auto;
     }
 
-    .rack-panel {
+    .rack-row {
       position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
       background: rgba(255, 255, 255, 0.85);
       border: 1px solid var(--panel-border);
-      border-radius: 16px;
-      padding: 10px 12px 12px;
-      box-shadow: var(--panel-shadow);
-      display: grid;
-      gap: 10px;
-    }
-
-    .rack-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .rack-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .rack-title { display: grid; gap: 4px; }
-
-    .rack-rail {
-      padding: 10px;
-      background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.22), transparent 40%),
-        linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(99, 102, 241, 0.18));
-      border: 1px solid rgba(148, 163, 184, 0.5);
       border-radius: 14px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
+      box-shadow: var(--panel-shadow);
     }
+
+    .rack-row .controls-toggle { height: 100%; align-self: stretch; }
+
+    .rack-holder { flex: 1; }
 
     .rack-bar {
       display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: nowrap;
-      padding: 10px 12px;
+      padding: 8px 10px;
       background: rgba(255, 255, 255, 0.72);
       border: 1px solid rgba(148, 163, 184, 0.6);
       border-radius: 12px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 26px rgba(79, 70, 229, 0.16);
       justify-content: center;
-      min-height: 86px;
+      min-height: 78px;
       overflow-x: auto;
       scrollbar-width: thin;
       margin: 0 auto;
@@ -1442,12 +1423,13 @@ $aiSetupNotes = [
 
     .game-layout {
       display: grid;
-      grid-template-columns: minmax(680px, 1.7fr) minmax(280px, 1fr);
+      grid-template-columns: 1fr;
       gap: 16px;
       align-items: start;
+      justify-items: center;
     }
 
-    .board-pane { display: grid; gap: 12px; }
+    .board-pane { display: grid; gap: 12px; width: 100%; max-width: 1200px; }
 
     .board-card {
       background: var(--panel);
@@ -1458,27 +1440,16 @@ $aiSetupNotes = [
       display: grid;
       gap: 12px;
       backdrop-filter: blur(12px);
+      width: 100%;
     }
 
     .board-top {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      align-items: center;
+      justify-content: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-
-    .board-status { display: grid; gap: 6px; min-width: 0; }
-
-    .turn-message {
-      margin: 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
-    }
-
-    .turn-message.success { color: #166534; }
-    .turn-message.error { color: #b91c1c; }
 
     .board-viewport {
       position: relative;
@@ -1495,13 +1466,14 @@ $aiSetupNotes = [
       min-height: clamp(480px, 68vh, 880px);
       padding: 12px 12px 16px;
       overflow: hidden;
+      align-items: center;
     }
 
     .board-canvas {
       position: relative;
       display: flex;
       align-items: flex-start;
-      justify-content: center;
+      justify-content: flex-start;
       flex: 1;
       width: 100%;
       height: 100%;
@@ -2261,10 +2233,6 @@ $aiSetupNotes = [
       <section class="board-pane" aria-label="Board focus area">
         <div class="board-card">
           <div class="board-top">
-            <div class="board-status">
-              <p class="hud-eyebrow" style="margin:0;">Current turn</p>
-              <p class="turn-message" id="turnMessage">Place tiles and start your word.</p>
-            </div>
             <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
               <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
               <div class="toolbar-buttons" id="boardToolbarButtons">
@@ -2339,59 +2307,24 @@ $aiSetupNotes = [
           </div>
         </div>
       </section>
-      <aside class="side-rail" aria-label="Game insights">
-        <div class="side-card">
-          <div class="panel-heading">
-            <h3 class="panel-title">Move log</h3>
-            <span class="hud-pill">Live</span>
-          </div>
-          <p class="panel-note">Turn updates and errors will appear here as you play.</p>
-          <ul class="info-list" id="gameLog">
-            <li class="info-item" id="logEmpty">Waiting for turns to start.</li>
-          </ul>
-        </div>
-        <div class="side-card">
-          <div class="panel-heading">
-            <h3 class="panel-title">AI assist</h3>
-            <span class="hud-pill" aria-hidden="true">🤖</span>
-          </div>
-          <p class="panel-note">Use AI suggested moves to preview placements without losing your current rack.</p>
-          <p class="panel-note">Start your turn, then tap <strong>AI suggested moves</strong> in the control bar.</p>
-        </div>
-        <div class="side-card">
-          <div class="panel-heading">
-            <h3 class="panel-title">View tools</h3>
-            <p class="panel-note" style="margin:0;">Zoom or re-center the board.</p>
-          </div>
-          <p class="panel-note">Use the toolbar above the board to zoom, fit, or re-center. Keyboard: +/- to zoom, C to center.</p>
-        </div>
-      </aside>
     </div>
   </main>
 
   <footer class="turn-dock" aria-label="Turn controls" id="turnDock">
     <div class="dock-inner">
-      <div class="rack-panel">
-        <div class="rack-header">
-          <div class="rack-title">
-            <p class="hud-eyebrow" style="margin:0;">Your rack</p>
-            <p class="panel-note" style="margin:2px 0 0;">Drag tiles onto the board. Double-click to send them back.</p>
-          </div>
-          <div class="rack-actions">
-            <button class="controls-toggle" type="button" id="controlToggle" aria-expanded="true" aria-controls="controlBar" aria-label="Toggle turn controls">
-              <span aria-hidden="true">⬆</span>
-              <span class="control-toggle-text">Hide controls</span>
-            </button>
-            <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
-          </div>
-        </div>
-        <div class="rack-rail">
+      <div class="rack-row">
+        <button class="controls-toggle" type="button" id="controlToggle" aria-expanded="true" aria-controls="controlBar" aria-label="Toggle turn controls">
+          <span aria-hidden="true">⬆</span>
+          <span class="control-toggle-text">Hide controls</span>
+        </button>
+        <div class="rack-holder">
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
         </div>
+        <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
         <div class="dock-tooltip" id="rackHelpTip" role="tooltip">
           <strong>Rack tips</strong>
           <span>Drag tiles from the rack onto the board. Blanks turn blue after you set their letter.</span>
-          <span>Double-click a placed tile to return it to the rack.</span>
+          <span>Double-click a placed tile to return them to the rack.</span>
         </div>
       </div>
       <div class="control-bar" role="group" aria-label="Primary turn actions" id="controlBar">
@@ -2518,7 +2451,7 @@ $aiSetupNotes = [
       let baseScale = 1;
       let userZoom = 1;
       let pinchDistance = null;
-      let canvasPadding = 24;
+      let canvasPadding = { x: 24, y: 24 };
       let isDraggingViewport = false;
       let dragOrigin = { x: 0, y: 0, scrollX: 0, scrollY: 0 };
       let lastScale = 1;
@@ -2843,11 +2776,25 @@ $aiSetupNotes = [
         return rect;
       };
 
-      const getViewportPadding = () => {
+      const getBasePadding = () => {
         const target = boardCanvas || boardViewport;
-        if (!target) return 0;
+        if (!target) return 24;
         const rect = target.getBoundingClientRect();
         return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
+      };
+
+      const computeCanvasPadding = (viewportRect, scaledWidth, scaledHeight) => {
+        const basePadding = getBasePadding();
+        if (!viewportRect?.width || !viewportRect?.height) {
+          return { x: basePadding, y: basePadding };
+        }
+
+        const padX = Math.max(basePadding, (viewportRect.width - scaledWidth) / 2);
+        const padY = Math.max(basePadding, (viewportRect.height - scaledHeight) / 2);
+        return {
+          x: Number.isFinite(padX) ? padX : basePadding,
+          y: Number.isFinite(padY) ? padY : basePadding,
+        };
       };
 
       const measureBoardCenter = () => {
@@ -2901,13 +2848,27 @@ $aiSetupNotes = [
         if (!boardCanvas || !boardScaleEl) return;
         const finalScale = getFinalScale();
         const viewportRect = boardCanvas.getBoundingClientRect();
-        const { x, y } = measureBoardCenter();
-        const scaledX = x * finalScale;
-        const scaledY = y * finalScale;
-        const targetLeft = Math.max(0, canvasPadding + scaledX - viewportRect.width / 2);
-        const targetTop = Math.max(0, canvasPadding + scaledY - viewportRect.height / 2);
+        const { x, y, width, height } = measureBoardCenter();
+        const scaledRect = boardScaleEl.getBoundingClientRect();
+        const scaledWidth = Math.max(0, width * finalScale || scaledRect.width);
+        const scaledHeight = Math.max(0, height * finalScale || scaledRect.height);
+
+        const padX = canvasPadding.x || 0;
+        const padY = canvasPadding.y || 0;
+
+        let targetLeft = Math.max(0, (scaledWidth + padX * 2 - viewportRect.width) / 2);
+        let targetTop = Math.max(0, (scaledHeight + padY * 2 - viewportRect.height) / 2);
+
+        if (width > 0 && height > 0) {
+          const scaledX = x * finalScale;
+          const scaledY = y * finalScale;
+          targetLeft = Math.max(0, padX + scaledX - viewportRect.width / 2);
+          targetTop = Math.max(0, padY + scaledY - viewportRect.height / 2);
+        }
+
         boardCanvas.scrollLeft = targetLeft;
         boardCanvas.scrollTop = targetTop;
+
         applyBoardTransform();
       };
 
@@ -2931,15 +2892,28 @@ $aiSetupNotes = [
 
         const viewportRect = boardCanvas.getBoundingClientRect();
         const boardRect = measureBoardRect();
-        canvasPadding = getViewportPadding();
-        boardCanvas.style.padding = `${canvasPadding}px`;
+        const basePadding = getBasePadding();
+
+        const provisionalHeightScale = boardRect.height ? (viewportRect.height - basePadding * 2) / boardRect.height : 1;
+        const provisionalWidthScale = boardRect.width ? (viewportRect.width - basePadding * 2) / boardRect.width : 1;
+        const draftScale = Math.min(provisionalHeightScale, provisionalWidthScale);
+        const safeDraftScale = Number.isFinite(draftScale) && draftScale > 0 ? draftScale : 1;
+
+        let scaledWidth = Math.max(0, boardRect.width * safeDraftScale);
+        let scaledHeight = Math.max(0, boardRect.height * safeDraftScale);
+
+        canvasPadding = computeCanvasPadding(viewportRect, scaledWidth, scaledHeight);
+        boardCanvas.style.padding = `${canvasPadding.y}px ${canvasPadding.x}px`;
 
         const prevScale = lastScale || 1;
-        const heightScale = boardRect.height ? (viewportRect.height - canvasPadding * 2) / boardRect.height : 1;
-        const widthScale = boardRect.width ? (viewportRect.width - canvasPadding * 2) / boardRect.width : 1;
+        const heightScale = boardRect.height ? (viewportRect.height - canvasPadding.y * 2) / boardRect.height : 1;
+        const widthScale = boardRect.width ? (viewportRect.width - canvasPadding.x * 2) / boardRect.width : 1;
 
         baseScale = Math.min(heightScale, widthScale);
         if (!Number.isFinite(baseScale) || baseScale <= 0) { baseScale = 1; }
+
+        scaledWidth = Math.max(0, boardRect.width * baseScale);
+        scaledHeight = Math.max(0, boardRect.height * baseScale);
 
         if (resetView) {
           userZoom = 1;
@@ -2947,11 +2921,11 @@ $aiSetupNotes = [
           centerBoard();
         } else {
           const nextScale = getFinalScale();
-          const centerX = (boardCanvas.scrollLeft + viewportRect.width / 2 - canvasPadding) / prevScale;
-          const centerY = (boardCanvas.scrollTop + viewportRect.height / 2 - canvasPadding) / prevScale;
+          const centerX = (boardCanvas.scrollLeft + viewportRect.width / 2 - (canvasPadding.x || 0)) / prevScale;
+          const centerY = (boardCanvas.scrollTop + viewportRect.height / 2 - (canvasPadding.y || 0)) / prevScale;
           applyBoardTransform();
-          boardCanvas.scrollLeft = Math.max(0, centerX * nextScale + canvasPadding - viewportRect.width / 2);
-          boardCanvas.scrollTop = Math.max(0, centerY * nextScale + canvasPadding - viewportRect.height / 2);
+          boardCanvas.scrollLeft = Math.max(0, centerX * nextScale + (canvasPadding.x || 0) - viewportRect.width / 2);
+          boardCanvas.scrollTop = Math.max(0, centerY * nextScale + (canvasPadding.y || 0) - viewportRect.height / 2);
         }
       };
 
@@ -2970,10 +2944,10 @@ $aiSetupNotes = [
           const pivotPoint = pivot || { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 };
           const pivotX = pivotPoint.x - viewportRect.left;
           const pivotY = pivotPoint.y - viewportRect.top;
-          const contentX = (boardCanvas.scrollLeft + pivotX - canvasPadding) / prevScale;
-          const contentY = (boardCanvas.scrollTop + pivotY - canvasPadding) / prevScale;
-          boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + canvasPadding - pivotX);
-          boardCanvas.scrollTop = Math.max(0, contentY * nextScale + canvasPadding - pivotY);
+          const contentX = (boardCanvas.scrollLeft + pivotX - (canvasPadding.x || 0)) / prevScale;
+          const contentY = (boardCanvas.scrollTop + pivotY - (canvasPadding.y || 0)) / prevScale;
+          boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + (canvasPadding.x || 0) - pivotX);
+          boardCanvas.scrollTop = Math.max(0, contentY * nextScale + (canvasPadding.y || 0) - pivotY);
         }
       };
 
@@ -4232,6 +4206,9 @@ $aiSetupNotes = [
         const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
         const word = (move.word || '').toUpperCase();
         const pool = rackInventory();
+        const boardHasLocked = board.some((row) => row.some((tile) => tile?.locked));
+        let touchesLocked = false;
+        const wordCoords = [];
         collectMovableBoardTiles().forEach(({ tile }) => {
           if (tile.isBlank) {
             pool.blanks += 1;
@@ -4250,12 +4227,14 @@ $aiSetupNotes = [
             return false;
           }
 
+          wordCoords.push({ row, col });
           const targetTile = board[row][col];
           if (targetTile && targetTile.locked) {
             const lockedLetter = targetTile.isBlank ? (targetTile.assignedLetter || targetTile.letter) : targetTile.letter;
             if ((lockedLetter || '').toUpperCase() !== word[i]) {
               return false;
             }
+            touchesLocked = true;
             continue;
           }
 
@@ -4270,6 +4249,25 @@ $aiSetupNotes = [
           }
 
           return false;
+        }
+
+        if (boardHasLocked && !touchesLocked) {
+          const anchors = wordCoords.some(({ row, col }) => {
+            const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+            return neighbors.some(([dr, dc]) => {
+              const nr = row + dr;
+              const nc = col + dc;
+              if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) return false;
+              const neighbor = board[nr]?.[nc];
+              return Boolean(neighbor && neighbor.locked);
+            });
+          });
+          if (!anchors) return false;
+        }
+
+        if (!boardHasLocked) {
+          const coversCenter = wordCoords.some(({ row, col }) => row === 7 && col === 7);
+          if (!coversCenter) return false;
         }
 
         return true;
