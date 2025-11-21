@@ -232,7 +232,7 @@ $aiSetupNotes = [
                   radial-gradient(circle at 82% 18%, #e0f2fe 0, #e0f2fe 30%, transparent 50%),
                   var(--bg);
       color: var(--ink);
-      padding: var(--top-dock-height) 18px var(--bottom-dock-height);
+      padding: var(--top-dock-height) 0 var(--bottom-dock-height);
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -1342,8 +1342,10 @@ $aiSetupNotes = [
     body.modal-open { overflow: hidden; }
 
     .app-shell {
-      width: min(1200px, 100%);
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
       display: grid;
       gap: 12px;
       min-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
@@ -1356,7 +1358,7 @@ $aiSetupNotes = [
     .board-viewport {
       position: relative;
       width: 100%;
-      margin: 0 auto;
+      margin: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1366,7 +1368,7 @@ $aiSetupNotes = [
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 12px;
+      padding: 8px;
       overscroll-behavior: contain;
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
@@ -1412,6 +1414,62 @@ $aiSetupNotes = [
       opacity: 0.85;
       filter: saturate(0.7);
     }
+
+    .board-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.5);
+      color: #e2e8f0;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .board-toolbar.collapsed {
+      gap: 0;
+      padding: 6px 8px;
+      transform: translateY(-2px);
+    }
+
+    .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
+    .board-toolbar.collapsed .toolbar-buttons { display: none; }
+
+    .toolbar-btn {
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      min-width: 36px;
+      line-height: 1;
+    }
+
+    .toolbar-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.18); }
+    .toolbar-btn:active { transform: translateY(0); background: rgba(255, 255, 255, 0.24); }
+
+    .toolbar-toggle {
+      border: 1px solid rgba(226, 232, 240, 0.65);
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .toolbar-toggle:hover { background: rgba(15, 23, 42, 0.72); }
 
     .hud-dock {
       position: fixed;
@@ -1833,7 +1891,7 @@ $aiSetupNotes = [
 
 
     @media (min-width: 900px) {
-      body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
+      body { padding: var(--top-dock-height) 0 var(--bottom-dock-height); }
       .grid { grid-template-columns: 2fr 1fr; }
       .grid .card:first-child { grid-column: span 2; }
     }
@@ -1846,7 +1904,7 @@ $aiSetupNotes = [
         --cell-gap: 3px;
       }
 
-      body { padding: calc(var(--top-dock-height) + 10px) 12px calc(var(--bottom-dock-height) + 10px); }
+      body { padding: calc(var(--top-dock-height) + 10px) 0 calc(var(--bottom-dock-height) + 10px); }
       .hud-inner { padding: 8px 12px 8px; gap: 8px; justify-content: center; display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
       .hud-menu { order: 1; }
       .brand { order: 2; flex: 1; justify-content: center; justify-self: center; }
@@ -1996,6 +2054,16 @@ $aiSetupNotes = [
 
   <main class="app-shell" aria-label="TileMasterAI board">
     <div class="board-viewport" id="boardViewport">
+      <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
+        <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
+        <div class="toolbar-buttons" id="boardToolbarButtons">
+          <button class="toolbar-btn" type="button" id="zoomOutBtn" aria-label="Zoom out">−</button>
+          <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
+          <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
+          <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
+          <button class="toolbar-btn" type="button" id="resetViewBtn" aria-label="Reset pan and zoom">Reset</button>
+        </div>
+      </div>
       <div class="board-scale" id="boardScale">
         <div class="board-frame" id="boardFrame">
           <div class="board-chrome" id="boardChrome">
@@ -2145,6 +2213,13 @@ $aiSetupNotes = [
       const boardViewport = document.getElementById('boardViewport');
       const boardScaleEl = document.getElementById('boardScale');
       const boardChromeEl = document.getElementById('boardChrome');
+      const boardToolbar = document.getElementById('boardToolbar');
+      const boardControlsToggle = document.getElementById('boardControlsToggle');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const fitBoardBtn = document.getElementById('fitBoardBtn');
+      const centerBoardBtn = document.getElementById('centerBoardBtn');
+      const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
       const drawOverlay = document.getElementById('drawOverlay');
@@ -2421,31 +2496,37 @@ $aiSetupNotes = [
         }, 620);
       };
 
-      const centerBoard = () => {
-        if (!boardViewport || !boardScaleEl) return;
-        const centerCell = document.querySelector('.cell[data-center="true"]');
-        if (!centerCell) return;
-
+      const measureBoardRect = () => {
+        if (!boardChromeEl || !boardScaleEl) return { width: 0, height: 0 };
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
-        const viewportRect = boardViewport.getBoundingClientRect();
-        const cellRect = centerCell.getBoundingClientRect();
+        const rect = boardChromeEl.getBoundingClientRect();
         boardScaleEl.style.transform = previousTransform;
+        return rect;
+      };
 
-        const viewportCenterX = viewportRect.width / 2;
-        const viewportCenterY = viewportRect.height / 2;
-        const cellCenterX = (cellRect.left - viewportRect.left) + cellRect.width / 2;
-        const cellCenterY = (cellRect.top - viewportRect.top) + cellRect.height / 2;
+      const getViewportPadding = () => {
+        if (!boardViewport) return 0;
+        const rect = boardViewport.getBoundingClientRect();
+        return Math.max(18, Math.min(rect.width, rect.height) * 0.05);
+      };
+
+      const centerBoard = () => {
+        if (!boardViewport || !boardScaleEl) return;
         const finalScale = getFinalScale();
+        const boardRect = measureBoardRect();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const scaledWidth = boardRect.width * finalScale;
+        const scaledHeight = boardRect.height * finalScale;
 
-        panX = (viewportCenterX - cellCenterX) / finalScale;
-        panY = (viewportCenterY - cellCenterY) / finalScale;
+        panX = (viewportRect.width - scaledWidth) / 2;
+        panY = (viewportRect.height - scaledHeight) / 2;
         applyBoardTransform();
       };
 
       const getZoomBounds = () => {
-        const MIN_ZOOM = Math.max(0.45, (baseScale || 1) * 0.6);
-        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2.4);
+        const MIN_ZOOM = Math.max(0.2, (baseScale || 1) * 0.35);
+        const MAX_ZOOM = Math.max(2.5, (baseScale || 1) * 3);
         return { MIN_ZOOM, MAX_ZOOM };
       };
 
@@ -2456,32 +2537,29 @@ $aiSetupNotes = [
 
       const clampPanToViewport = (finalScale) => {
         if (!boardViewport || !boardChromeEl || !boardScaleEl) return;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
-
+        const boardRect = measureBoardRect();
         const viewportRect = boardViewport.getBoundingClientRect();
+        const padding = getViewportPadding();
+
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
-        const slack = Math.max(24, Math.min(viewportRect.width, viewportRect.height) * 0.06);
 
-        const extraX = viewportRect.width - scaledWidth;
-        const extraY = viewportRect.height - scaledHeight;
+        let minPanX = viewportRect.width - scaledWidth - padding;
+        let maxPanX = padding;
+        let minPanY = viewportRect.height - scaledHeight - padding;
+        let maxPanY = padding;
 
-        const minPanX = scaledWidth > viewportRect.width
-          ? viewportRect.width - scaledWidth - slack
-          : (extraX / 2) - slack;
-        const maxPanX = scaledWidth > viewportRect.width
-          ? slack
-          : (extraX / 2) + slack;
+        if (scaledWidth <= viewportRect.width) {
+          const centeredX = (viewportRect.width - scaledWidth) / 2;
+          minPanX = centeredX - padding;
+          maxPanX = centeredX + padding;
+        }
 
-        const minPanY = scaledHeight > viewportRect.height
-          ? viewportRect.height - scaledHeight - slack
-          : (extraY / 2) - slack;
-        const maxPanY = scaledHeight > viewportRect.height
-          ? slack
-          : (extraY / 2) + slack;
+        if (scaledHeight <= viewportRect.height) {
+          const centeredY = (viewportRect.height - scaledHeight) / 2;
+          minPanY = centeredY - padding;
+          maxPanY = centeredY + padding;
+        }
 
         panX = clamp(panX, minPanX, maxPanX);
         panY = clamp(panY, minPanY, maxPanY);
@@ -2498,23 +2576,20 @@ $aiSetupNotes = [
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 18);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
         boardViewport.style.height = `${availableHeight}px`;
 
         const viewportRect = boardViewport.getBoundingClientRect();
-        const viewportWidth = viewportRect.width || document.documentElement.clientWidth;
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        boardScaleEl.style.transform = previousTransform;
+        const boardRect = measureBoardRect();
+        const padding = getViewportPadding();
+        const heightScale = boardRect.height ? (viewportRect.height - padding * 2) / boardRect.height : 1;
+        const widthScale = boardRect.width ? (viewportRect.width - padding * 2) / boardRect.width : 1;
 
-        const heightScale = boardRect.height ? Math.min(1, availableHeight / boardRect.height) : 1;
-        const widthScale = boardRect.width ? Math.min(1, viewportWidth / boardRect.width) : 1;
-        baseScale = Math.min(heightScale, widthScale, 1);
+        baseScale = Math.min(heightScale, widthScale);
+        if (!Number.isFinite(baseScale) || baseScale <= 0) { baseScale = 1; }
+
         if (resetView) {
-          panX = 0;
-          panY = 0;
           userZoom = 1;
           centerBoard();
         } else {
@@ -2522,11 +2597,22 @@ $aiSetupNotes = [
         }
       };
 
-      const adjustZoom = (factor) => {
+      const adjustZoom = (factor, pivot = null) => {
         const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
-        userZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        const nextZoom = clamp(userZoom * factor, minFactor, maxFactor);
+        const appliedFactor = nextZoom / userZoom;
+
+        if (pivot && boardViewport) {
+          const viewportRect = boardViewport.getBoundingClientRect();
+          const originX = pivot.x - viewportRect.left;
+          const originY = pivot.y - viewportRect.top;
+          panX = originX - (originX - panX) * appliedFactor;
+          panY = originY - (originY - panY) * appliedFactor;
+        }
+
+        userZoom = nextZoom;
         applyBoardTransform();
       };
 
@@ -2541,12 +2627,25 @@ $aiSetupNotes = [
         resizeBoardToViewport({ resetView: true });
       };
 
+      const toggleBoardControls = () => {
+        if (!boardToolbar || !boardControlsToggle) return;
+        const collapsed = boardToolbar.classList.toggle('collapsed');
+        boardControlsToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        boardControlsToggle.textContent = collapsed ? 'Show view tools' : 'Hide view tools';
+      };
+
+      const viewportCenter = () => {
+        if (!boardViewport) return null;
+        const rect = boardViewport.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      };
+
       const handleWheelZoom = (event) => {
         if (!boardScaleEl || !boardViewport) return;
         if (event.ctrlKey || event.metaKey) return;
         event.preventDefault();
         const direction = Math.sign(event.deltaY);
-        adjustZoom(direction > 0 ? 0.92 : 1.08);
+        adjustZoom(direction > 0 ? 0.92 : 1.08, { x: event.clientX, y: event.clientY });
       };
 
       const touchDistance = (touches) => {
@@ -2584,7 +2683,9 @@ $aiSetupNotes = [
           const newDistance = touchDistance(event.touches);
           if (newDistance > 0) {
             const factor = newDistance / (pinchDistance || newDistance);
-            adjustZoom(factor);
+            const [t1, t2] = event.touches;
+            const pivot = t1 && t2 ? { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 } : null;
+            adjustZoom(factor, pivot);
             pinchDistance = newDistance;
           }
           return;
@@ -4474,13 +4575,26 @@ $aiSetupNotes = [
         });
       }
 
-      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: true }));
+      if (boardControlsToggle) {
+        boardControlsToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleBoardControls();
+        });
+      }
+
+      if (zoomInBtn) zoomInBtn.addEventListener('click', () => adjustZoom(1.12, viewportCenter()));
+      if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(0.9, viewportCenter()));
+      if (centerBoardBtn) centerBoardBtn.addEventListener('click', () => centerBoard());
+      if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
+      if (resetViewBtn) resetViewBtn.addEventListener('click', () => resetBoardView());
+
+      window.addEventListener('resize', () => resizeBoardToViewport({ resetView: false }));
 
       renderBoard();
       updateTurnButton();
       updateAiButton();
-      resizeBoardToViewport({ resetView: true });
-      setTimeout(() => resizeBoardToViewport({ resetView: true }), 120);
+      requestAnimationFrame(() => resizeBoardToViewport({ resetView: true }));
+      setTimeout(() => resizeBoardToViewport({ resetView: false }), 160);
       setupDragAndDrop();
       loadDictionary();
       fetchUser().then(() => fetchGameState()).then(() => {
