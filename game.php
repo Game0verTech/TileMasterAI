@@ -211,11 +211,11 @@ $aiSetupNotes = [
       --tile-wood-border: #b9874c;
       --glow: 0 24px 50px rgba(79, 70, 229, 0.12);
       --radius: 18px;
-      --cell-size: clamp(42px, 4.5vw + 12px, 56px);
+      --cell-size: clamp(40px, 4vw + 10px, 56px);
       --cell-gap: clamp(3px, 1vw, 6px);
       --tile-size: calc(var(--cell-size) - 8px);
-      --top-dock-height: 82px;
-      --bottom-dock-height: 116px;
+      --top-dock-height: 76px;
+      --bottom-dock-height: 132px;
       --board-toolbar: rgba(15, 23, 42, 0.86);
     }
 
@@ -287,6 +287,52 @@ $aiSetupNotes = [
       text-align: center;
       box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
     }
+
+    .celebration {
+      position: absolute;
+      inset: -10px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 18px;
+      background: linear-gradient(135deg, #fbbf24, #f472b6);
+      border-radius: 4px;
+      animation: confetti-fall 1.6s ease-in infinite;
+      opacity: 0.8;
+    }
+
+    .confetti-piece:nth-child(3n) { background: linear-gradient(135deg, #4f46e5, #06b6d4); }
+    .confetti-piece:nth-child(4n) { background: linear-gradient(135deg, #22c55e, #84cc16); }
+
+    @keyframes confetti-fall {
+      0% { transform: translate3d(0, -40px, 0) rotate(0deg); opacity: 0; }
+      25% { opacity: 1; }
+      100% { transform: translate3d(0, 260px, 0) rotate(260deg); opacity: 0; }
+    }
+
+    .winner-face {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #22c55e, #14b8a6);
+      color: #fff;
+      font-size: 34px;
+      box-shadow: 0 18px 38px rgba(20, 184, 166, 0.35);
+      margin: 0 auto;
+    }
+
+    .runnerup-face {
+      background: linear-gradient(135deg, #94a3b8, #cbd5e1);
+      box-shadow: 0 12px 28px rgba(148, 163, 184, 0.4);
+    }
+
+    .winner-copy { text-align: center; display: grid; gap: 6px; }
 
     .draw-ticker { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 8px 0; }
     .countdown { font-size: 36px; font-weight: 800; margin-top: 10px; }
@@ -512,6 +558,7 @@ $aiSetupNotes = [
 
     .rack-wrap {
       display: grid;
+      grid-template-areas: 'help rack actions';
       grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 10px;
@@ -519,6 +566,8 @@ $aiSetupNotes = [
       width: 100%;
       min-width: 0;
     }
+
+    .rack-wrap > .dock-help { grid-area: help; }
 
     .dock-help {
       width: 34px;
@@ -580,25 +629,30 @@ $aiSetupNotes = [
       gap: 6px;
       align-items: center;
       flex-wrap: nowrap;
-      padding: 5px 8px;
+      padding: 8px 10px;
       background: radial-gradient(circle at 10% 10%, rgba(236, 254, 255, 0.18), transparent 40%),
         linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(99, 102, 241, 0.2));
       border: 1px solid rgba(148, 163, 184, 0.5);
       border-radius: 12px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 22px rgba(79, 70, 229, 0.2);
       justify-content: center;
-      min-height: 60px;
+      min-height: 72px;
       overflow-x: auto;
       scrollbar-width: thin;
+      grid-area: rack;
     }
 
     .rack-actions {
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      gap: 10px;
-      margin-top: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 0;
+      grid-area: actions;
     }
+
+    .rack-actions .btn { flex: 1 1 120px; min-width: 0; }
 
     .rack-shuffle {
       display: inline-flex;
@@ -1309,10 +1363,11 @@ $aiSetupNotes = [
       background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.15));
       border-radius: 16px;
       border: 1px solid rgba(226, 232, 240, 0.8);
-      padding: 8px;
+      padding: 12px;
+      overscroll-behavior: contain;
       min-height: 320px;
       height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
-      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height));
+      max-height: calc(100vh - var(--top-dock-height) - var(--bottom-dock-height) + 24px);
     }
 
     .board-viewport.dragging { cursor: grabbing; }
@@ -1370,8 +1425,9 @@ $aiSetupNotes = [
     .hud-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 10px 16px 10px;
-      display: flex;
+      padding: 8px 14px 8px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 10px;
     }
@@ -1379,21 +1435,54 @@ $aiSetupNotes = [
     .hud-right {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
       justify-content: flex-end;
-      margin-left: auto;
+      gap: 10px;
+      min-width: 0;
+      flex-wrap: nowrap;
     }
 
-    .hud-menu { flex-shrink: 0; order: 3; }
+    .hud-meta { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .hud-menu { flex-shrink: 0; }
     .brand { order: 1; }
-    .hud-right { order: 2; }
+    .hud-right { order: 3; }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
+    .score-strip {
+      display: inline-flex;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      overflow-x: auto;
+      scrollbar-width: thin;
+      max-width: min(640px, 100%);
+    }
+
+    .score-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.35);
+      border-radius: 12px;
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      min-width: 0;
+      flex: 0 0 auto;
+    }
+
+    .score-chip.leader { border-color: #22c55e; box-shadow: 0 6px 14px rgba(34, 197, 94, 0.3); }
+    .score-chip .avatar { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5, #06b6d4); display: grid; place-items: center; font-weight: 800; color: #fff; }
+    .score-chip .meta { display: grid; gap: 2px; min-width: 0; }
+    .score-chip .meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .score-chip .meta span { font-size: 12px; color: #cbd5e1; }
 
     .brand-mark {
       width: 40px;
@@ -1527,7 +1616,7 @@ $aiSetupNotes = [
       border: 1px solid rgba(148, 163, 184, 0.35);
       color: #e2e8f0;
       border-radius: 12px;
-      padding: 7px 11px;
+      padding: 7px 10px;
       display: inline-flex;
       gap: 7px;
       align-items: center;
@@ -1561,23 +1650,32 @@ $aiSetupNotes = [
     .dock-inner {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 8px 12px 10px;
+      padding: 10px 12px 12px;
       display: grid;
-      gap: 8px;
+      gap: 10px;
     }
 
     .dock-row {
       display: grid;
-      grid-template-columns: auto auto 1fr;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'cta rack ai';
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .dock-cta {
       display: flex;
       justify-content: center;
       align-items: center;
-      min-width: 200px;
+      min-width: 180px;
+      grid-area: cta;
+    }
+
+    .dock-ai {
+      grid-area: ai;
+      display: flex;
+      justify-content: flex-end;
+      min-width: 0;
     }
 
     .ai-cta {
@@ -1720,6 +1818,16 @@ $aiSetupNotes = [
       50% { opacity: 1; }
     }
 
+    @media (max-width: 1100px) {
+      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; }
+      .dock-cta { justify-content: stretch; }
+      .dock-cta .turn-toggle { width: 100%; }
+      .dock-ai { justify-content: stretch; }
+      .dock-ai .ai-cta { width: 100%; justify-content: center; }
+      .rack-wrap { grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; gap: 8px; }
+      .rack-actions { justify-content: flex-start; }
+    }
+
 
     @media (min-width: 900px) {
       body { padding: var(--top-dock-height) 32px var(--bottom-dock-height); }
@@ -1747,11 +1855,12 @@ $aiSetupNotes = [
       .hud-eyebrow { padding: 3px 8px; font-size: 10px; }
 
       .dock-inner { padding: 8px 10px 9px; gap: 10px; }
-      .dock-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-      .dock-cta { min-width: 0; grid-column: 1 / -1; }
+      .dock-row { grid-template-columns: 1fr; grid-template-areas: 'rack' 'cta' 'ai'; align-items: stretch; }
+      .dock-cta { min-width: 0; grid-column: auto; }
       .turn-toggle { width: 100%; min-width: 0; }
+      .dock-ai { width: 100%; }
       .ai-cta { width: 100%; margin-left: 0; justify-content: center; }
-      .rack-wrap { grid-column: 1 / -1; }
+      .rack-wrap { grid-column: auto; grid-template-areas: 'help rack' 'actions actions'; grid-template-columns: auto 1fr; }
 
       .tile .letter,
       .rack-tile .letter { font-size: 18px; }
@@ -1828,7 +1937,16 @@ $aiSetupNotes = [
   <div class="draw-modal hidden" id="winnerModal" aria-live="polite">
     <div class="modal-card">
       <h3 id="winnerTitle" style="margin:0;">Game over</h3>
-      <p id="winnerMessage" style="color:#cbd5e1; margin:8px 0 4px;"></p>
+      <div class="winner-copy">
+        <div class="winner-face" id="winnerFace" aria-hidden="true">🎉</div>
+        <p id="winnerMessage" style="color:#cbd5e1; margin:8px 0 4px;"></p>
+        <p id="winnerSecondary" class="hud-text" style="margin:0;">Ready for another round?</p>
+      </div>
+      <div class="draw-actions" style="margin-top:12px; justify-content:center;">
+        <button class="btn rack-shuffle" type="button" id="rematchBtn">🔁 Rematch</button>
+        <button class="btn rack-shuffle" type="button" id="closeWinnerBtn">Close</button>
+      </div>
+      <div class="celebration" id="winnerConfetti" aria-hidden="true"></div>
     </div>
   </div>
 
@@ -1851,9 +1969,9 @@ $aiSetupNotes = [
         </div>
       </div>
       <div class="hud-right">
+        <div class="score-strip" id="playerScores" aria-live="polite"></div>
         <div class="hud-meta">
           <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
-          <span class="hud-pill"><strong>Score</strong> <span id="scoreTotal">0</span> pts</span>
         </div>
       </div>
     </div>
@@ -1936,10 +2054,12 @@ $aiSetupNotes = [
             </span>
           </button>
         </div>
-        <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
-          <span class="ai-icon" aria-hidden="true">🤖</span>
-          <span class="ai-text">AI suggested moves</span>
-        </button>
+        <div class="dock-ai">
+          <button class="btn ai-cta" type="button" id="aiMovesBtn" disabled aria-disabled="true">
+            <span class="ai-icon" aria-hidden="true">🤖</span>
+            <span class="ai-text">AI suggested moves</span>
+          </button>
+        </div>
         <div class="rack-wrap">
           <button class="dock-help" type="button" id="rackHelp" aria-expanded="false" aria-controls="rackHelpTip" aria-label="Rack tips">?</button>
           <div class="rack-bar" aria-label="Rack" id="rack"></div>
@@ -1988,6 +2108,7 @@ $aiSetupNotes = [
       const aiAnimationEl = document.getElementById('aiAnimation');
       const aiStepEl = document.getElementById('aiStep');
       const aiSubtextEl = document.getElementById('aiSubtext');
+      const playerScoresEl = document.getElementById('playerScores');
       const rulesBtn = document.getElementById('openRules');
       const menuToggle = document.getElementById('menuToggle');
       const menuPanel = document.getElementById('menuPanel');
@@ -2014,6 +2135,11 @@ $aiSetupNotes = [
       const winnerModal = document.getElementById('winnerModal');
       const winnerTitle = document.getElementById('winnerTitle');
       const winnerMessage = document.getElementById('winnerMessage');
+      const winnerSecondary = document.getElementById('winnerSecondary');
+      const winnerFace = document.getElementById('winnerFace');
+      const winnerConfetti = document.getElementById('winnerConfetti');
+      const rematchBtn = document.getElementById('rematchBtn');
+      const closeWinnerBtn = document.getElementById('closeWinnerBtn');
       const lobbyId = new URLSearchParams(window.location.search).get('lobbyId');
       const state = { user: null, game: null, racks: {}, turnIndex: 0, turnOrder: [], draws: [], players: [], drawAnimationActive: false, lastDrawRevealAt: 0, scores: {}, winnerUserId: null, lastTurnOwner: null };
       let tileId = 0;
@@ -2043,6 +2169,7 @@ $aiSetupNotes = [
       let lastTurnUserId = null;
       let startTimer = null;
       let startDelayTimer = null;
+      let celebrationTimer = null;
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -2149,6 +2276,24 @@ $aiSetupNotes = [
           ],
           jitter: 0.04,
         }),
+        champion: createSynthFx({
+          steps: [
+            { frequency: 392, duration: 0.18, type: 'triangle', gainValue: 0.08 },
+            { frequency: 523, start: 0.08, duration: 0.18, type: 'sine', gainValue: 0.07 },
+            { frequency: 659, start: 0.16, duration: 0.2, type: 'triangle', gainValue: 0.07 },
+            { frequency: 784, start: 0.28, duration: 0.22, type: 'sine', gainValue: 0.06 },
+            { frequency: 988, start: 0.42, duration: 0.24, type: 'triangle', gainValue: 0.05 },
+          ],
+          jitter: 0.01,
+        }),
+        runner: createSynthFx({
+          steps: [
+            { frequency: 330, duration: 0.18, type: 'triangle', gainValue: 0.06 },
+            { frequency: 392, start: 0.08, duration: 0.18, type: 'sine', gainValue: 0.05 },
+            { frequency: 523, start: 0.18, duration: 0.24, type: 'triangle', gainValue: 0.05 },
+          ],
+          jitter: 0.02,
+        }),
       };
 
       const randomLetterFromPool = (pool = []) => {
@@ -2245,9 +2390,14 @@ $aiSetupNotes = [
         applyBoardTransform();
       };
 
+      const getZoomBounds = () => {
+        const MIN_ZOOM = Math.max(0.45, (baseScale || 1) * 0.6);
+        const MAX_ZOOM = Math.max(1.6, (baseScale || 1) * 2.4);
+        return { MIN_ZOOM, MAX_ZOOM };
+      };
+
       const getFinalScale = () => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
+        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
       };
 
@@ -2261,12 +2411,27 @@ $aiSetupNotes = [
         const viewportRect = boardViewport.getBoundingClientRect();
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
+        const slack = Math.max(24, Math.min(viewportRect.width, viewportRect.height) * 0.06);
 
-        const minPanX = Math.min(0, viewportRect.width - scaledWidth);
-        const minPanY = Math.min(0, viewportRect.height - scaledHeight);
+        const extraX = viewportRect.width - scaledWidth;
+        const extraY = viewportRect.height - scaledHeight;
 
-        panX = clamp(panX, minPanX, 0);
-        panY = clamp(panY, minPanY, 0);
+        const minPanX = scaledWidth > viewportRect.width
+          ? viewportRect.width - scaledWidth - slack
+          : (extraX / 2) - slack;
+        const maxPanX = scaledWidth > viewportRect.width
+          ? slack
+          : (extraX / 2) + slack;
+
+        const minPanY = scaledHeight > viewportRect.height
+          ? viewportRect.height - scaledHeight - slack
+          : (extraY / 2) - slack;
+        const maxPanY = scaledHeight > viewportRect.height
+          ? slack
+          : (extraY / 2) + slack;
+
+        panX = clamp(panX, minPanX, maxPanX);
+        panY = clamp(panY, minPanY, maxPanY);
       };
 
       const applyBoardTransform = () => {
@@ -2280,7 +2445,7 @@ $aiSetupNotes = [
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
         const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
         const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 12);
+        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight - 18);
 
         boardViewport.style.height = `${availableHeight}px`;
 
@@ -2305,8 +2470,7 @@ $aiSetupNotes = [
       };
 
       const adjustZoom = (factor) => {
-        const MIN_ZOOM = baseScale || 1;
-        const MAX_ZOOM = Math.max(1.4, (baseScale || 1) * 2);
+        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
         const minFactor = MIN_ZOOM / (baseScale || 1);
         const maxFactor = MAX_ZOOM / (baseScale || 1);
         userZoom = clamp(userZoom * factor, minFactor, maxFactor);
@@ -2532,18 +2696,92 @@ $aiSetupNotes = [
         }, 1500);
       };
 
+      const clearCelebration = () => {
+        if (winnerConfetti) {
+          winnerConfetti.innerHTML = '';
+        }
+        if (celebrationTimer) {
+          clearTimeout(celebrationTimer);
+          celebrationTimer = null;
+        }
+      };
+
+      const launchCelebration = (isWinner) => {
+        clearCelebration();
+        if (!winnerConfetti) return;
+        const pieces = isWinner ? 32 : 18;
+        for (let i = 0; i < pieces; i += 1) {
+          const piece = document.createElement('span');
+          piece.className = 'confetti-piece';
+          piece.style.left = `${Math.random() * 100}%`;
+          piece.style.animationDelay = `${Math.random() * 0.8}s`;
+          piece.style.animationDuration = `${1.1 + Math.random() * 0.7}s`;
+          winnerConfetti.appendChild(piece);
+        }
+        celebrationTimer = setTimeout(() => winnerConfetti.innerHTML = '', 2800);
+      };
+
       const showWinnerModal = () => {
         if (!winnerModal || !state.winnerUserId || winnerShown) return;
         const winnerEntry = state.players.find((p) => Number(p.user_id ?? p.id) === Number(state.winnerUserId));
         const winnerName = winnerEntry?.username || 'Winner';
         const myScore = state.scores?.[state.user?.id] ?? 0;
         const topScore = state.scores?.[state.winnerUserId] ?? 0;
+        const iAmWinner = Number(state.user?.id) === Number(state.winnerUserId);
+
         winnerTitle.textContent = `${winnerName} wins!`;
         winnerMessage.textContent = `${winnerName} finished their tiles and scored ${topScore} points. You finished with ${myScore} points.`;
+        if (winnerFace) {
+          winnerFace.textContent = iAmWinner ? '🏆' : '🤝';
+          winnerFace.classList.toggle('runnerup-face', !iAmWinner);
+        }
+        if (winnerSecondary) {
+          winnerSecondary.textContent = iAmWinner
+            ? 'Tap rematch to defend your crown!'
+            : 'Great effort! Queue up a rematch?';
+        }
+
         winnerModal.classList.remove('hidden');
         winnerModal.setAttribute('aria-hidden', 'false');
-        playFx('victory', { rate: 1 });
+        launchCelebration(iAmWinner);
+        playFx(iAmWinner ? 'champion' : 'runner', { rate: 1 });
         winnerShown = true;
+      };
+
+      const closeWinnerModal = () => {
+        if (!winnerModal) return;
+        winnerModal.classList.add('hidden');
+        winnerModal.setAttribute('aria-hidden', 'true');
+        clearCelebration();
+      };
+
+      const requestRematch = async () => {
+        if (!lobbyId || !rematchBtn) return;
+        rematchBtn.disabled = true;
+        try {
+          const res = await fetch('/api/game.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'rematch', lobbyId }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            setMessage(data.message || 'Unable to start a rematch right now.', 'error');
+            return;
+          }
+          state.winnerUserId = null;
+          winnerShown = false;
+          startModalShown = false;
+          turnActive = false;
+          hydrateFromGame(data.game);
+          setTurnMessaging();
+          setMessage('Rematch ready! Redraw turn order or start your next word.', 'success');
+          closeWinnerModal();
+        } catch (error) {
+          setMessage('Unable to start a rematch right now.', 'error');
+        } finally {
+          rematchBtn.disabled = false;
+        }
       };
 
       const updateDrawUi = () => {
@@ -2655,12 +2893,21 @@ $aiSetupNotes = [
         state.scores = game.scores || {};
         state.winnerUserId = game.winner_user_id || null;
         bag = Array.isArray(game.bag) ? [...game.bag] : [];
+        if (!state.winnerUserId) {
+          winnerShown = false;
+          if (winnerModal) {
+            winnerModal.classList.add('hidden');
+            winnerModal.setAttribute('aria-hidden', 'true');
+          }
+          clearCelebration();
+        }
         applyBoardState(game.board_state || []);
         applyRackState();
         totalScore = state.scores?.[state.user?.id] ?? 0;
-        scoreEl.textContent = totalScore;
+        if (scoreEl) { scoreEl.textContent = totalScore; }
         updateBagCount();
         updateTurnButton();
+        renderPlayerScores();
       };
 
       const fetchUser = async () => {
@@ -2925,6 +3172,32 @@ $aiSetupNotes = [
         bagCountEl.textContent = bag.length;
       };
 
+      const renderPlayerScores = () => {
+        if (!playerScoresEl) return;
+        const players = (state.turnOrder && state.turnOrder.length) ? state.turnOrder : (state.players || []);
+        const scores = state.scores || {};
+        const topScore = Object.values(scores).reduce((max, value) => Math.max(max, Number(value) || 0), 0);
+
+        if (!players.length) {
+          playerScoresEl.innerHTML = '<div class="hud-text" style="color:#cbd5e1;">Waiting for players…</div>';
+          return;
+        }
+
+        playerScoresEl.innerHTML = players.map((player) => {
+          const userId = player.user_id ?? player.id;
+          const name = player.username || 'Player';
+          const score = scores[userId] ?? 0;
+          const leader = score === topScore && topScore > 0;
+          const initial = name.substring(0, 1).toUpperCase();
+          return `
+            <div class="score-chip${leader ? ' leader' : ''}" aria-label="${name} has ${score} points">
+              <div class="avatar">${initial}</div>
+              <div class="meta"><strong>${name}</strong><span>${score} pts</span></div>
+            </div>
+          `;
+        }).join('');
+      };
+
       const renderRack = () => {
         rackEl.innerHTML = '';
         rack.forEach((tile) => {
@@ -3185,6 +3458,19 @@ $aiSetupNotes = [
         return { letters, blanks };
       };
 
+      const collectMovableBoardTiles = () => {
+        const movable = [];
+        for (let r = 0; r < BOARD_SIZE; r += 1) {
+          for (let c = 0; c < BOARD_SIZE; c += 1) {
+            const tile = board[r][c];
+            if (tile && !tile.locked) {
+              movable.push({ tile, row: r, col: c });
+            }
+          }
+        }
+        return movable;
+      };
+
       const rackLettersForServer = () => rack.map((tile) => {
         if (tile.isBlank && tile.assignedLetter) {
           return tile.assignedLetter;
@@ -3224,6 +3510,16 @@ $aiSetupNotes = [
         const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
         const word = (move.word || '').toUpperCase();
         const pool = rackInventory();
+        collectMovableBoardTiles().forEach(({ tile }) => {
+          if (tile.isBlank) {
+            pool.blanks += 1;
+            return;
+          }
+          const letter = (tile.assignedLetter || tile.letter || '').toUpperCase();
+          if (letter) {
+            pool.letters[letter] = (pool.letters[letter] || 0) + 1;
+          }
+        });
 
         for (let i = 0; i < word.length; i += 1) {
           const row = start.row + delta.dr * i;
@@ -3281,9 +3577,9 @@ $aiSetupNotes = [
 
       const findCell = (row, col) => cells.find((cell) => Number(cell.dataset.row) === row && Number(cell.dataset.col) === col);
 
-      const animateTileToCell = (tile, cell, row, col) => {
+      const animateTileToCell = (tile, cell, row, col, sourceOverride = null) => {
         if (!tile) return;
-        const source = document.querySelector(`[data-tile-id="${tile.id}"][data-location="rack"]`);
+        const source = sourceOverride || document.querySelector(`[data-tile-id="${tile.id}"][data-location="rack"]`);
         const targetRect = cell?.getBoundingClientRect();
         const sourceRect = source?.getBoundingClientRect();
 
@@ -3363,10 +3659,20 @@ $aiSetupNotes = [
         const direction = move.direction === 'vertical' ? 'vertical' : 'horizontal';
         const delta = direction === 'vertical' ? { dr: 1, dc: 0 } : { dr: 0, dc: 1 };
         const word = (move.word || '').toUpperCase();
-        const availableIds = rack.map((tile) => tile.id);
+        const availableTiles = [
+          ...rack.map((tile) => ({ tile, source: 'rack' })),
+          ...collectMovableBoardTiles().map((entry) => ({ ...entry, source: 'board' })),
+        ];
         const placements = [];
         const placementLetters = new Map();
         const blankPositions = new Set();
+
+        const takeTile = (predicate) => {
+          const index = availableTiles.findIndex(({ tile }) => predicate(tile));
+          if (index === -1) return null;
+          const [entry] = availableTiles.splice(index, 1);
+          return entry;
+        };
 
         if (Array.isArray(move.placements)) {
           move.placements.forEach((placement) => {
@@ -3406,22 +3712,28 @@ $aiSetupNotes = [
           const recordedLetter = placementLetters.get(key);
           const letterForPosition = recordedLetter && recordedLetter !== '?' ? recordedLetter : word[i];
           const needsBlank = blankPositions.has(key);
-          const foundId = availableIds.find((id) => {
-            const candidate = findTile(id);
+          const found = takeTile((candidate) => {
             if (!candidate) return false;
             if (needsBlank) return candidate.isBlank;
-            if (!candidate.isBlank && candidate.letter.toUpperCase() === letterForPosition) return true;
+            if (!candidate.isBlank && (candidate.assignedLetter || candidate.letter).toUpperCase() === letterForPosition) return true;
             if (candidate.isBlank) return true;
             return false;
           });
 
-          if (!foundId) {
+          if (!found) {
             setMessage(`Missing the tile “${letterForPosition}” to build ${word}.`, 'error');
             return;
           }
 
-          availableIds.splice(availableIds.indexOf(foundId), 1);
-          placements.push({ tileId: foundId, letter: letterForPosition, row, col, needsBlank });
+          const sourceElement = found.source === 'board'
+            ? document.querySelector(`[data-tile-id="${found.tile.id}"][data-location="board"]`)
+            : document.querySelector(`[data-tile-id="${found.tile.id}"][data-location="rack"]`);
+
+          if (found.source === 'board') {
+            removeTileFromCurrentPosition(found.tile);
+          }
+
+          placements.push({ tileId: found.tile.id, letter: letterForPosition, row, col, needsBlank, sourceElement });
         }
 
         if (!placements.length) {
@@ -3436,7 +3748,7 @@ $aiSetupNotes = [
           }
           const cell = findCell(placement.row, placement.col);
           setTimeout(() => {
-            animateTileToCell(tile, cell, placement.row, placement.col);
+            animateTileToCell(tile, cell, placement.row, placement.col, placement.sourceElement || null);
           }, index * 160);
         });
 
@@ -3503,6 +3815,11 @@ $aiSetupNotes = [
       const renderAiSuggestions = (list) => {
         if (!aiListEl) return;
         aiListEl.innerHTML = '';
+
+        if (!list.length) {
+          aiListEl.innerHTML = '<li class="ai-card">No playable suggestions right now.</li>';
+          return;
+        }
 
         list.slice(0, 5).forEach((move, index) => {
           const li = document.createElement('li');
@@ -3790,7 +4107,7 @@ $aiSetupNotes = [
           tile.justPlaced = false;
         });
         totalScore += turnScore;
-        scoreEl.textContent = totalScore;
+        if (scoreEl) { scoreEl.textContent = totalScore; }
         firstTurn = false;
         turnActive = false;
         updateTurnButton();
@@ -3820,7 +4137,7 @@ $aiSetupNotes = [
           applyRackState();
           updateBagCount();
         }
-        scoreEl.textContent = '0';
+        if (scoreEl) { scoreEl.textContent = '0'; }
         setMessage('Board reset to the last synced state.', 'success');
         updateTurnButton();
         updateAiButton();
@@ -3933,6 +4250,8 @@ $aiSetupNotes = [
       if (toggleBtn) toggleBtn.addEventListener('click', handleToggleClick);
       if (drawTileBtn) drawTileBtn.addEventListener('click', handleDrawTile);
       if (resetBtn) resetBtn.addEventListener('click', () => { closeHudMenu(); resetBoard(); });
+      if (rematchBtn) rematchBtn.addEventListener('click', requestRematch);
+      if (closeWinnerBtn) closeWinnerBtn.addEventListener('click', closeWinnerModal);
       if (aiBtn) aiBtn.addEventListener('click', handleAiClick);
       if (passBtn) passBtn.addEventListener('click', handlePass);
       if (exchangeBtn) exchangeBtn.addEventListener('click', handleExchange);

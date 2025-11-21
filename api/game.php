@@ -28,6 +28,27 @@ if (!$lobby) {
 
 if ($method === 'POST') {
     $action = $payload['action'] ?? '';
+    if ($action === 'rematch') {
+        $players = $repository->listPlayers($lobbyId);
+        $isMember = array_filter($players, static fn ($p) => (int) $p['user_id'] === $user['id']);
+        if (!$isMember) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Only lobby players can start a rematch.']);
+            exit;
+        }
+
+        try {
+            $game = $repository->resetGame($lobbyId);
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'game' => $game]);
+        exit;
+    }
+
     if ($action === 'draw') {
         if ($lobby['status'] !== 'drawing') {
             http_response_code(409);
