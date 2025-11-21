@@ -2730,12 +2730,16 @@ $aiSetupNotes = [
         const scaledWidth = boardRect.width * finalScale;
         const scaledHeight = boardRect.height * finalScale;
 
-        // Allow the board to travel from edge-to-edge of the viewport (plus a small
-        // buffer) regardless of whether it is smaller or larger than the viewport.
-        const minPanX = viewportRect.width - scaledWidth - reach;
-        const maxPanX = reach;
-        const minPanY = viewportRect.height - scaledHeight - reach;
-        const maxPanY = reach;
+        const extraX = viewportRect.width - scaledWidth;
+        const extraY = viewportRect.height - scaledHeight;
+
+        // When the board is smaller than the viewport, allow it to glide from
+        // edge-to-edge (with a small buffer). When larger, keep enough travel to
+        // reach both edges instead of collapsing the range to the center.
+        const minPanX = extraX >= 0 ? -reach : extraX - reach;
+        const maxPanX = extraX >= 0 ? extraX + reach : reach;
+        const minPanY = extraY >= 0 ? -reach : extraY - reach;
+        const maxPanY = extraY >= 0 ? extraY + reach : reach;
 
         panX = clamp(panX, minPanX, maxPanX);
         panY = clamp(panY, minPanY, maxPanY);
@@ -2799,10 +2803,20 @@ $aiSetupNotes = [
         });
       };
 
+      const syncDockHeights = () => {
+        const topDock = document.querySelector('.hud-dock');
+        const bottomDock = document.querySelector('.turn-dock');
+        const topHeight = topDock?.getBoundingClientRect().height || 0;
+        const bottomHeight = bottomDock?.getBoundingClientRect().height || 0;
+        const rootStyle = document.documentElement.style;
+        rootStyle.setProperty('--top-dock-height', `${topHeight}px`);
+        rootStyle.setProperty('--bottom-dock-height', `${bottomHeight}px`);
+        return { topHeight, bottomHeight };
+      };
+
       const resizeBoardToViewport = ({ resetView = false } = {}) => {
         if (!boardViewport || !boardScaleEl || !boardChromeEl) return;
-        const topHeight = document.querySelector('.hud-dock')?.getBoundingClientRect().height || 0;
-        const bottomHeight = document.querySelector('.turn-dock')?.getBoundingClientRect().height || 0;
+        const { topHeight, bottomHeight } = syncDockHeights();
         const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
 
         boardViewport.style.height = `${availableHeight}px`;
