@@ -2673,20 +2673,29 @@ $aiSetupNotes = [
       };
 
       const measureBoardCenter = () => {
-        if (!boardScaleEl || !boardChromeEl) return { x: 0, y: 0, width: 0, height: 0 };
+        if (!boardScaleEl || !boardChromeEl || !boardViewport) {
+          return { x: 0, y: 0, width: 0, height: 0 };
+        }
+
         const previousTransform = boardScaleEl.style.transform;
         boardScaleEl.style.transform = 'none';
 
         const boardRect = boardChromeEl.getBoundingClientRect();
+        const viewportRect = boardViewport.getBoundingClientRect();
+        const centerCell = boardChromeEl.querySelector('[data-center="true"]');
+
+        let x = boardRect.width / 2;
+        let y = boardRect.height / 2;
+
+        if (centerCell instanceof HTMLElement) {
+          const cellRect = centerCell.getBoundingClientRect();
+          x = cellRect.left - viewportRect.left + cellRect.width / 2;
+          y = cellRect.top - viewportRect.top + cellRect.height / 2;
+        }
 
         boardScaleEl.style.transform = previousTransform;
 
-        return {
-          x: boardRect.width / 2,
-          y: boardRect.height / 2,
-          width: boardRect.width,
-          height: boardRect.height,
-        };
+        return { x, y, width: boardRect.width, height: boardRect.height };
       };
 
       const centerBoard = () => {
