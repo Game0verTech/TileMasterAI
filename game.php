@@ -242,22 +242,39 @@ $aiSetupNotes = [
     .draw-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.78);
+      background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.25), transparent 45%),
+                  radial-gradient(circle at 80% 15%, rgba(14, 165, 233, 0.22), transparent 40%),
+                  rgba(15, 23, 42, 0.86);
       display: grid;
       place-items: center;
       padding: 24px;
       z-index: 2000;
+      backdrop-filter: blur(6px);
     }
 
     .draw-panel {
-      background: #0b1224;
+      background: linear-gradient(180deg, rgba(10, 14, 27, 0.9), rgba(9, 12, 22, 0.98));
       border: 1px solid #1e293b;
       border-radius: 18px;
       padding: 18px;
-      width: min(100%, 820px);
+      width: min(100%, 940px);
       color: #e2e8f0;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.06);
+      display: grid;
+      gap: 14px;
     }
+
+    .draw-hero { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; align-items: center; }
+    .draw-stage { display: flex; align-items: center; gap: 16px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+    .draw-stack { position: relative; width: 120px; height: 120px; display: grid; place-items: center; }
+    .draw-card { width: 96px; height: 96px; border-radius: 12px; background: var(--tile-wood); border: 1px solid #b9874c; box-shadow: 0 14px 30px rgba(0,0,0,0.32); display: grid; place-items: center; font-size: 42px; font-weight: 900; color: #0f172a; transform: rotate(-6deg); position: absolute; transition: transform 0.4s ease, opacity 0.35s ease; }
+    .draw-card:nth-child(2) { transform: translate3d(10px, 12px, 0) rotate(4deg); opacity: 0.7; }
+    .draw-card:nth-child(3) { transform: translate3d(-12px, 16px, 0) rotate(-10deg); opacity: 0.6; }
+    .draw-card.revealed { animation: card-pop 420ms ease; }
+    .draw-bubble { flex: 1; display: grid; gap: 6px; }
+    .draw-meter { display: grid; gap: 6px; }
+    .meter-track { width: 100%; height: 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.2); overflow: hidden; }
+    .meter-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: inherit; transition: width 240ms ease; }
 
     .draw-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
     .draw-grid table { width: 100%; border-collapse: collapse; }
@@ -265,7 +282,7 @@ $aiSetupNotes = [
     .draw-grid th { color: #cbd5e1; }
 
     .draw-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; }
+    .draw-actions button { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; background: #6366f1; color: #fff; box-shadow: 0 10px 20px rgba(99,102,241,0.25); }
     .draw-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .draw-modal {
@@ -336,6 +353,12 @@ $aiSetupNotes = [
 
     .draw-ticker { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 8px 0; }
     .countdown { font-size: 36px; font-weight: 800; margin-top: 10px; }
+
+    @keyframes card-pop {
+      0% { transform: translateY(18px) scale(0.96) rotate(-8deg); opacity: 0; }
+      60% { transform: translateY(-6px) scale(1.05) rotate(-2deg); opacity: 1; }
+      100% { transform: translateY(0) scale(1) rotate(-6deg); opacity: 1; }
+    }
 
     header {
       display: flex;
@@ -1949,6 +1972,26 @@ $aiSetupNotes = [
         </div>
         <button type="button" id="drawTileBtn">Draw tile</button>
       </div>
+      <div class="draw-hero">
+        <div class="draw-stage">
+          <div class="draw-stack" aria-hidden="true">
+            <span class="draw-card" id="drawCardTop">?</span>
+            <span class="draw-card"></span>
+            <span class="draw-card"></span>
+          </div>
+          <div class="draw-bubble">
+            <p class="hud-text" style="margin:0; color:#cbd5e1;">Drag the top tile to the spotlight and reveal it with the button.</p>
+            <div class="draw-meter">
+              <div class="meter-track" aria-hidden="true"><span class="meter-fill" id="drawMeterFill"></span></div>
+              <p class="hud-text" id="drawMeterText" style="margin:0; color:#94a3b8;">0 of 0 players revealed.</p>
+            </div>
+          </div>
+        </div>
+        <div class="draw-bubble" style="align-self: stretch; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12);">
+          <p class="hud-eyebrow" style="margin:0;">How it works</p>
+          <p class="hud-text" style="margin:6px 0 0; color:#cbd5e1;">We pull a single tile from a blank-free bag to set turn order. Once all tiles are revealed, the full bag (blanks included) is reshuffled for racks.</p>
+        </div>
+      </div>
       <div class="draw-grid" style="margin-top:10px;">
         <div>
           <h3 style="margin:0 0 6px;">Players</h3>
@@ -2202,6 +2245,9 @@ $aiSetupNotes = [
       const tileModal = document.getElementById('tileModal');
       const drawTicker = document.getElementById('drawTicker');
       const drawResultText = document.getElementById('drawResultText');
+      const drawCardTop = document.getElementById('drawCardTop');
+      const drawMeterFill = document.getElementById('drawMeterFill');
+      const drawMeterText = document.getElementById('drawMeterText');
       const startModal = document.getElementById('startModal');
       const startModalTitle = document.getElementById('startModalTitle');
       const startModalMessage = document.getElementById('startModalMessage');
@@ -2373,8 +2419,9 @@ $aiSetupNotes = [
       };
 
       const randomLetterFromPool = (pool = []) => {
-        if (!pool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
-        return pool[Math.floor(Math.random() * pool.length)];
+        const cleanPool = pool.filter((letter) => letter !== '?');
+        if (!cleanPool.length) return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        return cleanPool[Math.floor(Math.random() * cleanPool.length)];
       };
 
       const runTileAnimation = (finalTile) => new Promise((resolve) => {
@@ -2398,6 +2445,11 @@ $aiSetupNotes = [
           if (index >= sequence.length) {
             drawTicker.textContent = finalTile;
             drawResultText.textContent = `You drew ${finalTile}.`;
+            if (drawCardTop) {
+              drawCardTop.textContent = finalTile;
+              drawCardTop.classList.add('revealed');
+              setTimeout(() => drawCardTop.classList.remove('revealed'), 420);
+            }
             state.lastDrawRevealAt = Date.now();
             setTimeout(() => {
               tileModal.classList.add('hidden');
@@ -2751,19 +2803,25 @@ $aiSetupNotes = [
 
       const renderDrawTables = () => {
         if (!drawTable || !orderTable) return;
-        const draws = state.game?.draws || [];
+        const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
+        const sortedDraws = [...draws].sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || String(b.tile).localeCompare(String(a.tile)));
 
         drawTable.innerHTML = players.map((player) => {
           const entry = draws.find((d) => Number(d.user_id) === Number(player.user_id ?? player.id));
-          const status = entry ? (entry.revealed ? 'Revealed' : 'Drawing…') : 'Waiting';
+          const status = entry ? (entry.revealed ? `Revealed · ${entry.value} pts` : 'Drawing…') : 'Waiting';
           const tile = entry ? entry.tile : '—';
           return `<tr><td>${player.username}</td><td>${status}</td><td>${tile}</td></tr>`;
         }).join('');
 
         orderTable.innerHTML = (state.turnOrder || []).map((entry, idx) => {
-          return `<tr><td>${idx + 1}</td><td>${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
+          const crown = idx === 0 ? '👑 ' : '';
+          return `<tr><td>${idx + 1}</td><td>${crown}${entry.username}</td><td>${entry.tile ?? '—'}</td></tr>`;
         }).join('');
+
+        if (drawCardTop && sortedDraws.length) {
+          drawCardTop.textContent = sortedDraws[0].tile;
+        }
       };
 
       const triggerStartCountdown = () => {
@@ -2914,7 +2972,7 @@ $aiSetupNotes = [
 
       const updateDrawUi = () => {
         if (!drawOverlay || !state.user) return;
-        const draws = state.game?.draws || [];
+        const draws = state.game?.draws || state.draws || [];
         const players = state.players || [];
         const alreadyDrew = draws.some((entry) => Number(entry.user_id) === Number(state.user.id));
         const everyoneDrew = players.length > 0 && draws.length >= players.length;
@@ -2922,13 +2980,28 @@ $aiSetupNotes = [
         renderDrawTables();
 
         if (drawStatusEl) {
-          drawStatusEl.textContent = 'Draw a tile to see who plays first!';
+          const leader = state.turnOrder?.[0];
+          drawStatusEl.textContent = leader && everyoneRevealed
+            ? `${leader.username} starts the game`
+            : 'Draw a tile to see who plays first!';
         }
         if (drawHintEl) {
           drawHintEl.textContent = alreadyDrew ? 'Waiting for the rest of the table to draw...' : 'Tap draw to reveal your tile.';
         }
         if (drawTileBtn) {
           drawTileBtn.disabled = alreadyDrew || everyoneDrew;
+        }
+
+        const revealedCount = draws.filter((entry) => entry.revealed).length;
+        const totalPlayers = players.length || 0;
+        if (drawMeterFill) {
+          const fill = totalPlayers ? Math.min(100, Math.round((revealedCount / totalPlayers) * 100)) : 0;
+          drawMeterFill.style.width = `${fill}%`;
+        }
+        if (drawMeterText) {
+          drawMeterText.textContent = totalPlayers
+            ? `${revealedCount} of ${totalPlayers} revealed`
+            : 'Waiting for players...';
         }
 
         const readyToStart = everyoneRevealed && state.turnOrder.length > 0;
