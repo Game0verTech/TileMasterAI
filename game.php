@@ -2819,27 +2819,30 @@ $aiSetupNotes = [
         const scalePadX = Math.max(0, (scaledWidth - boardWidth) / 2);
         const scalePadY = Math.max(0, (scaledHeight - boardHeight) / 2);
         const panAllowance = Math.max(0, zoomFactor - 1);
-        const panBoostX = (viewportRect.width || 0) * 0.85 * panAllowance;
-        const panBoostY = (viewportRect.height || 0) * 0.85 * panAllowance;
+        const panBoostX = (viewportRect.width || 0) * 0.35 * panAllowance;
+        const panBoostY = (viewportRect.height || 0) * 0.35 * panAllowance;
 
-        const viewportReserveX = (viewportRect.width || 0) * 0.9;
-        const viewportReserveY = (viewportRect.height || 0) * 0.9;
+        const viewportReserveX = (viewportRect.width || 0) * 0.25;
+        const viewportReserveY = (viewportRect.height || 0) * 0.25;
 
-        const freePanReserve = Math.max(viewportRect.width, viewportRect.height) * Math.max(1.5, zoomFactor * 1.2);
-        const padX = Math.max(
+        const padXCandidate = Math.max(
           basePadding,
           scalePadX + panBoostX,
-          overflowX * 0.65 + basePadding,
+          overflowX * 0.6 + basePadding,
           viewportReserveX,
-          freePanReserve,
         );
-        const padY = Math.max(
+        const padYCandidate = Math.max(
           basePadding,
           scalePadY + panBoostY,
-          overflowY * 0.65 + basePadding,
+          overflowY * 0.6 + basePadding,
           viewportReserveY,
-          freePanReserve,
         );
+
+        const maxPadX = Math.max(viewportRect.width * 0.6, scaledWidth * 0.9);
+        const maxPadY = Math.max(viewportRect.height * 0.6, scaledHeight * 0.9);
+
+        const padX = Math.min(padXCandidate, maxPadX);
+        const padY = Math.min(padYCandidate, maxPadY);
 
         const topPad = padY + Math.max(0, topInset * 0.5);
         const bottomPad = padY + Math.max(0, bottomInset * 0.35);
