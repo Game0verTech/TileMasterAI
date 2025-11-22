@@ -536,7 +536,6 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
-      max-width: min(100%, 960px);
       margin: 0 auto;
     }
 
@@ -1486,7 +1485,10 @@ $aiSetupNotes = [
       cursor: grab;
       scroll-behavior: auto;
       height: 100%;
+      scrollbar-width: none;
     }
+
+    .board-canvas::-webkit-scrollbar { display: none; }
 
     .board-canvas.dragging { cursor: grabbing; }
 
@@ -2817,23 +2819,26 @@ $aiSetupNotes = [
         const scalePadX = Math.max(0, (scaledWidth - boardWidth) / 2);
         const scalePadY = Math.max(0, (scaledHeight - boardHeight) / 2);
         const panAllowance = Math.max(0, zoomFactor - 1);
-        const panBoostX = (viewportRect.width || 0) * 0.5 * panAllowance;
-        const panBoostY = (viewportRect.height || 0) * 0.5 * panAllowance;
+        const panBoostX = (viewportRect.width || 0) * 0.85 * panAllowance;
+        const panBoostY = (viewportRect.height || 0) * 0.85 * panAllowance;
 
-        const viewportReserveX = (viewportRect.width || 0) * 0.5;
-        const viewportReserveY = (viewportRect.height || 0) * 0.5;
+        const viewportReserveX = (viewportRect.width || 0) * 0.9;
+        const viewportReserveY = (viewportRect.height || 0) * 0.9;
 
+        const freePanReserve = Math.max(viewportRect.width, viewportRect.height) * Math.max(1.5, zoomFactor * 1.2);
         const padX = Math.max(
           basePadding,
           scalePadX + panBoostX,
-          overflowX * 0.5 + basePadding * 0.6,
+          overflowX * 0.65 + basePadding,
           viewportReserveX,
+          freePanReserve,
         );
         const padY = Math.max(
           basePadding,
           scalePadY + panBoostY,
-          overflowY * 0.5 + basePadding * 0.6,
+          overflowY * 0.65 + basePadding,
           viewportReserveY,
+          freePanReserve,
         );
 
         const topPad = padY + Math.max(0, topInset * 0.5);
