@@ -1582,78 +1582,62 @@ $aiSetupNotes = [
       line-height: 1.4;
     }
 
-    .nav-dock {
-      position: fixed;
-      inset: calc(var(--top-dock-height) + 16px) auto auto 16px;
-      z-index: 14;
-      max-width: min(320px, 42vw);
-      pointer-events: none;
-    }
-
-    .nav-dock.right { inset: calc(var(--top-dock-height) + 16px) 16px auto auto; }
-
-    .nav-controls {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 12px;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 14px;
-      border: 1px solid var(--panel-border);
-      padding: 12px 14px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 16px 28px rgba(15, 23, 42, 0.14);
-      backdrop-filter: blur(12px);
-      width: 100%;
-      pointer-events: auto;
-    }
-
-    .zoom-rail { display: grid; gap: 6px; }
-
-    .zoom-label {
+    .view-tools {
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 8px;
-      font-size: 14px;
-      color: var(--ink);
-      font-weight: 700;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--panel-border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
     }
 
-    .zoom-readout {
+    .nav-controls { display: flex; align-items: center; gap: 10px; }
+
+    .zoom-rail { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+    .zoom-chip {
+      min-width: 52px;
+      text-align: center;
+      padding: 6px 8px;
+      border-radius: 10px;
       background: #eef2ff;
       color: #312e81;
-      border-radius: 10px;
-      padding: 6px 10px;
       border: 1px solid rgba(99, 102, 241, 0.2);
       font-variant-numeric: tabular-nums;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
     }
 
     .zoom-slider {
-      width: 100%;
+      width: 120px;
       accent-color: var(--accent);
+      margin: 0;
     }
 
     .nav-mini {
       position: relative;
-      width: 130px;
-      height: 130px;
-      border-radius: 12px;
+      width: 90px;
+      height: 90px;
+      border-radius: 10px;
       border: 1px solid var(--panel-border);
-      background: repeating-linear-gradient(0deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.08) 8px, rgba(255, 255, 255, 0.55) 8px, rgba(255, 255, 255, 0.55) 16px),
-        repeating-linear-gradient(90deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.08) 8px, rgba(255, 255, 255, 0.55) 8px, rgba(255, 255, 255, 0.55) 16px),
-        rgba(15, 23, 42, 0.05);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 16px rgba(15, 23, 42, 0.08);
+      background: repeating-linear-gradient(0deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.1) 6px, rgba(255, 255, 255, 0.55) 6px, rgba(255, 255, 255, 0.55) 12px),
+        repeating-linear-gradient(90deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.1) 6px, rgba(255, 255, 255, 0.55) 6px, rgba(255, 255, 255, 0.55) 12px),
+        rgba(15, 23, 42, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 6px 14px rgba(15, 23, 42, 0.08);
       overflow: hidden;
       cursor: crosshair;
+      flex-shrink: 0;
     }
 
     .nav-window {
       position: absolute;
       border: 2px solid rgba(79, 70, 229, 0.9);
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.28);
       pointer-events: none;
       transition: width 90ms ease, height 90ms ease, transform 90ms ease;
     }
@@ -1661,24 +1645,18 @@ $aiSetupNotes = [
     .nav-crosshair {
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(79, 70, 229, 0.18) 0, transparent 45%);
+      background: radial-gradient(circle at center, rgba(79, 70, 229, 0.2) 0, transparent 55%);
       pointer-events: none;
     }
 
-    .nav-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
+    .nav-actions { display: flex; align-items: center; gap: 6px; }
 
     .nav-btn {
       border: 1px solid rgba(99, 102, 241, 0.16);
-      background: #111827;
+      background: #0f172a;
       color: #e0f2fe;
       border-radius: 10px;
-      padding: 8px 12px;
+      padding: 8px 10px;
       font-weight: 800;
       cursor: pointer;
       display: inline-flex;
@@ -1722,7 +1700,7 @@ $aiSetupNotes = [
       flex-wrap: nowrap;
     }
 
-    .hud-meta { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .hud-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
     .hud-menu { flex-shrink: 0; }
     .brand { order: 1; }
     .hud-right { order: 3; }
@@ -2298,31 +2276,27 @@ $aiSetupNotes = [
         <div class="score-strip" id="playerScores" aria-live="polite"></div>
         <div class="hud-meta">
           <span class="hud-pill"><strong>Bag</strong> <span id="bagCount">100</span> tiles</span>
+          <div class="view-tools" id="navDock">
+            <div class="nav-controls" aria-label="Board navigator">
+              <div class="nav-mini" id="navMini" aria-label="Board mini-map">
+                <div class="nav-window" id="navWindow" aria-hidden="true"></div>
+                <div class="nav-crosshair" aria-hidden="true"></div>
+              </div>
+              <div class="zoom-rail">
+                <span class="zoom-chip" id="zoomValue">100%</span>
+                <input type="range" min="0.65" max="2.6" step="0.01" value="1" id="zoomDial" class="zoom-slider" aria-label="Zoom level" />
+              </div>
+              <div class="nav-actions">
+                <button class="nav-btn" type="button" id="resetViewBtn" title="Re-center board">↺</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <main class="app-shell" aria-label="TileMasterAI board">
-    <div class="nav-dock right" id="navDock">
-      <div class="nav-controls" aria-label="Board navigator">
-        <div class="zoom-rail">
-          <div class="zoom-label">
-            <span>Zoom</span>
-            <span class="zoom-readout" id="zoomValue">100%</span>
-          </div>
-          <input type="range" min="0.65" max="2.6" step="0.01" value="1" id="zoomDial" class="zoom-slider" aria-label="Zoom level" />
-        </div>
-        <div class="nav-mini" id="navMini" aria-label="Board mini-map">
-          <div class="nav-window" id="navWindow" aria-hidden="true"></div>
-          <div class="nav-crosshair" aria-hidden="true"></div>
-        </div>
-        <div class="nav-actions">
-          <button class="nav-btn" type="button" id="dockSideToggle">Dock left</button>
-          <button class="nav-btn" type="button" id="resetViewBtn">Re-center</button>
-        </div>
-      </div>
-    </div>
     <div class="game-layout">
       <section class="board-pane" aria-label="Board focus area">
         <div class="board-card">
@@ -2482,12 +2456,10 @@ $aiSetupNotes = [
       const boardScaleEl = document.getElementById('boardScale');
       const boardFrameEl = document.getElementById('boardFrame');
       const boardChromeEl = document.getElementById('boardChrome');
-      const navDock = document.getElementById('navDock');
       const zoomDial = document.getElementById('zoomDial');
       const zoomValue = document.getElementById('zoomValue');
       const navMini = document.getElementById('navMini');
       const navWindow = document.getElementById('navWindow');
-      const dockSideToggle = document.getElementById('dockSideToggle');
       const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
@@ -2567,12 +2539,6 @@ $aiSetupNotes = [
       let startDelayTimer = null;
       let celebrationTimer = null;
 
-      const applyDockSide = (side) => {
-        if (!navDock || !dockSideToggle) return;
-        navDock.classList.toggle('right', side === 'right');
-        dockSideToggle.textContent = side === 'right' ? 'Dock left' : 'Dock right';
-      };
-
       const initAudio = () => {
         if (audioCtx) return audioCtx;
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -2582,6 +2548,24 @@ $aiSetupNotes = [
       };
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const cssNumber = (variableName, fallback = 0) => {
+        const styles = getComputedStyle(document.documentElement);
+        const value = parseFloat(styles.getPropertyValue(variableName));
+        return Number.isFinite(value) ? value : fallback;
+      };
+
+      const safeViewportSize = () => {
+        const baseRect = boardCanvas?.getBoundingClientRect();
+        if (!baseRect) return { width: 0, height: 0 };
+        const topDock = cssNumber('--top-dock-height');
+        const bottomDock = cssNumber('--bottom-dock-height');
+        const availableHeight = Math.max(0, window.innerHeight - topDock - bottomDock - 24);
+        return {
+          width: baseRect.width,
+          height: Math.min(baseRect.height, availableHeight || baseRect.height),
+        };
+      };
 
       const letterDistance = (letter = '') => {
         const code = String(letter).toUpperCase().charCodeAt(0);
@@ -2899,13 +2883,12 @@ $aiSetupNotes = [
 
       const clampOffsets = () => {
         if (!boardCanvas) return;
-        const viewportRect = boardCanvas.getBoundingClientRect();
+        const viewportRect = { ...boardCanvas.getBoundingClientRect(), ...safeViewportSize() };
         const boardRect = measureBoardRect();
         const scaledWidth = boardRect.width * camera.scale;
         const scaledHeight = boardRect.height * camera.scale;
-        const slack = 48;
-        const maxX = Math.max(0, scaledWidth / 2 - viewportRect.width / 2 + slack);
-        const maxY = Math.max(0, scaledHeight / 2 - viewportRect.height / 2 + slack);
+        const maxX = Math.max(0, scaledWidth / 2 - viewportRect.width / 2);
+        const maxY = Math.max(0, scaledHeight / 2 - viewportRect.height / 2);
         camera.offsetX = clamp(camera.offsetX, -maxX, maxX);
         camera.offsetY = clamp(camera.offsetY, -maxY, maxY);
       };
@@ -2941,9 +2924,9 @@ $aiSetupNotes = [
       const computeFitScale = () => {
         if (!boardCanvas) return 1;
         const boardRect = measureBoardRect();
-        const viewportRect = boardCanvas.getBoundingClientRect();
+        const viewportRect = safeViewportSize();
         if (!boardRect.width || !viewportRect.width) return 1;
-        const padding = 48;
+        const padding = 32;
         const widthScale = (viewportRect.width - padding) / boardRect.width;
         const heightScale = (viewportRect.height - padding) / boardRect.height;
         return clamp(Math.min(widthScale, heightScale), 0.45, 3.2);
@@ -5182,17 +5165,6 @@ $aiSetupNotes = [
             event.preventDefault();
             const zoomStep = event.shiftKey ? 0.72 : 1.35;
             requestZoom(zoomStep, { x: event.clientX, y: event.clientY });
-          });
-        }
-
-        const savedDock = localStorage.getItem('navDockSide');
-        applyDockSide(savedDock === 'left' ? 'left' : 'right');
-
-        if (dockSideToggle) {
-          dockSideToggle.addEventListener('click', () => {
-            const nextSide = navDock?.classList.contains('right') ? 'left' : 'right';
-            applyDockSide(nextSide);
-            try { localStorage.setItem('navDockSide', nextSide); } catch (err) { /* ignore */ }
           });
         }
 
