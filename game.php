@@ -1582,24 +1582,32 @@ $aiSetupNotes = [
       line-height: 1.4;
     }
 
+    .nav-dock {
+      position: fixed;
+      inset: calc(var(--top-dock-height) + 16px) auto auto 16px;
+      z-index: 14;
+      max-width: min(320px, 42vw);
+      pointer-events: none;
+    }
+
+    .nav-dock.right { inset: calc(var(--top-dock-height) + 16px) 16px auto auto; }
+
     .nav-controls {
       display: grid;
       grid-template-columns: 1fr auto auto;
       gap: 12px;
       align-items: center;
-      background: rgba(255, 255, 255, 0.85);
-      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 14px;
       border: 1px solid var(--panel-border);
-      padding: 10px 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 22px rgba(15, 23, 42, 0.08);
-      backdrop-filter: blur(10px);
+      padding: 12px 14px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 16px 28px rgba(15, 23, 42, 0.14);
+      backdrop-filter: blur(12px);
       width: 100%;
+      pointer-events: auto;
     }
 
-    .zoom-rail {
-      display: grid;
-      gap: 6px;
-    }
+    .zoom-rail { display: grid; gap: 6px; }
 
     .zoom-label {
       display: flex;
@@ -1628,8 +1636,8 @@ $aiSetupNotes = [
 
     .nav-mini {
       position: relative;
-      width: 140px;
-      height: 140px;
+      width: 130px;
+      height: 130px;
       border-radius: 12px;
       border: 1px solid var(--panel-border);
       background: repeating-linear-gradient(0deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.08) 8px, rgba(255, 255, 255, 0.55) 8px, rgba(255, 255, 255, 0.55) 16px),
@@ -1659,9 +1667,10 @@ $aiSetupNotes = [
 
     .nav-actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
       justify-content: flex-end;
+      flex-wrap: wrap;
     }
 
     .nav-btn {
@@ -2295,6 +2304,25 @@ $aiSetupNotes = [
   </header>
 
   <main class="app-shell" aria-label="TileMasterAI board">
+    <div class="nav-dock right" id="navDock">
+      <div class="nav-controls" aria-label="Board navigator">
+        <div class="zoom-rail">
+          <div class="zoom-label">
+            <span>Zoom</span>
+            <span class="zoom-readout" id="zoomValue">100%</span>
+          </div>
+          <input type="range" min="0.65" max="2.6" step="0.01" value="1" id="zoomDial" class="zoom-slider" aria-label="Zoom level" />
+        </div>
+        <div class="nav-mini" id="navMini" aria-label="Board mini-map">
+          <div class="nav-window" id="navWindow" aria-hidden="true"></div>
+          <div class="nav-crosshair" aria-hidden="true"></div>
+        </div>
+        <div class="nav-actions">
+          <button class="nav-btn" type="button" id="dockSideToggle">Dock left</button>
+          <button class="nav-btn" type="button" id="resetViewBtn">Re-center</button>
+        </div>
+      </div>
+    </div>
     <div class="game-layout">
       <section class="board-pane" aria-label="Board focus area">
         <div class="board-card">
@@ -2304,22 +2332,6 @@ $aiSetupNotes = [
               <p class="board-instructions">
                 Space + drag to pan, scroll or pinch to zoom. Use the live mini-map to jump anywhere without losing your place.
               </p>
-            </div>
-            <div class="nav-controls" aria-label="Board navigator">
-              <div class="zoom-rail">
-                <div class="zoom-label">
-                  <span>Zoom</span>
-                  <span class="zoom-readout" id="zoomValue">100%</span>
-                </div>
-                <input type="range" min="0.65" max="2.6" step="0.01" value="1" id="zoomDial" class="zoom-slider" aria-label="Zoom level" />
-              </div>
-              <div class="nav-mini" id="navMini" aria-label="Board mini-map">
-                <div class="nav-window" id="navWindow" aria-hidden="true"></div>
-                <div class="nav-crosshair" aria-hidden="true"></div>
-              </div>
-              <div class="nav-actions">
-                <button class="nav-btn" type="button" id="resetViewBtn">Re-center</button>
-              </div>
             </div>
           </div>
           <div class="board-viewport" id="boardViewport">
@@ -2470,10 +2482,12 @@ $aiSetupNotes = [
       const boardScaleEl = document.getElementById('boardScale');
       const boardFrameEl = document.getElementById('boardFrame');
       const boardChromeEl = document.getElementById('boardChrome');
+      const navDock = document.getElementById('navDock');
       const zoomDial = document.getElementById('zoomDial');
       const zoomValue = document.getElementById('zoomValue');
       const navMini = document.getElementById('navMini');
       const navWindow = document.getElementById('navWindow');
+      const dockSideToggle = document.getElementById('dockSideToggle');
       const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
@@ -2552,6 +2566,12 @@ $aiSetupNotes = [
       let startTimer = null;
       let startDelayTimer = null;
       let celebrationTimer = null;
+
+      const applyDockSide = (side) => {
+        if (!navDock || !dockSideToggle) return;
+        navDock.classList.toggle('right', side === 'right');
+        dockSideToggle.textContent = side === 'right' ? 'Dock left' : 'Dock right';
+      };
 
       const initAudio = () => {
         if (audioCtx) return audioCtx;
@@ -5162,6 +5182,17 @@ $aiSetupNotes = [
             event.preventDefault();
             const zoomStep = event.shiftKey ? 0.72 : 1.35;
             requestZoom(zoomStep, { x: event.clientX, y: event.clientY });
+          });
+        }
+
+        const savedDock = localStorage.getItem('navDockSide');
+        applyDockSide(savedDock === 'left' ? 'left' : 'right');
+
+        if (dockSideToggle) {
+          dockSideToggle.addEventListener('click', () => {
+            const nextSide = navDock?.classList.contains('right') ? 'left' : 'right';
+            applyDockSide(nextSide);
+            try { localStorage.setItem('navDockSide', nextSide); } catch (err) { /* ignore */ }
           });
         }
 
