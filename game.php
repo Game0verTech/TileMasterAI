@@ -1443,11 +1443,11 @@ $aiSetupNotes = [
     }
 
     .board-top {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      align-items: stretch;
+      justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
     }
 
     .board-viewport {
@@ -1477,20 +1477,17 @@ $aiSetupNotes = [
       flex: 1;
       width: 100%;
       height: 100%;
-      overflow: auto;
+      overflow: hidden;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.4);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
       touch-action: none;
-      cursor: grab;
-      scroll-behavior: auto;
+      cursor: default;
       height: 100%;
-      scrollbar-width: none;
     }
 
-    .board-canvas::-webkit-scrollbar { display: none; }
-
-    .board-canvas.dragging { cursor: grabbing; }
+    .board-canvas.pannable { cursor: grab; }
+    .board-canvas.panning { cursor: grabbing; }
 
     .side-rail {
       display: grid;
@@ -1563,63 +1560,126 @@ $aiSetupNotes = [
       filter: saturate(0.7);
     }
 
-    .board-toolbar {
-      position: relative;
-      display: inline-flex;
-      gap: 8px;
+    .board-hero {
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+    }
+
+    .board-eyebrow {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #312e81;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .board-instructions {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .nav-controls {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
       align-items: center;
-      justify-self: stretch;
-      justify-content: flex-end;
-      flex-wrap: wrap;
       background: rgba(255, 255, 255, 0.85);
-      color: var(--ink);
-      padding: 8px 10px;
       border-radius: 12px;
       border: 1px solid var(--panel-border);
+      padding: 10px 12px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 22px rgba(15, 23, 42, 0.08);
       backdrop-filter: blur(10px);
-      transition: opacity 140ms ease, transform 140ms ease;
       width: 100%;
     }
 
-    .board-toolbar.collapsed {
-      gap: 0;
-      padding: 6px 8px;
-      transform: translateY(-1px);
-      justify-content: flex-end;
+    .zoom-rail {
+      display: grid;
+      gap: 6px;
     }
 
-    .board-toolbar .toolbar-buttons { display: inline-flex; gap: 6px; align-items: center; }
-    .board-toolbar.collapsed .toolbar-buttons { display: none; }
+    .zoom-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 700;
+    }
 
-    .toolbar-btn {
-      border: 1px solid rgba(99, 102, 241, 0.16);
+    .zoom-readout {
       background: #eef2ff;
       color: #312e81;
       border-radius: 10px;
-      padding: 8px 10px;
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      cursor: pointer;
-      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-      min-width: 40px;
-      line-height: 1;
-    }
-
-    .toolbar-btn:hover { transform: translateY(-1px); background: #e0e7ff; }
-    .toolbar-btn:active { transform: translateY(0); background: #cbd5ff; }
-
-    .toolbar-toggle {
-      border: 1px solid rgba(226, 232, 240, 0.65);
-      background: rgba(15, 23, 42, 0.6);
-      color: #e2e8f0;
-      border-radius: 10px;
       padding: 6px 10px;
-      font-weight: 700;
-      cursor: pointer;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      font-variant-numeric: tabular-nums;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
-    .toolbar-toggle:hover { background: rgba(15, 23, 42, 0.72); }
+    .zoom-slider {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .nav-mini {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      background: repeating-linear-gradient(0deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.08) 8px, rgba(255, 255, 255, 0.55) 8px, rgba(255, 255, 255, 0.55) 16px),
+        repeating-linear-gradient(90deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.08) 8px, rgba(255, 255, 255, 0.55) 8px, rgba(255, 255, 255, 0.55) 16px),
+        rgba(15, 23, 42, 0.05);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 16px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    .nav-window {
+      position: absolute;
+      border: 2px solid rgba(79, 70, 229, 0.9);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+      transition: width 90ms ease, height 90ms ease, transform 90ms ease;
+    }
+
+    .nav-crosshair {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(79, 70, 229, 0.18) 0, transparent 45%);
+      pointer-events: none;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .nav-btn {
+      border: 1px solid rgba(99, 102, 241, 0.16);
+      background: #111827;
+      color: #e0f2fe;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+    }
+
+    .nav-btn:hover { background: #0b1220; }
+    .nav-btn:active { transform: translateY(1px); }
 
     .hud-dock {
       position: fixed;
@@ -2239,13 +2299,26 @@ $aiSetupNotes = [
       <section class="board-pane" aria-label="Board focus area">
         <div class="board-card">
           <div class="board-top">
-            <div class="board-toolbar" id="boardToolbar" aria-label="Board navigation controls">
-              <button class="toolbar-toggle" id="boardControlsToggle" type="button" aria-expanded="true">Hide view tools</button>
-              <div class="toolbar-buttons" id="boardToolbarButtons">
-                <button class="toolbar-btn" type="button" id="zoomOutBtn" aria-label="Zoom out">−</button>
-                <button class="toolbar-btn" type="button" id="zoomInBtn" aria-label="Zoom in">+</button>
-                <button class="toolbar-btn" type="button" id="centerBoardBtn" aria-label="Center board">Center</button>
-                <button class="toolbar-btn" type="button" id="fitBoardBtn" aria-label="Fit board">Fit</button>
+            <div class="board-hero">
+              <p class="board-eyebrow">Navigator</p>
+              <p class="board-instructions">
+                Space + drag to pan, scroll or pinch to zoom. Use the live mini-map to jump anywhere without losing your place.
+              </p>
+            </div>
+            <div class="nav-controls" aria-label="Board navigator">
+              <div class="zoom-rail">
+                <div class="zoom-label">
+                  <span>Zoom</span>
+                  <span class="zoom-readout" id="zoomValue">100%</span>
+                </div>
+                <input type="range" min="0.65" max="2.6" step="0.01" value="1" id="zoomDial" class="zoom-slider" aria-label="Zoom level" />
+              </div>
+              <div class="nav-mini" id="navMini" aria-label="Board mini-map">
+                <div class="nav-window" id="navWindow" aria-hidden="true"></div>
+                <div class="nav-crosshair" aria-hidden="true"></div>
+              </div>
+              <div class="nav-actions">
+                <button class="nav-btn" type="button" id="resetViewBtn">Re-center</button>
               </div>
             </div>
           </div>
@@ -2397,12 +2470,11 @@ $aiSetupNotes = [
       const boardScaleEl = document.getElementById('boardScale');
       const boardFrameEl = document.getElementById('boardFrame');
       const boardChromeEl = document.getElementById('boardChrome');
-      const boardToolbar = document.getElementById('boardToolbar');
-      const boardControlsToggle = document.getElementById('boardControlsToggle');
-      const zoomInBtn = document.getElementById('zoomInBtn');
-      const zoomOutBtn = document.getElementById('zoomOutBtn');
-      const fitBoardBtn = document.getElementById('fitBoardBtn');
-      const centerBoardBtn = document.getElementById('centerBoardBtn');
+      const zoomDial = document.getElementById('zoomDial');
+      const zoomValue = document.getElementById('zoomValue');
+      const navMini = document.getElementById('navMini');
+      const navWindow = document.getElementById('navWindow');
+      const resetViewBtn = document.getElementById('resetViewBtn');
       const rackHelpBtn = document.getElementById('rackHelp');
       const rackHelpTip = document.getElementById('rackHelpTip');
       const controlBar = document.getElementById('controlBar');
@@ -2455,18 +2527,23 @@ $aiSetupNotes = [
       let aiRevealTimeout;
       let aiAudioInterval;
       let audioCtx;
-      let baseScale = 1;
-      let userZoom = 1;
-      let zoomTarget = 1;
-      let zoomPivot = null;
+      const camera = {
+        scale: 1,
+        targetScale: 1,
+        minScale: 0.65,
+        maxScale: 2.6,
+        offsetX: 0,
+        offsetY: 0,
+        isPanning: false,
+        pointerId: null,
+        spaceHeld: false,
+        start: { x: 0, y: 0, offsetX: 0, offsetY: 0 },
+      };
       let zoomAnimationFrame = null;
+      let zoomPivot = null;
       let pinchDistance = null;
-      let dockInsets = { top: 0, bottom: 0 };
-      let canvasPadding = { x: 24, top: 24, bottom: 24 };
-      let isDraggingViewport = false;
+      let navPointerId = null;
       let isTileDragActive = false;
-      let dragOrigin = { x: 0, y: 0, scrollX: 0, scrollY: 0 };
-      let lastScale = 1;
       let touchDragTileId = null;
       let touchDragLastPosition = null;
       let startModalShown = false;
@@ -2779,6 +2856,7 @@ $aiSetupNotes = [
         }, 620);
       };
 
+
       const measureBoardRect = () => {
         if (!boardChromeEl || !boardScaleEl) return { width: 0, height: 0 };
         const previousTransform = boardScaleEl.style.transform;
@@ -2788,341 +2866,154 @@ $aiSetupNotes = [
         return rect;
       };
 
-      const getBasePadding = () => {
-        const target = boardViewport || boardCanvas;
-        if (!target) return 24;
-        const rect = target.getBoundingClientRect();
-        const shortestSide = Math.max(1, Math.min(rect.width, rect.height));
-        return clamp(shortestSide * 0.05, 18, 120);
-      };
-
-      const computeCanvasPadding = (
-        viewportRect,
-        boardWidth,
-        boardHeight,
-        { topInset = dockInsets.top || 0, bottomInset = dockInsets.bottom || 0, scale = getFinalScale() } = {},
-      ) => {
-        const basePadding = getBasePadding();
-        if (!viewportRect?.width || !viewportRect?.height) {
-          return {
-            x: basePadding,
-            top: basePadding + Math.max(0, topInset * 0.5),
-            bottom: basePadding + Math.max(0, bottomInset * 0.35),
-          };
-        }
-
-        const zoomFactor = Math.max(1, scale / (baseScale || 1));
-        const scaledWidth = Math.max(0, boardWidth * scale);
-        const scaledHeight = Math.max(0, boardHeight * scale);
-        const overflowX = Math.max(0, scaledWidth - viewportRect.width);
-        const overflowY = Math.max(0, scaledHeight - viewportRect.height);
-        const scalePadX = Math.max(0, (scaledWidth - boardWidth) / 2);
-        const scalePadY = Math.max(0, (scaledHeight - boardHeight) / 2);
-        const panAllowance = Math.max(0, zoomFactor - 1);
-        const panBoostX = (viewportRect.width || 0) * 0.35 * panAllowance;
-        const panBoostY = (viewportRect.height || 0) * 0.35 * panAllowance;
-
-        const viewportReserveX = (viewportRect.width || 0) * 0.25;
-        const viewportReserveY = (viewportRect.height || 0) * 0.25;
-
-        const padXCandidate = Math.max(
-          basePadding,
-          scalePadX + panBoostX,
-          overflowX * 0.6 + basePadding,
-          viewportReserveX,
-        );
-        const padYCandidate = Math.max(
-          basePadding,
-          scalePadY + panBoostY,
-          overflowY * 0.6 + basePadding,
-          viewportReserveY,
-        );
-
-        const maxPadX = Math.max(viewportRect.width * 0.6, scaledWidth * 0.9);
-        const maxPadY = Math.max(viewportRect.height * 0.6, scaledHeight * 0.9);
-
-        const padX = Math.min(padXCandidate, maxPadX);
-        const padY = Math.min(padYCandidate, maxPadY);
-
-        const topPad = padY + Math.max(0, topInset * 0.5);
-        const bottomPad = padY + Math.max(0, bottomInset * 0.35);
-        return {
-          x: Number.isFinite(padX) ? Math.max(12, padX) : basePadding,
-          top: Number.isFinite(topPad) ? Math.max(12, topPad) : basePadding,
-          bottom: Number.isFinite(bottomPad) ? Math.max(12, bottomPad) : basePadding,
-        };
-      };
-
-      const measureBoardCenter = () => {
-        if (!boardScaleEl || !boardChromeEl || !boardViewport) {
-          return { x: 0, y: 0, width: 0, height: 0 };
-        }
-
-        const previousTransform = boardScaleEl.style.transform;
-        boardScaleEl.style.transform = 'none';
-
-        const boardRect = boardChromeEl.getBoundingClientRect();
-        const scaleRect = boardScaleEl.getBoundingClientRect();
-        const centerCell = boardChromeEl.querySelector('[data-center="true"]');
-
-        const offsetX = boardRect.left - scaleRect.left;
-        const offsetY = boardRect.top - scaleRect.top;
-
-        let x = offsetX + boardRect.width / 2;
-        let y = offsetY + boardRect.height / 2;
-
-        if (centerCell instanceof HTMLElement) {
-          const cellRect = centerCell.getBoundingClientRect();
-          x = offsetX + cellRect.left - boardRect.left + cellRect.width / 2;
-          y = offsetY + cellRect.top - boardRect.top + cellRect.height / 2;
-        }
-
-        boardScaleEl.style.transform = previousTransform;
-
-        return { x, y, width: boardRect.width, height: boardRect.height };
-      };
-
-      const getZoomBounds = () => {
-        const MIN_ZOOM = Math.max(0.2, (baseScale || 1) * 0.35);
-        const MAX_ZOOM = Math.max(2.5, (baseScale || 1) * 3);
-        return { MIN_ZOOM, MAX_ZOOM };
-      };
-
-      const getFinalScale = () => {
-        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
-        return clamp(baseScale * userZoom, MIN_ZOOM, MAX_ZOOM);
-      };
-
-      const applyBoardTransform = (scale = getFinalScale(), viewportRect = null) => {
-        if (!boardScaleEl || !boardCanvas || !boardFrameEl) return null;
-        const boardRect = measureBoardRect();
-        const targetViewport = viewportRect || boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
-
-        const scaledWidth = Math.max(0, boardRect.width * scale);
-        const scaledHeight = Math.max(0, boardRect.height * scale);
-
-        canvasPadding = computeCanvasPadding(targetViewport, boardRect.width, boardRect.height, {
-          topInset: dockInsets.top,
-          bottomInset: dockInsets.bottom,
-          scale,
-        });
-        boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
-
-        boardFrameEl.style.width = `${boardRect.width}px`;
-        boardFrameEl.style.height = `${boardRect.height}px`;
-
-        lastScale = scale;
-        boardScaleEl.style.transform = `scale(${scale})`;
-
-        return { viewportRect: targetViewport, boardRect, scaledWidth, scaledHeight };
-      };
-
-      const getContentBounds = (scale = getFinalScale()) => {
-        if (!boardCanvas) return { maxLeft: 0, maxTop: 0 };
-        const viewportWidth = boardCanvas?.clientWidth || 0;
-        const viewportHeight = boardCanvas?.clientHeight || 0;
-        const boardRect = measureBoardRect();
-        const padX = canvasPadding.x || 0;
-        const padTop = canvasPadding.top || 0;
-        const padBottom = canvasPadding.bottom || 0;
-        const scaledWidth = Math.max(0, boardRect.width * scale);
-        const scaledHeight = Math.max(0, boardRect.height * scale);
-        const width = scaledWidth + padX * 2;
-        const height = scaledHeight + padTop + padBottom;
-
-        return {
-          maxLeft: Math.max(0, width - viewportWidth),
-          maxTop: Math.max(0, height - viewportHeight),
-        };
-      };
-
-      const clampScrollToContent = (scale = getFinalScale()) => {
-        if (!boardCanvas) return;
-        const bounds = getContentBounds(scale);
-        boardCanvas.scrollLeft = clamp(boardCanvas.scrollLeft, 0, bounds.maxLeft);
-        boardCanvas.scrollTop = clamp(boardCanvas.scrollTop, 0, bounds.maxTop);
-      };
-
-      const centerBoard = () => {
-        if (!boardCanvas || !boardScaleEl) return;
-        const finalScale = getFinalScale();
-        const layout = applyBoardTransform(finalScale);
-        const viewportRect = layout?.viewportRect || boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
-        const { x, y, width, height } = measureBoardCenter();
-        const scaledRect = boardScaleEl.getBoundingClientRect();
-        const scaledWidth = Math.max(0, width * finalScale || scaledRect.width);
-        const scaledHeight = Math.max(0, height * finalScale || scaledRect.height);
-
-        const padX = canvasPadding.x || 0;
-        const padTop = canvasPadding.top || 0;
-        const padBottom = canvasPadding.bottom || 0;
-
-        let targetLeft = Math.max(0, (scaledWidth + padX * 2 - viewportRect.width) / 2);
-        let targetTop = Math.max(0, (scaledHeight + padTop + padBottom - viewportRect.height) / 2);
-
-        if (width > 0 && height > 0) {
-          const scaledX = x * finalScale;
-          const scaledY = y * finalScale;
-          targetLeft = Math.max(0, padX + scaledX - viewportRect.width / 2);
-          targetTop = Math.max(0, padTop + scaledY - viewportRect.height / 2);
-        }
-
-        boardCanvas.scrollLeft = targetLeft;
-        boardCanvas.scrollTop = targetTop;
-        clampScrollToContent(finalScale);
-      };
-
-      const syncDockHeights = () => {
-        const topDock = document.querySelector('.hud-dock');
-        const bottomDock = document.querySelector('.turn-dock');
-        const topHeight = topDock?.getBoundingClientRect().height || 0;
-        const bottomHeight = bottomDock?.getBoundingClientRect().height || 0;
-        const rootStyle = document.documentElement.style;
-        rootStyle.setProperty('--top-dock-height', `${topHeight}px`);
-        rootStyle.setProperty('--bottom-dock-height', `${bottomHeight}px`);
-        dockInsets = { top: topHeight, bottom: bottomHeight };
-        return { topHeight, bottomHeight };
-      };
-
-      const resizeBoardToViewport = ({ resetView = false } = {}) => {
-        if (!boardViewport || !boardCanvas || !boardScaleEl || !boardChromeEl || !boardFrameEl) return;
-        const { topHeight, bottomHeight } = syncDockHeights();
-        const availableHeight = Math.max(360, window.innerHeight - topHeight - bottomHeight);
-
-        boardViewport.style.height = `${availableHeight}px`;
-
-        const viewportRect = (boardViewport || boardCanvas).getBoundingClientRect();
-        const boardRect = measureBoardRect();
-        const basePadding = getBasePadding();
-
-        const provisionalHeightScale = boardRect.height ? (viewportRect.height - basePadding * 2) / boardRect.height : 1;
-        const provisionalWidthScale = boardRect.width ? (viewportRect.width - basePadding * 2) / boardRect.width : 1;
-        const draftScale = Math.min(provisionalHeightScale, provisionalWidthScale);
-        const safeDraftScale = Number.isFinite(draftScale) && draftScale > 0 ? draftScale : 1;
-
-        canvasPadding = computeCanvasPadding(viewportRect, boardRect.width, boardRect.height, {
-          topInset: topHeight,
-          bottomInset: bottomHeight,
-          scale: safeDraftScale,
-        });
-        boardCanvas.style.padding = `${canvasPadding.top}px ${canvasPadding.x}px ${canvasPadding.bottom}px`;
-
-        const prevScale = lastScale || getFinalScale();
-        const heightScale = boardRect.height ? (viewportRect.height - canvasPadding.top - canvasPadding.bottom) / boardRect.height : 1;
-        const widthScale = boardRect.width ? (viewportRect.width - canvasPadding.x * 2) / boardRect.width : 1;
-
-        baseScale = Math.min(heightScale, widthScale);
-        if (!Number.isFinite(baseScale) || baseScale <= 0) { baseScale = 1; }
-
-        if (resetView) {
-          userZoom = 1;
-          zoomTarget = userZoom;
-          zoomPivot = null;
-          const finalScale = getFinalScale();
-          applyBoardTransform(finalScale, viewportRect);
-          centerBoard();
-        } else {
-          const nextScale = getFinalScale();
-          const centerX = (boardCanvas.scrollLeft + viewportRect.width / 2 - (canvasPadding.x || 0)) / prevScale;
-          const centerY = (boardCanvas.scrollTop + viewportRect.height / 2 - (canvasPadding.top || 0)) / prevScale;
-          applyBoardTransform(nextScale, viewportRect);
-          boardCanvas.scrollLeft = Math.max(0, centerX * nextScale + (canvasPadding.x || 0) - viewportRect.width / 2);
-          boardCanvas.scrollTop = Math.max(0, centerY * nextScale + (canvasPadding.top || 0) - viewportRect.height / 2);
-        }
-
-        clampScrollToContent(getFinalScale());
-        zoomTarget = userZoom;
-      };
-
-      const applyZoomValue = (nextZoom, pivot = null) => {
-        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
-        const minFactor = MIN_ZOOM / (baseScale || 1);
-        const maxFactor = MAX_ZOOM / (baseScale || 1);
-        const prevScale = getFinalScale();
-        const clampedZoom = clamp(nextZoom, minFactor, maxFactor);
-        const currentPadding = { ...canvasPadding };
-        userZoom = clampedZoom;
-        if (boardCanvas) {
-          const viewportRect = boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
-          const pivotPoint = pivot || { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 };
-          const pivotX = pivotPoint.x - viewportRect.left;
-          const pivotY = pivotPoint.y - viewportRect.top;
-          const contentX = (boardCanvas.scrollLeft + pivotX - (currentPadding.x || 0)) / prevScale;
-          const contentY = (boardCanvas.scrollTop + pivotY - (currentPadding.top || 0)) / prevScale;
-
-          const nextScale = getFinalScale();
-          applyBoardTransform(nextScale, viewportRect);
-          const padX = canvasPadding.x || 0;
-          const padY = canvasPadding.top || 0;
-          boardCanvas.scrollLeft = Math.max(0, contentX * nextScale + padX - pivotX);
-          boardCanvas.scrollTop = Math.max(0, contentY * nextScale + padY - pivotY);
-          clampScrollToContent(nextScale);
-        } else {
-          applyBoardTransform();
-        }
-      };
-
-      const animateZoom = () => {
-        const pivotPoint = zoomPivot || viewportCenter();
-        const diff = zoomTarget - userZoom;
-        if (Math.abs(diff) < 0.002) {
-          applyZoomValue(zoomTarget, pivotPoint);
-          zoomAnimationFrame = null;
-          return;
-        }
-        applyZoomValue(userZoom + diff * 0.2, pivotPoint);
-        zoomAnimationFrame = requestAnimationFrame(animateZoom);
-      };
-
-      const adjustZoom = (factor, pivot = null) => {
-        if (isTileDragActive) return;
-        const { MIN_ZOOM, MAX_ZOOM } = getZoomBounds();
-        const minFactor = MIN_ZOOM / (baseScale || 1);
-        const maxFactor = MAX_ZOOM / (baseScale || 1);
-        zoomTarget = clamp(userZoom * factor, minFactor, maxFactor);
-        zoomPivot = pivot || viewportCenter();
-        if (!zoomAnimationFrame) {
-          zoomAnimationFrame = requestAnimationFrame(animateZoom);
-        }
-      };
-
-      let pendingResizeReset = false;
-      const scheduleResizeAndCenter = (resetView = false) => {
-        if (pendingResizeReset) return;
-        pendingResizeReset = true;
-        requestAnimationFrame(() => {
-          pendingResizeReset = false;
-          resizeBoardToViewport({ resetView });
-        });
-      };
-
-      const fitBoard = () => {
-        resizeBoardToViewport({ resetView: true });
-      };
-
-      const toggleBoardControls = () => {
-        if (!boardToolbar || !boardControlsToggle) return;
-        const collapsed = boardToolbar.classList.toggle('collapsed');
-        boardControlsToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-        boardControlsToggle.textContent = collapsed ? 'Show view tools' : 'Hide view tools';
-      };
-
       const viewportCenter = () => {
         if (!boardCanvas) return null;
         const rect = boardViewport?.getBoundingClientRect() || boardCanvas.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
       };
 
+      const updateZoomUi = () => {
+        if (zoomDial) zoomDial.value = camera.scale.toFixed(2);
+        if (zoomValue) zoomValue.textContent = `${Math.round(camera.scale * 100)}%`;
+      };
+
+      const clampOffsets = () => {
+        if (!boardCanvas) return;
+        const viewportRect = boardCanvas.getBoundingClientRect();
+        const boardRect = measureBoardRect();
+        const scaledWidth = boardRect.width * camera.scale;
+        const scaledHeight = boardRect.height * camera.scale;
+        const slack = 48;
+        const maxX = Math.max(0, scaledWidth / 2 - viewportRect.width / 2 + slack);
+        const maxY = Math.max(0, scaledHeight / 2 - viewportRect.height / 2 + slack);
+        camera.offsetX = clamp(camera.offsetX, -maxX, maxX);
+        camera.offsetY = clamp(camera.offsetY, -maxY, maxY);
+      };
+
+      const updateNavigator = () => {
+        if (!navMini || !navWindow || !boardCanvas || !boardChromeEl) return;
+        const navRect = navMini.getBoundingClientRect();
+        const boardRect = boardChromeEl.getBoundingClientRect();
+        const viewportRect = boardCanvas.getBoundingClientRect();
+        if (!navRect.width || !boardRect.width) return;
+
+        const viewWidthRatio = clamp(viewportRect.width / boardRect.width, 0.08, 1);
+        const viewHeightRatio = clamp(viewportRect.height / boardRect.height, 0.08, 1);
+        const leftRatio = clamp((viewportRect.left - boardRect.left) / boardRect.width, 0, 1 - viewWidthRatio);
+        const topRatio = clamp((viewportRect.top - boardRect.top) / boardRect.height, 0, 1 - viewHeightRatio);
+
+        const windowWidth = navRect.width * viewWidthRatio;
+        const windowHeight = navRect.height * viewHeightRatio;
+        const windowLeft = navRect.width * leftRatio;
+        const windowTop = navRect.height * topRatio;
+
+        navWindow.style.width = `${windowWidth}px`;
+        navWindow.style.height = `${windowHeight}px`;
+        navWindow.style.transform = `translate(${windowLeft}px, ${windowTop}px)`;
+      };
+
+      const renderCamera = () => {
+        if (!boardScaleEl) return;
+        boardScaleEl.style.transform = `translate3d(${camera.offsetX}px, ${camera.offsetY}px, 0) scale(${camera.scale})`;
+        updateNavigator();
+      };
+
+      const computeFitScale = () => {
+        if (!boardCanvas) return 1;
+        const boardRect = measureBoardRect();
+        const viewportRect = boardCanvas.getBoundingClientRect();
+        if (!boardRect.width || !viewportRect.width) return 1;
+        const padding = 48;
+        const widthScale = (viewportRect.width - padding) / boardRect.width;
+        const heightScale = (viewportRect.height - padding) / boardRect.height;
+        return clamp(Math.min(widthScale, heightScale), 0.45, 3.2);
+      };
+
+      const recalcScaleBounds = () => {
+        const fit = computeFitScale();
+        camera.minScale = Math.max(0.55, fit * 0.72);
+        camera.maxScale = Math.max(2.6, fit * 2.4);
+        return fit;
+      };
+
+      const resetCamera = (preserveScale = false) => {
+        const fit = recalcScaleBounds();
+        if (!preserveScale) {
+          camera.scale = fit;
+          camera.targetScale = fit;
+        } else {
+          camera.scale = clamp(camera.scale, camera.minScale, camera.maxScale);
+          camera.targetScale = camera.scale;
+        }
+        camera.offsetX = 0;
+        camera.offsetY = 0;
+        clampOffsets();
+        renderCamera();
+        updateZoomUi();
+      };
+
+      const reflowCamera = (preserveOffset = true) => {
+        const previousOffset = { x: camera.offsetX, y: camera.offsetY };
+        const fit = recalcScaleBounds();
+        camera.scale = clamp(camera.scale, camera.minScale, camera.maxScale);
+        camera.targetScale = camera.scale;
+        if (!preserveOffset) {
+          camera.offsetX = 0;
+          camera.offsetY = 0;
+        } else {
+          camera.offsetX = previousOffset.x;
+          camera.offsetY = previousOffset.y;
+        }
+        clampOffsets();
+        if (camera.scale < camera.minScale) {
+          camera.scale = fit;
+          camera.targetScale = fit;
+        }
+        renderCamera();
+        updateZoomUi();
+      };
+
+      const applyScale = (nextScale, pivot = null) => {
+        const prevScale = camera.scale || 1;
+        const clamped = clamp(nextScale, camera.minScale, camera.maxScale);
+        const viewport = boardCanvas?.getBoundingClientRect();
+        if (pivot && viewport) {
+          camera.offsetX += (pivot.x - (viewport.left + viewport.width / 2)) * (1 - clamped / prevScale);
+          camera.offsetY += (pivot.y - (viewport.top + viewport.height / 2)) * (1 - clamped / prevScale);
+        }
+        camera.scale = clamped;
+        clampOffsets();
+        renderCamera();
+        updateZoomUi();
+      };
+
+      const animateZoom = () => {
+        const pivotPoint = zoomPivot || viewportCenter();
+        const diff = camera.targetScale - camera.scale;
+        if (Math.abs(diff) < 0.002) {
+          applyScale(camera.targetScale, pivotPoint);
+          zoomAnimationFrame = null;
+          return;
+        }
+        applyScale(camera.scale + diff * 0.22, pivotPoint);
+        zoomAnimationFrame = requestAnimationFrame(animateZoom);
+      };
+
+      const requestZoom = (factor, pivot = null) => {
+        const goal = clamp(camera.scale * factor, camera.minScale, camera.maxScale);
+        camera.targetScale = goal;
+        zoomPivot = pivot || viewportCenter();
+        if (!zoomAnimationFrame) {
+          zoomAnimationFrame = requestAnimationFrame(animateZoom);
+        }
+      };
+
       const handleWheelZoom = (event) => {
         if (!boardScaleEl || !boardCanvas || isTileDragActive) return;
-        const isPinchZoom = event.ctrlKey || event.metaKey;
-        const dominantAxisY = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
-        if (!isPinchZoom && !dominantAxisY && !event.shiftKey) return;
         event.preventDefault();
         const delta = -event.deltaY;
-        const intensity = event.deltaMode === 1 ? 0.08 : 0.0022;
-        const factor = Math.exp(delta * intensity);
-        adjustZoom(factor, { x: event.clientX, y: event.clientY });
+        const factor = Math.exp(delta * 0.0018);
+        requestZoom(factor, { x: event.clientX, y: event.clientY });
       };
 
       const touchDistance = (touches) => {
@@ -3136,24 +3027,18 @@ $aiSetupNotes = [
       const handleTouchStart = (event) => {
         if (!boardCanvas || isTileDragActive) return;
         if (event.touches.length === 2) {
-          isDraggingViewport = false;
-          boardCanvas.classList.remove('dragging');
           pinchDistance = touchDistance(event.touches);
           return;
         }
 
         const [touch] = event.touches;
         const target = event.target;
-        if (!touch || (target.closest('.tile') || target.closest('.rack-tile'))) return;
+        if (!touch || target.closest('.tile') || target.closest('.rack-tile')) return;
 
-        isDraggingViewport = true;
-        dragOrigin = {
-          x: touch.clientX,
-          y: touch.clientY,
-          scrollX: boardCanvas.scrollLeft,
-          scrollY: boardCanvas.scrollTop,
-        };
-        boardCanvas.classList.add('dragging');
+        camera.isPanning = true;
+        camera.pointerId = 'touch';
+        camera.start = { x: touch.clientX, y: touch.clientY, offsetX: camera.offsetX, offsetY: camera.offsetY };
+        boardCanvas.classList.add('panning');
       };
 
       const handleTouchMove = (event) => {
@@ -3165,64 +3050,111 @@ $aiSetupNotes = [
           event.preventDefault();
           const newDistance = touchDistance(event.touches);
           if (newDistance > 0) {
-            const factor = newDistance / (pinchDistance || newDistance);
-            const [t1, t2] = event.touches;
-            const pivot = t1 && t2 ? { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 } : null;
-            adjustZoom(factor, pivot);
+           const factor = newDistance / (pinchDistance || newDistance);
+           const [t1, t2] = event.touches;
+           const pivot = t1 && t2 ? { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 } : null;
+            applyScale(camera.scale * factor, pivot || viewportCenter());
+            camera.targetScale = camera.scale;
             pinchDistance = newDistance;
           }
           return;
         }
 
-        if (!isDraggingViewport || !event.touches.length) return;
+        if (!camera.isPanning || !event.touches.length) return;
         const [touch] = event.touches;
         if (!touch) return;
         event.preventDefault();
-        const dx = touch.clientX - dragOrigin.x;
-        const dy = touch.clientY - dragOrigin.y;
-        const bounds = getContentBounds();
-        boardCanvas.scrollLeft = clamp(dragOrigin.scrollX - dx, 0, bounds.maxLeft);
-        boardCanvas.scrollTop = clamp(dragOrigin.scrollY - dy, 0, bounds.maxTop);
+        camera.offsetX = camera.start.offsetX + (touch.clientX - camera.start.x);
+        camera.offsetY = camera.start.offsetY + (touch.clientY - camera.start.y);
+        clampOffsets();
+        renderCamera();
       };
 
       const handleTouchEnd = () => {
-        if (pinchDistance !== null) {
-          pinchDistance = null;
-        }
-
-        if (isDraggingViewport) {
-          endBoardPan();
+        pinchDistance = null;
+        if (camera.isPanning) {
+          camera.isPanning = false;
+          camera.pointerId = null;
+          boardCanvas?.classList.remove('panning');
         }
       };
 
-      const startBoardPan = (event) => {
-        if (!boardCanvas || event.button !== 0 || isTileDragActive) return;
+      const beginBoardPan = (event) => {
+        if (!boardCanvas || isTileDragActive) return;
         const target = event.target;
+        if (!camera.spaceHeld && event.button !== 1) return;
         if (target.closest('.tile') || target.closest('.rack-tile')) return;
         event.preventDefault();
-        isDraggingViewport = true;
-        dragOrigin = {
-          x: event.clientX,
-          y: event.clientY,
-          scrollX: boardCanvas.scrollLeft,
-          scrollY: boardCanvas.scrollTop,
-        };
-        boardCanvas.classList.add('dragging');
+        camera.isPanning = true;
+        camera.pointerId = event.pointerId;
+        camera.start = { x: event.clientX, y: event.clientY, offsetX: camera.offsetX, offsetY: camera.offsetY };
+        boardCanvas.setPointerCapture(event.pointerId);
+        boardCanvas.classList.add('panning');
       };
 
-      const continueBoardPan = (event) => {
-        if (!isDraggingViewport) return;
-        const dx = event.clientX - dragOrigin.x;
-        const dy = event.clientY - dragOrigin.y;
-        const bounds = getContentBounds();
-        boardCanvas.scrollLeft = clamp(dragOrigin.scrollX - dx, 0, bounds.maxLeft);
-        boardCanvas.scrollTop = clamp(dragOrigin.scrollY - dy, 0, bounds.maxTop);
+      const moveBoardPan = (event) => {
+        if (!camera.isPanning || event.pointerId !== camera.pointerId) return;
+        camera.offsetX = camera.start.offsetX + (event.clientX - camera.start.x);
+        camera.offsetY = camera.start.offsetY + (event.clientY - camera.start.y);
+        clampOffsets();
+        renderCamera();
       };
 
-      const endBoardPan = () => {
-        if (!isDraggingViewport) return;
-        isDraggingViewport = false;
-        boardCanvas.classList.remove('dragging');
+      const endBoardPan = (event) => {
+        if (event && camera.pointerId && event.pointerId !== camera.pointerId) return;
+        camera.isPanning = false;
+        camera.pointerId = null;
+        boardCanvas?.classList.remove('panning');
+      };
+
+      const jumpToNavigator = (clientX, clientY) => {
+        if (!navMini || !boardCanvas) return;
+        const navRect = navMini.getBoundingClientRect();
+        const normX = clamp((clientX - navRect.left) / navRect.width, 0, 1);
+        const normY = clamp((clientY - navRect.top) / navRect.height, 0, 1);
+        const boardRect = measureBoardRect();
+        const viewportRect = boardCanvas.getBoundingClientRect();
+        const scaledWidth = boardRect.width * camera.scale;
+        const scaledHeight = boardRect.height * camera.scale;
+        const viewLeft = clamp(normX * scaledWidth - viewportRect.width / 2, 0, Math.max(0, scaledWidth - viewportRect.width));
+        const viewTop = clamp(normY * scaledHeight - viewportRect.height / 2, 0, Math.max(0, scaledHeight - viewportRect.height));
+        camera.offsetX = scaledWidth / 2 - viewportRect.width / 2 - viewLeft;
+        camera.offsetY = scaledHeight / 2 - viewportRect.height / 2 - viewTop;
+        clampOffsets();
+        renderCamera();
+      };
+
+      const handleNavPointer = (event) => {
+        if (!navMini) return;
+        navPointerId = event.pointerId;
+        navMini.setPointerCapture(event.pointerId);
+        jumpToNavigator(event.clientX, event.clientY);
+      };
+
+      const handleNavMove = (event) => {
+        if (!navMini || navPointerId !== event.pointerId) return;
+        jumpToNavigator(event.clientX, event.clientY);
+      };
+
+      const handleNavRelease = (event) => {
+        if (!navMini || navPointerId === null) return;
+        if (event && typeof event.pointerId !== 'undefined' && navPointerId !== event.pointerId) return;
+        try {
+          navMini.releasePointerCapture(navPointerId);
+        } catch (err) {
+          // ignore if capture was lost
+        }
+        navPointerId = null;
+      };
+
+      const setSpacePan = (active) => {
+        camera.spaceHeld = active;
+        if (boardCanvas) {
+          boardCanvas.classList.toggle('pannable', active);
+        }
+        if (!active && camera.isPanning) {
+          endBoardPan({ pointerId: camera.pointerId });
+        }
       };
 
       const buildBag = () => {
@@ -5216,52 +5148,74 @@ $aiSetupNotes = [
         rulesBtn.addEventListener('click', () => closeHudMenu());
       }
 
-      if (boardCanvas) {
-        boardCanvas.addEventListener('wheel', handleWheelZoom, { passive: false });
-        boardCanvas.addEventListener('mousedown', startBoardPan);
-        boardCanvas.addEventListener('mouseleave', endBoardPan);
-        window.addEventListener('mousemove', continueBoardPan);
-        window.addEventListener('mouseup', endBoardPan);
-        boardCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        boardCanvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        boardCanvas.addEventListener('touchend', handleTouchEnd);
-        boardCanvas.addEventListener('touchcancel', handleTouchEnd);
-        boardCanvas.addEventListener('dblclick', (event) => {
-          event.preventDefault();
-          const zoomStep = event.shiftKey ? 0.72 : 1.45;
-          adjustZoom(zoomStep, { x: event.clientX, y: event.clientY });
+        if (boardCanvas) {
+          boardCanvas.addEventListener('wheel', handleWheelZoom, { passive: false });
+          boardCanvas.addEventListener('pointerdown', beginBoardPan);
+          boardCanvas.addEventListener('pointermove', moveBoardPan);
+          boardCanvas.addEventListener('pointerup', endBoardPan);
+          boardCanvas.addEventListener('pointercancel', endBoardPan);
+          boardCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+          boardCanvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+          boardCanvas.addEventListener('touchend', handleTouchEnd);
+          boardCanvas.addEventListener('touchcancel', handleTouchEnd);
+          boardCanvas.addEventListener('dblclick', (event) => {
+            event.preventDefault();
+            const zoomStep = event.shiftKey ? 0.72 : 1.35;
+            requestZoom(zoomStep, { x: event.clientX, y: event.clientY });
+          });
+        }
+
+        if (navMini) {
+          navMini.addEventListener('pointerdown', handleNavPointer);
+          navMini.addEventListener('pointermove', handleNavMove);
+          navMini.addEventListener('pointerup', handleNavRelease);
+          navMini.addEventListener('pointercancel', handleNavRelease);
+          navMini.addEventListener('mouseleave', (event) => handleNavRelease(event));
+        }
+
+        if (zoomDial) {
+          zoomDial.addEventListener('input', (event) => {
+            const value = parseFloat(event.target.value);
+            if (Number.isFinite(value)) {
+              applyScale(value, viewportCenter());
+              camera.targetScale = camera.scale;
+            }
+          });
+        }
+
+        if (resetViewBtn) {
+          resetViewBtn.addEventListener('click', () => resetCamera(false));
+        }
+
+        window.addEventListener('keydown', (event) => {
+          if (event.code === 'Space') {
+            if (!event.repeat) event.preventDefault();
+            setSpacePan(true);
+          }
         });
-      }
-
-      if (boardControlsToggle) {
-        boardControlsToggle.addEventListener('click', (event) => {
-          event.stopPropagation();
-          toggleBoardControls();
+        window.addEventListener('keyup', (event) => {
+          if (event.code === 'Space') {
+            setSpacePan(false);
+          }
         });
-      }
 
-      if (zoomInBtn) zoomInBtn.addEventListener('click', () => adjustZoom(1.12, viewportCenter()));
-      if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(0.9, viewportCenter()));
-      if (centerBoardBtn) centerBoardBtn.addEventListener('click', () => centerBoard());
-      if (fitBoardBtn) fitBoardBtn.addEventListener('click', () => fitBoard());
+        const topDock = document.querySelector('.hud-dock');
+        const bottomDock = document.querySelector('.turn-dock');
+        const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => reflowCamera(true)) : null;
 
-      const topDock = document.querySelector('.hud-dock');
-      const bottomDock = document.querySelector('.turn-dock');
-      const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => scheduleResizeAndCenter(false)) : null;
+        if (layoutObserver) {
+          if (boardViewport) layoutObserver.observe(boardViewport);
+          if (topDock) layoutObserver.observe(topDock);
+          if (bottomDock) layoutObserver.observe(bottomDock);
+        }
 
-      if (layoutObserver) {
-        if (boardViewport) layoutObserver.observe(boardViewport);
-        if (topDock) layoutObserver.observe(topDock);
-        if (bottomDock) layoutObserver.observe(bottomDock);
-      }
+        window.addEventListener('resize', () => reflowCamera(true));
 
-      window.addEventListener('resize', () => scheduleResizeAndCenter(false));
-
-      const bootstrapBoard = () => {
-        renderBoard();
-        applyBoardTransform();
-        fitBoard();
-      };
+        const bootstrapBoard = () => {
+          renderBoard();
+          resetCamera(false);
+          setSpacePan(false);
+        };
 
       if ('requestIdleCallback' in window) {
         requestIdleCallback(() => requestAnimationFrame(bootstrapBoard));
