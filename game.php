@@ -536,6 +536,7 @@ $aiSetupNotes = [
       border-radius: 14px;
       border: 1px solid #cbd5e1;
       width: max-content;
+      max-width: min(100%, 960px);
       margin: 0 auto;
     }
 
@@ -2819,8 +2820,21 @@ $aiSetupNotes = [
         const panBoostX = (viewportRect.width || 0) * 0.5 * panAllowance;
         const panBoostY = (viewportRect.height || 0) * 0.5 * panAllowance;
 
-        const padX = Math.max(basePadding, scalePadX + panBoostX, overflowX * 0.5 + basePadding * 0.6);
-        const padY = Math.max(basePadding, scalePadY + panBoostY, overflowY * 0.5 + basePadding * 0.6);
+        const viewportReserveX = (viewportRect.width || 0) * 0.5;
+        const viewportReserveY = (viewportRect.height || 0) * 0.5;
+
+        const padX = Math.max(
+          basePadding,
+          scalePadX + panBoostX,
+          overflowX * 0.5 + basePadding * 0.6,
+          viewportReserveX,
+        );
+        const padY = Math.max(
+          basePadding,
+          scalePadY + panBoostY,
+          overflowY * 0.5 + basePadding * 0.6,
+          viewportReserveY,
+        );
 
         const topPad = padY + Math.max(0, topInset * 0.5);
         const bottomPad = padY + Math.max(0, bottomInset * 0.35);
